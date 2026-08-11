@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import Header from './components/Header'
 import Footer from './components/Footer'
@@ -17,31 +17,41 @@ import { syncWilayas } from './services/api/wilayas'
 import { syncSettings } from './services/api/settings'
 import { syncDomains } from './services/api/domains'
 
+// حارس حماية لوحة التحكم عبر الرابط السري
+function AdminGuard() {
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+  const hasSecret = searchParams.get('admin') === 'true'
+
+  if (hasSecret) {
+    sessionStorage.setItem('lumiere_admin_auth', 'true')
+  }
+
+  const isAuth = sessionStorage.getItem('lumiere_admin_auth') === 'true' || hasSecret
+
+  if (!isAuth) {
+    return <Navigate to="/" replace />
+  }
+
+  return <Admin />
+}
+
 export default function App(){
   useEffect(()=>{
-    // Set document language + direction first (used by everything else)
     document.documentElement.lang='ar'
     document.documentElement.dir='rtl'
 
-    // Kick off the API syncs in parallel — the UI renders from the
-    // in-memory cache (which is pre-populated with seed data) and
-    // will refresh automatically once the API responds.
     void syncProducts()
     void syncWilayas()
     void syncSettings()
     void syncDomains()
 
-    // Keep the legacy ensure* function for backwards-compat (no-op now)
     ensureProducts()
   },[])
   return (
     <CartProvider>
       <WishlistProvider>
         <BrowserRouter>
-          {/* ScrollToTop MUST be inside BrowserRouter so it can use useLocation.
-              Previously it was defined but never mounted — meaning route changes
-              preserved the previous scroll position (e.g. clicking a category
-              from the bottom of the home page opened /shop at the bottom). */}
           <ScrollToTop/>
           <div className="min-h-screen bg-[#FFFCF8] flex flex-col">
             <Header/>
@@ -53,7 +63,7 @@ export default function App(){
                 <Route path="/cart" element={<Cart/>} />
                 <Route path="/wishlist" element={<Wishlist/>} />
                 <Route path="/thank-you/:orderNumber" element={<ThankYou/>} />
-                <Route path="/admin" element={<Admin/>} />
+                <Route path="/admin" element={<AdminGuard/>} />
               </Routes>
             </main>
             <Footer/>
@@ -63,3 +73,4 @@ export default function App(){
     </CartProvider>
   )
 }
+
