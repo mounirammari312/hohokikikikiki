@@ -1,3 +1,4 @@
+
 {
   "rewrites": [
     {
@@ -5,9 +6,8 @@
       "destination": "/api/index.ts"
     },
     {
-      "source": "/:path*",
+      "source": "/((?!api/.*).*)",
       "destination": "/index.html"
     }
   ]
 }
-
