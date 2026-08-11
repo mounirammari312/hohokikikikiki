@@ -1,11 +1,21 @@
 import { useParams, Link } from 'react-router-dom'
 import { CheckCircle, Truck, Phone, Gift, ArrowLeft } from 'lucide-react'
-import { getOrders } from '../services/api/orders'
+import { getOrder } from '../services/api/orders'
 import { formatDZD } from '../lib/utils'
+import { useEffect, useState } from 'react'
+import type { Order } from '../services/api/types'
 
 export default function ThankYou(){
   const {orderNumber}=useParams()
-  const order = getOrders().find(o=>o.orderNumber===orderNumber)
+  const [order, setOrder] = useState<Order | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(()=>{
+    if(!orderNumber){ setLoading(false); return }
+    getOrder(orderNumber).then(o => { setOrder(o || null); setLoading(false) }).catch(()=> setLoading(false))
+  }, [orderNumber])
+
+  if(loading) return <div className="max-w-[640px] mx-auto px-4 py-16 text-center text-[#9A8A6B]">جاري تحميل الطلب…</div>
   if(!order) return <div className="max-w-[640px] mx-auto px-4 py-16 text-center">الطلب غير موجود <Link to="/" className="text-[#C9A96A] underline">الرئيسية</Link></div>
   return (
     <div className="bg-[#FFFCF8] min-h-screen py-8">

@@ -1,22 +1,55 @@
-import { STORAGE_KEYS, load, save } from './db'
-import type { WilayaRate } from './types'
-import { seedWilayas } from './seed'
+/**
+ * Wilayas service.
+ *
+ * Sync API reads from an in-memory cache kept fresh by syncWilayas().
+ * Mutations go through the async `*Api` helpers in ./client.
+ */
 
-export function ensureWilayas(): WilayaRate[]{
-  const existing = load<WilayaRate[] | null>(STORAGE_KEYS.WILAYAS, null)
-  if(existing && existing.length) return existing
-  save(STORAGE_KEYS.WILAYAS, seedWilayas)
-  return seedWilayas
+import { seedWilayas } from './seed'
+import type { WilayaRate } from './types'
+import { fetchWilayas, updateWilayaRateApi, addWilayaApi } from './client'
+
+let cache: WilayaRate[] = [...seedWilayas] as WilayaRate[]
+let loaded = false
+
+export async function syncWilayas(): Promise<WilayaRate[]> {
+  try {
+    const list = await fetchWilayas()
+    cache = list.length ? list : cache
+    loaded = true
+    return cache
+  } catch {
+    loaded = true
+    return cache
+  }
 }
-export function getWilayas(): WilayaRate[]{ return ensureWilayas() }
-export function getWilayaByCode(code:string){ return getWilayas().find(w=>w.code===code) }
-export function getWilayaByNameAr(nameAr:string){ return getWilayas().find(w=>w.nameAr===nameAr)}
-export function updateWilayaRate(code:string, data: Partial<WilayaRate>){
-  const list = getWilayas()
-  const idx = list.findIndex(w=>w.code===code)
-  if(idx>=0){ list[idx] = {...list[idx], ...data} as WilayaRate; save(STORAGE_KEYS.WILAYAS, list)}
+
+export function ensureWilayas(): WilayaRate[] {
+  // Kick off the sync if not started yet (best-effort)
+  if (!loaded) void syncWilayas()
+  return cache
+}
+
+export function getWilayas(): WilayaRate[] {
+  return ensureWilayas()
+}
+
+export function getWilayaByCode(code: string): WilayaRate | undefined {
+  return getWilayas().find(w => w.code === code)
+}
+
+export function getWilayaByNameAr(nameAr: string): WilayaRate | undefined {
+  return getWilayas().find(w => w.nameAr === nameAr)
+}
+
+export async function updateWilayaRate(code: string, data: Partial<WilayaRate>): Promise<WilayaRate[]> {
+  const list = await updateWilayaRateApi(code, data)
+  cache = list
   return list
 }
-export function addWilaya(w: WilayaRate){
-  const list = getWilayas(); list.push(w); save(STORAGE_KEYS.WILAYAS, list); return list
+
+export async function addWilaya(w: WilayaRate): Promise<WilayaRate[]> {
+  const list = await addWilayaApi(w)
+  cache = list
+  return list
 }

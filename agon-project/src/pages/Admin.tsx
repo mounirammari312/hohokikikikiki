@@ -112,8 +112,8 @@ export default function Admin() {
     setProducts([...getProducts()])
   }
 
-  const handleActivateDomain = (id:string)=>{
-    const d = setActiveDomain(id)
+  const handleActivateDomain = async (id:string)=>{
+    const d = await setActiveDomain(id)
     if(d){
       refreshAll()
       showToast(`تم التحويل إلى مجال ${d.nameAr} — المتجر تحدّث فوراً ✨`)
@@ -138,7 +138,7 @@ export default function Admin() {
     setDomainForm({...d, categories: d.categories.map(c=>({...c})), attributeSchema: d.attributeSchema.map(a=>({...a, options: a.options? [...a.options]: undefined})), variantConfig: {...d.variantConfig, sizeOptions:[...d.variantConfig.sizeOptions], colorPresets: d.variantConfig.colorPresets.map(c=>({...c}))}})
     setShowDomainModal(true)
   }
-  const handleSaveDomain = ()=>{
+  const handleSaveDomain = async ()=>{
     if(!domainForm.nameAr.trim() || !domainForm.name.trim()){ showToast('أدخل اسم المجال FR والعربي'); return }
     if(domainForm.categories.length===0){ showToast('أضف فئة واحدة على الأقل'); return }
     for(const c of domainForm.categories){ if(!c.key.trim() || !c.labelAr.trim()){ showToast('أكمل بيانات كل فئة (key + الاسم العربي)'); return } }
@@ -150,10 +150,10 @@ export default function Admin() {
     if(new Set(aKeys).size !== aKeys.length){ showToast('مفاتيح الحقول يجب أن تكون فريدة'); return }
 
     if(editingDomain){
-      updateDomain(editingDomain.id, {...domainForm, name: domainForm.name.trim(), nameAr: domainForm.nameAr.trim()})
+      await updateDomain(editingDomain.id, {...domainForm, name: domainForm.name.trim(), nameAr: domainForm.nameAr.trim()})
       showToast('تم تحديث المجال — إعدادات المنتج تحدثت تلقائياً')
     }else{
-      createCustomDomain({...domainForm, name: domainForm.name.trim(), nameAr: domainForm.nameAr.trim()} as any)
+      await createCustomDomain({...domainForm, name: domainForm.name.trim(), nameAr: domainForm.nameAr.trim()} as any)
       showToast('تم إنشاء مجال جديد — يمكنك تفعيله الآن')
     }
     setShowDomainModal(false)
@@ -197,17 +197,17 @@ export default function Admin() {
     showToast('تم تصدير الطلبات بنجاح')
   }
 
-  const handleStatusChange = (id: string, s: OrderStatus) => {
-    const updated = updateOrderStatus(id, s); setOrders([...updated]); showToast(`تم تحديث الحالة إلى ${statusMap[s].label}`)
+  const handleStatusChange = async (id: string, s: OrderStatus) => {
+    const updated = await updateOrderStatus(id, s); setOrders([...updated]); showToast(`تم تحديث الحالة إلى ${statusMap[s].label}`)
   }
 
-  const handleWilayaSave = (code: string) => {
+  const handleWilayaSave = async (code: string) => {
     const patch = editingWilaya[code]
     if (!patch) return
-    const updated = updateWilayaRate(code, patch); setWilayas([...updated]); setEditingWilaya(prev => { const n = { ...prev }; delete n[code]; return n }); showToast('تم حفظ سعر الشحن')
+    const updated = await updateWilayaRate(code, patch); setWilayas([...updated]); setEditingWilaya(prev => { const n = { ...prev }; delete n[code]; return n }); showToast('تم حفظ سعر الشحن')
   }
 
-  const handleAddWilaya = () => {
+  const handleAddWilaya = async () => {
     if (!newWilaya.code || !newWilaya.nameAr) { showToast('أدخلي كود واسم الولاية'); return }
     const w: WilayaRate = {
       _id: 'w' + newWilaya.code,
@@ -219,7 +219,7 @@ export default function Admin() {
       isActive: true,
       deliveryDays: newWilaya.deliveryDays || '48 ساعة'
     }
-    const updated = addWilaya(w); setWilayas([...updated]); setNewWilaya({ code: '', nameAr: '', name: '', deliveryHome: 600, deliveryDesk: 400, deliveryDays: '48 ساعة' }); showToast('تمت إضافة الولاية')
+    const updated = await addWilaya(w); setWilayas([...updated]); setNewWilaya({ code: '', nameAr: '', name: '', deliveryHome: 600, deliveryDesk: 400, deliveryDays: '48 ساعة' }); showToast('تمت إضافة الولاية')
   }
 
   // Product handlers
@@ -254,7 +254,7 @@ export default function Admin() {
     setProdErrors(e)
     return Object.keys(e).length === 0
   }
-  const handleSaveProduct = () => {
+  const handleSaveProduct = async () => {
     if (!validateProd()) return
     try {
       const cleanImages = prodForm.images.filter(Boolean)
@@ -262,9 +262,9 @@ export default function Admin() {
       // ensure domainId remains
       if(!payload.domainId) payload.domainId = currentDomainForForm.id
       if (editingProd) {
-        const updated = updateProduct(editingProd._id, payload); setProducts([...updated]); showToast('تم تحديث المنتج بنجاح — الإعدادات الخاصة بالمجال محفوظة')
+        const updated = await updateProduct(editingProd._id, payload); setProducts([...updated]); showToast('تم تحديث المنتج بنجاح — الإعدادات الخاصة بالمجال محفوظة')
       } else {
-        addProduct(payload as any); setProducts([...getProducts()]); showToast('تم نشر المنتج في المتجر ✨')
+        await addProduct(payload as any); setProducts([...getProducts()]); showToast('تم نشر المنتج في المتجر ✨')
       }
       setShowProdModal(false)
     } catch (err: any) {
@@ -272,9 +272,9 @@ export default function Admin() {
       else showToast('خطأ في حفظ المنتج')
     }
   }
-  const handleDeleteProduct = (id: string) => {
+  const handleDeleteProduct = async (id: string) => {
     if (!confirm('هل أنت متأكدة من حذف هذا المنتج نهائياً؟')) return
-    const updated = deleteProduct(id); setProducts([...updated]); showToast('تم حذف المنتج')
+    const updated = await deleteProduct(id); setProducts([...updated]); showToast('تم حذف المنتج')
   }
 
   const addVariantRow = ()=>{
@@ -489,10 +489,10 @@ export default function Admin() {
                         <button onClick={()=> openDomainEdit(d)} className="bg-white border border-[#EDE6D8] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#FFFCF8]"><Pencil size={12}/> تعديل</button>
                       </div>
                       <div className="grid grid-cols-3 gap-1.5 mt-2">
-                        <button onClick={()=>{ const c=duplicateDomain(d.id); if(c){ refreshAll(); showToast('تم نسخ المجال') } }} className="bg-white border border-[#EDE6D8] rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1"><Copy size={11}/> نسخ</button>
+                        <button onClick={async ()=>{ const c=await duplicateDomain(d.id); if(c){ refreshAll(); showToast('تم نسخ المجال') } }} className="bg-white border border-[#EDE6D8] rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1"><Copy size={11}/> نسخ</button>
                         <a href="/" target="_blank" className="bg-white border border-[#EDE6D8] rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-[#1A1A1E] hover:text-white"><Eye size={11}/> معاينة</a>
                         {!d.isPreset ? (
-                          <button onClick={()=>{ if(!confirm(`حذف مجال ${d.nameAr}؟`))return; try{ deleteDomain(d.id); refreshAll(); showToast('تم حذف المجال')}catch(e:any){ showToast('لا يمكن حذف مجال جاهز')} }} className="bg-red-50 border border-red-200 text-red-600 rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-red-500 hover:text-white"><Trash2 size={11}/> حذف</button>
+                          <button onClick={async ()=>{ if(!confirm(`حذف مجال ${d.nameAr}؟`))return; try{ await deleteDomain(d.id); refreshAll(); showToast('تم حذف المجال')}catch(e:any){ showToast('لا يمكن حذف مجال جاهز')} }} className="bg-red-50 border border-red-200 text-red-600 rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-red-500 hover:text-white"><Trash2 size={11}/> حذف</button>
                         ) : (
                           <span className="bg-[#F5EFE6] border border-[#EDE6D8] text-[#9A8A6B] rounded-full py-1.5 text-[11px] font-bold text-center">جاهز</span>
                         )}
@@ -618,13 +618,13 @@ export default function Admin() {
 
                     <div className="grid grid-cols-4 gap-1.5 mt-3">
                       <button onClick={() => openEditModal(p)} className="bg-[#1A1A1E] text-white rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-black"><Pencil size={12} /> تعديل</button>
-                      <button onClick={() => { const c = duplicateProduct(p._id); if (c) { setProducts([...getProducts()]); showToast('تم نسخ المنتج') } }} className="bg-white border border-[#EDE6D8] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#FFFCF8]"><Copy size={12} /> نسخ</button>
+                      <button onClick={async () => { const c = await duplicateProduct(p._id); if (c) { setProducts([...getProducts()]); showToast('تم نسخ المنتج') } }} className="bg-white border border-[#EDE6D8] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#FFFCF8]"><Copy size={12} /> نسخ</button>
                       <button onClick={() => handleDeleteProduct(p._id)} className="bg-white border border-red-200 text-red-600 rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-50"><Trash2 size={12} /> حذف</button>
                       <a href={`/product/${p._id}`} target="_blank" className="bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#A02A5B] hover:text-white transition"><Eye size={12} /> عرض</a>
                     </div>
                     <div className="flex gap-1.5 mt-2">
-                      <button onClick={() => { const u = toggleProductFlag(p._id, 'isFeatured'); setProducts([...u]); showToast(p.isFeatured ? 'أزيلت من المميزة' : 'أضيفت للمميزة ⭐') }} className={`flex-1 rounded-full py-1.5 text-[11px] font-bold border flex items-center justify-center gap-1 ${p.isFeatured ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFCF8]'}`}><Crown size={11} /> {p.isFeatured ? 'مميز ✓' : 'تمييز'}</button>
-                      <button onClick={() => { const u = toggleProductFlag(p._id, 'isNew'); setProducts([...u]); showToast(p.isNew ? 'أزيلت شارة جديد' : 'أضيفت شارة جديد') }} className={`flex-1 rounded-full py-1.5 text-[11px] font-bold border ${p.isNew ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8]'}`}><Sparkles size={11} className="inline -mt-0.5" /> {p.isNew ? 'جديد ✓' : 'جديد'}</button>
+                      <button onClick={async () => { const u = await toggleProductFlag(p._id, 'isFeatured'); setProducts([...u]); showToast(p.isFeatured ? 'أزيلت من المميزة' : 'أضيفت للمميزة ⭐') }} className={`flex-1 rounded-full py-1.5 text-[11px] font-bold border flex items-center justify-center gap-1 ${p.isFeatured ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFCF8]'}`}><Crown size={11} /> {p.isFeatured ? 'مميز ✓' : 'تمييز'}</button>
+                      <button onClick={async () => { const u = await toggleProductFlag(p._id, 'isNew'); setProducts([...u]); showToast(p.isNew ? 'أزيلت شارة جديد' : 'أضيفت شارة جديد') }} className={`flex-1 rounded-full py-1.5 text-[11px] font-bold border ${p.isNew ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8]'}`}><Sparkles size={11} className="inline -mt-0.5" /> {p.isNew ? 'جديد ✓' : 'جديد'}</button>
                     </div>
                   </div>
                 </div>
@@ -677,7 +677,7 @@ export default function Admin() {
                           <select value={o.status} onChange={e => handleStatusChange(o._id, e.target.value as OrderStatus)} className="border border-[#EDE6D8] rounded-full px-2 py-1 text-xs font-bold bg-white">
                             <option value="new">جديد</option><option value="confirmed">مؤكد</option><option value="shipping">قيد الشحن</option><option value="delivered">تم التسليم</option><option value="cancelled">ملغي</option>
                           </select>
-                          <button onClick={() => { if (confirm('حذف الطلب؟')) { const n = deleteOrder(o._id); setOrders([...n]); showToast('تم حذف الطلب') } }} className="w-7 h-7 rounded-full bg-red-50 text-red-600 grid place-items-center border border-red-200 hover:bg-red-500 hover:text-white transition"><Trash2 size={12} /></button>
+                          <button onClick={async () => { if (confirm('حذف الطلب؟')) { const n = await deleteOrder(o._id); setOrders([...n]); showToast('تم حذف الطلب') } }} className="w-7 h-7 rounded-full bg-red-50 text-red-600 grid place-items-center border border-red-200 hover:bg-red-500 hover:text-white transition"><Trash2 size={12} /></button>
                         </div>
                       </td>
                     </tr>
@@ -791,7 +791,7 @@ export default function Admin() {
                       </div>
                     </div>
                   </div>
-                  <button onClick={() => { saveSettings(storeForm as any); setSettings({ ...storeForm } as any); showToast('تم حفظ إعدادات المتجر — ستظهر فوراً في الواجهة') }} className="w-full mt-4 bg-[#C9A96A] hover:bg-[#B8945A] text-white rounded-full py-3 font-extrabold flex items-center justify-center gap-2"><Save size={16} /> حفظ كل إعدادات المتجر</button>
+                  <button onClick={async () => { await saveSettings(storeForm as any); setSettings({ ...storeForm } as any); showToast('تم حفظ إعدادات المتجر — ستظهر فوراً في الواجهة') }} className="w-full mt-4 bg-[#C9A96A] hover:bg-[#B8945A] text-white rounded-full py-3 font-extrabold flex items-center justify-center gap-2"><Save size={16} /> حفظ كل إعدادات المتجر</button>
                 </div>
               </div>
 
@@ -828,7 +828,7 @@ export default function Admin() {
               <div className="grid gap-3 mt-4">
                 <div><label className="text-xs font-bold">Meta Pixel ID</label><input value={settings.metaPixelId} onChange={e => setSettings({ ...settings, metaPixelId: e.target.value })} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#C9A96A]" /></div>
                 <div><label className="text-xs font-bold">TikTok Pixel ID</label><input value={settings.tiktokPixelId} onChange={e => setSettings({ ...settings, tiktokPixelId: e.target.value })} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#A02A5B]" /></div>
-                <button onClick={() => { saveSettings(settings); showToast('تم حفظ إعدادات التتبع') }} className="bg-[#1A1A1E] text-white rounded-full py-2.5 font-bold hover:bg-black transition">حفظ الإعدادات</button>
+                <button onClick={async () => { await saveSettings(settings); showToast('تم حفظ إعدادات التتبع') }} className="bg-[#1A1A1E] text-white rounded-full py-2.5 font-bold hover:bg-black transition">حفظ الإعدادات</button>
               </div>
               <div className="mt-4 bg-[#FFFBF0] border border-[#F5E6C8] rounded-xl p-3 text-xs leading-5">
                 <div className="font-bold text-[#8D6E3A]">أحداث التجارة الإلكترونية المفعّلة:</div>

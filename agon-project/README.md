@@ -1,73 +1,172 @@
-# React + TypeScript + Vite
+# LUMIÈRE — متجر مجوهرات فاخرة (React + Vite + MongoDB Atlas)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+متجر إلكتروني جزائري عربي (RTL) مع الدفع عند الاستلام في 58 ولاية، لوحة تحكم
+كاملة، وحفظ البيانات في **MongoDB Atlas** عبر **Vercel Serverless Functions**.
 
-Currently, two official plugins are available:
+## 🏗️ البنية التقنية
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **الواجهة الأمامية**: React 19 + TypeScript + Vite + Tailwind CSS 4
+- **الواجهة الخلفية**: Vercel Serverless Functions (Node.js runtime)
+- **قاعدة البيانات**: MongoDB Atlas عبر Mongoose
+- **التخزين المؤقت**: ذاكرة + LocalStorage (احتياطي عند انقطاع الاتصال)
 
-## React Compiler
+### تدفق البيانات
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+[Browser/React UI]
+        │
+        │ fetch('/api/products', …)
+        ▼
+[Vercel Serverless Function]  ← api/products/index.ts, api/orders/index.ts, …
+        │
+        │ mongoose.connect(MONGODB_URI)
+        ▼
+[MongoDB Atlas Cluster]
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+العميل (`src/services/api/client.ts`) يتصل بالمسارات `/api/*` ويحتفظ بنسخة
+مؤقتة في الذاكرة + LocalStorage. عند فشل الاتصال (مثلاً في `vite dev` بدون
+خادم)، يقع على البيانات الأولية (seed data) أو البيانات المخزنة مؤقتاً.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🚀 النشر على Vercel
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 1. رفع المشروع
+
+```bash
+# استيراد المشروع من GitHub أو رفعه مباشرة
+vercel --prod
 ```
+
+أو اربط المستودع بـ Vercel عبر لوحة التحكم.
+
+### 2. إعداد متغير البيئة `MONGODB_URI`
+
+في Vercel → Project → Settings → Environment Variables:
+
+| Name          | Value                                                              | Environments        |
+|---------------|-------------------------------------------------------------------|---------------------|
+| `MONGODB_URI` | `mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/lumiere`  | Production, Preview |
+
+احصل عليه من MongoDB Atlas:
+1. أنشئ حساب على [mongodb.com/atlas](https://www.mongodb.com/atlas) (مجاني).
+2. أنشئ Cluster جديد (M0 Free Tier كافٍ).
+3. Database Access → أنشئ مستخدم + كلمة مرور.
+4. Network Access → اسمح بكل IPs (`0.0.0.0/0`) للنشر على Vercel.
+5. Connect → "Drivers" → انسخ `mongodb+srv://...` connection string.
+6. استبدل `<password>` بكلمة مرور المستخدم.
+
+### 3. إعادة النشر
+
+بعد إضافة `MONGODB_URI`، يجب إعادة النشر ليأخذ المتغير الجديد effect:
+
+```bash
+vercel --prod
+```
+
+أو من لوحة Vercel → Deployments → Redeploy.
+
+## 🌱 التهيئة الأولية للقاعدة (Auto-Seed)
+
+عند أول طلب إلى أي مسار `/api/*`، يقوم الخادم تلقائياً بـ:
+- إدخال 8 منتجات مجوهرات افتراضية (إذا كانت المجموعة فارغة)
+- إدخال 28 ولاية جزائرية مع أسعار شحن افتراضية
+- إدخال 3 مجالات (مجوهرات، أزياء، جمال) — تُحدّث دائماً بأحدث مخطط
+- إدخال إعدادات المتجر الافتراضية
+
+لا حاجة لأي أمر `seed` يدوي.
+
+## 📁 بنية المجلدات
+
+```
+agon-project/
+├── api/                          ← Vercel Serverless Functions
+│   ├── lib/
+│   │   ├── mongo.ts              ← اتصال MongoDB + helpers
+│   │   ├── models.ts             ← Mongoose schemas
+│   │   ├── seed-runner.ts        ← منطق التهيئة التلقائية
+│   │   ├── seed.ts               ← بيانات أولية (نسخة الخادم)
+│   │   └── types.ts              ← أنواع TypeScript للخادم
+│   ├── products/
+│   │   ├── index.ts              ← GET/POST /api/products
+│   │   ├── [id].ts               ← GET/PUT/DELETE /api/products/:id
+│   │   └── [id]/action.ts        ← POST duplicate/toggleFeatured/toggleNew
+│   ├── orders/
+│   │   ├── index.ts              ← GET/POST /api/orders
+│   │   └── [orderNumber].ts      ← GET/PATCH/DELETE /api/orders/:orderNumber
+│   ├── domains/
+│   │   ├── (domains.ts)          ← GET/POST/PATCH/DELETE /api/domains
+│   │   └── activate/index.ts     ← POST /api/domains/activate
+│   ├── settings.ts               ← GET/PUT/PATCH /api/settings
+│   ├── wilayas.ts                ← GET/POST/PATCH /api/wilayas
+│   └── vercel.json               ← إعدادات النشر
+├── src/
+│   ├── services/api/
+│   │   ├── client.ts             ← طبقة fetch (المخزن المؤقت + fallback)
+│   │   ├── products.ts           ← خدمة المنتجات (async + sync shims)
+│   │   ├── orders.ts             ← خدمة الطلبات
+│   │   ├── wilayas.ts            ← خدمة أسعار الشحن
+│   │   ├── settings.ts           ← خدمة الإعدادات
+│   │   ├── domains.ts            ← خدمة المجالات
+│   │   ├── seed.ts               ← بيانات أولية (للعميل)
+│   │   ├── db.ts                 ← legacy LocalStorage helpers (compat)
+│   │   └── types.ts              ← أنواع TypeScript للعميل
+│   ├── pages/                    ← Home, Shop, ProductDetail, Cart, Admin, …
+│   ├── components/               ← Header, Footer, ProductCard, ScrollToTop
+│   └── context/                  ← CartContext, WishlistContext
+└── vercel.json                   ← تكوين Vercel (Vite + api/)
+```
+
+## 🧪 التطوير المحلي
+
+```bash
+npm install
+npm run dev        # Vite على :5173 (بدء تشغيل الـ API يتطلب Vercel CLI)
+```
+
+للتطوير المحلي مع دعم مسارات الـ API:
+
+```bash
+npm install -g vercel
+vercel dev         # يشغل Vite + Vercel Functions على نفس المنفذ
+```
+
+أو يمكنك تشغيل Vite فقط — ستقع البيانات على الـ seed data المخزنة في
+`src/services/api/seed.ts`، ولن يتم حفظ أي تغييرات بشكل دائم.
+
+## 🔌 مسارات الـ API
+
+| الطريقة | المسار                            | الوصف                            |
+|---------|-----------------------------------|----------------------------------|
+| GET     | `/api/products`                   | كل المنتجات                      |
+| POST    | `/api/products`                   | إضافة منتج جديد                  |
+| GET     | `/api/products/:id`               | منتج واحد                        |
+| PUT     | `/api/products/:id`               | تحديث منتج                       |
+| DELETE  | `/api/products/:id`               | حذف منتج                         |
+| POST    | `/api/products/:id/action`        | `duplicate` / `toggleFeatured` / `toggleNew` |
+| GET     | `/api/orders`                     | كل الطلبات (admin)               |
+| POST    | `/api/orders`                     | إنشاء طلب جديد (مع كشف التكرار)  |
+| GET     | `/api/orders/:orderNumber`        | طلب واحد                         |
+| PATCH   | `/api/orders/:orderNumber`        | تحديث الحالة                     |
+| DELETE  | `/api/orders/:orderNumber`        | حذف طلب                          |
+| GET     | `/api/wilayas`                    | كل الولايات                      |
+| POST    | `/api/wilayas`                    | إضافة ولاية                      |
+| PATCH   | `/api/wilayas?code=16`            | تحديث أسعار شحن ولاية            |
+| GET     | `/api/settings`                   | إعدادات المتجر                   |
+| PUT     | `/api/settings`                   | استبدال الإعدادات                |
+| PATCH   | `/api/settings`                   | تحديث جزئي للإعدادات             |
+| GET     | `/api/domains`                    | كل المجالات                      |
+| POST    | `/api/domains`                    | إنشاء مجال مخصص                  |
+| PATCH   | `/api/domains?id=xxx`             | تحديث مجال                       |
+| DELETE  | `/api/domains?id=xxx`             | حذف مجال (لا يمكن حذف الجاهزة)   |
+| POST    | `/api/domains/activate`           | تفعيل مجال `{ id }`              |
+
+## 🔒 الأمان
+
+- `MONGODB_URI` لا يُكشف أبداً للعميل — يستخدم فقط في serverless functions.
+- اتصالات MongoDB تُخزّن مؤقتاً على `globalThis` لتجنب فتح اتصال جديد لكل طلب.
+- كشف الطلبات المكررة (نفس الهاتف + نفس المنتجات خلال 30 دقيقة) يمنع الإرسال
+  المزدوج عن طريق الخطأ.
+
+## 📝 الترخيص
+
+MIT — للاستخدام التجاري والتعليمي.

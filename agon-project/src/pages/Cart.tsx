@@ -29,7 +29,7 @@ export default function Cart(){
     </div>
   )
 
-  const handleCheckout = (e:any)=>{
+  const handleCheckout = async (e:any)=>{
     e.preventDefault()
     if(!form.name.trim() || !validateDZPhone(form.phone) || !form.commune.trim() || !form.address.trim()){ setErr('يرجى ملء كل الحقول بشكل صحيح (الهاتف: 0550123456)'); return}
     try{
@@ -38,7 +38,7 @@ export default function Cart(){
         const {total:t}=calcItemTotal(unit,i.qty,i.product.tierPricing); 
         return {productId:i.product._id, nameAr: i.product.nameAr + (i.variantLabel? ` — ${i.variantLabel}`:''), image: i.variant?.image || i.product.images[0], qty:i.qty, unitPrice: unit, total:t, variantLabel: i.variantLabel, variantId: i.variantId}
       })
-      const order = createOrder({ customerName:form.name, phone:form.phone, wilaya: wilaya!.code, wilayaNameAr: wilaya!.nameAr, commune: form.commune, address: form.address, deliveryType, items: orderItems as any, subtotal, discount, shippingCost: shipping, total: grand } as any)
+      const order = await createOrder({ customerName:form.name, phone:form.phone, wilaya: wilaya!.code, wilayaNameAr: wilaya!.nameAr, commune: form.commune, address: form.address, deliveryType, items: orderItems as any, subtotal, discount, shippingCost: shipping, total: grand } as any)
       Tracking.purchase(order.orderNumber, grand, orderItems)
       nav(`/thank-you/${order.orderNumber}`)
     }catch(err:any){

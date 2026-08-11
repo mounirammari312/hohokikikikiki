@@ -1,24 +1,46 @@
-import { STORAGE_KEYS, load, save } from './db'
-import type { StoreSettings } from './types'
-import { defaultSettings } from './seed'
+/**
+ * Settings service.
+ *
+ * Sync API reads from an in-memory cache kept fresh by syncSettings().
+ * Mutations go through the async `*Api` helpers in ./client.
+ */
 
-function migrate(s: any): StoreSettings {
-  const merged = { ...defaultSettings, ...(s||{}) } as StoreSettings
-  // ensure activeDomainId exists
-  if(!merged.activeDomainId) merged.activeDomainId = defaultSettings.activeDomainId
-  return merged
+import { defaultSettings } from './seed'
+import type { StoreSettings } from './types'
+import { fetchSettings, saveSettingsApi, updateSettingsApi } from './client'
+
+let cache: StoreSettings = { ...defaultSettings }
+let loaded = false
+
+export async function syncSettings(): Promise<StoreSettings> {
+  try {
+    const s = await fetchSettings()
+    if (s) cache = s
+    loaded = true
+    return cache
+  } catch {
+    loaded = true
+    return cache
+  }
 }
 
 export function getSettings(): StoreSettings {
-  const raw = load<any>(STORAGE_KEYS.SETTINGS, defaultSettings)
-  const merged = migrate(raw)
-  if(JSON.stringify(raw) !== JSON.stringify(merged)) save(STORAGE_KEYS.SETTINGS, merged)
-  return merged
+  if (!loaded) void syncSettings()
+  return cache
 }
-export function saveSettings(s: StoreSettings){ save(STORAGE_KEYS.SETTINGS, s); return s }
-export function updateSettings(patch: Partial<StoreSettings>): StoreSettings {
-  const cur = getSettings()
-  const next = { ...cur, ...patch }
-  save(STORAGE_KEYS.SETTINGS, next)
+
+export async function saveSettings(s: StoreSettings): Promise<StoreSettings> {
+  const next = await saveSettingsApi(s)
+  cache = next
   return next
 }
+
+export async function updateSettings(patch: Partial<StoreSettings>): Promise<StoreSettings> {
+  const next = await updateSettingsApi(patch)
+  cache = next
+  return next
+}
+
+// Sync-compat shims for UI code that doesn't await
+export function saveSettingsSync(s: StoreSettings) { void saveSettings(s) }
+export function updateSettingsSync(patch: Partial<StoreSettings>) { void updateSettings(patch) }

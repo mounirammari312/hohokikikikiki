@@ -12,19 +12,27 @@ import Admin from './pages/Admin'
 import Wishlist from './pages/Wishlist'
 import { CartProvider } from './context/CartContext'
 import { WishlistProvider } from './context/WishlistContext'
-import { ensureProducts } from './services/api/products'
-import { ensureWilayas } from './services/api/wilayas'
-import { getSettings } from './services/api/settings'
-import { ensureDomains } from './services/api/domains'
+import { ensureProducts, syncProducts } from './services/api/products'
+import { syncWilayas } from './services/api/wilayas'
+import { syncSettings } from './services/api/settings'
+import { syncDomains } from './services/api/domains'
 
 export default function App(){
   useEffect(()=>{
-    ensureDomains()
-    ensureProducts()
-    ensureWilayas()
-    getSettings()
+    // Set document language + direction first (used by everything else)
     document.documentElement.lang='ar'
     document.documentElement.dir='rtl'
+
+    // Kick off the API syncs in parallel — the UI renders from the
+    // in-memory cache (which is pre-populated with seed data) and
+    // will refresh automatically once the API responds.
+    void syncProducts()
+    void syncWilayas()
+    void syncSettings()
+    void syncDomains()
+
+    // Keep the legacy ensure* function for backwards-compat (no-op now)
+    ensureProducts()
   },[])
   return (
     <CartProvider>

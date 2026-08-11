@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
-import { Star, ShieldCheck, Truck, Gift, Minus, Plus, Check, Phone, MapPin, AlertTriangle, Heart, Share2, Droplet, Ruler, Layers, ChevronLeft, ChevronRight, Expand, X, Copy, CheckCheck } from 'lucide-react'
+import { Star, ShieldCheck, Truck, Gift, Minus, Plus, Check, Phone, MapPin, AlertTriangle, Heart, Share2, Droplet, Ruler, Layers, ChevronLeft, ChevronRight, Expand, X, Copy, CheckCheck, ShoppingBag } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getProductById } from '../services/api/products'
 import { getWilayas } from '../services/api/wilayas'
@@ -175,6 +175,18 @@ export default function ProductDetail(){
   // reset selectedImg when variant changes (to show variant image)
   useEffect(()=>{ setSelectedImg(0); setDirection(0) }, [selectedVariant?.id, product?._id])
 
+  // Auto-advance slider every 4.5 seconds.
+  // Paused when: lightbox open, share modal open, user hovering, or only 1 image.
+  const [sliderHovered, setSliderHovered] = useState(false)
+  useEffect(()=>{
+    if(showLightbox || showShare || sliderHovered || images.length<=1) return
+    const t = setInterval(()=> {
+      setDirection(1)
+      setSelectedImg(prev => (prev + 1) % images.length)
+    }, 4500)
+    return ()=> clearInterval(t)
+  }, [showLightbox, showShare, sliderHovered, images.length])
+
   const wilaya = useMemo(()=> wilayas.find(w=>w.code===form.wilaya),[form.wilaya, wilayas])
   const { disc, discountAmount, total: productTotal } = useMemo(()=> calcItemTotal(unitPrice, qty, product?.tierPricing||[]),[unitPrice, qty, product])
   const shipping = wilaya ? (deliveryType==='home'? wilaya.deliveryHome : wilaya.deliveryDesk) : 0
@@ -292,7 +304,7 @@ export default function ProductDetail(){
     setSubmitting(true)
     try{
       Tracking.initiateCheckout(grandTotal, qty)
-      const order = createOrder({
+      const order = await createOrder({
         customerName: form.name,
         phone: form.phone,
         phone2: form.phone2,
@@ -376,10 +388,9 @@ export default function ProductDetail(){
         </div>
 
         <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-6 mt-4">
-          {/* gallery */}
+          {/* gallery — full-width, no white frame wrapper */}
           <div className="min-w-0">
-            <div className="bg-white rounded-[24px] border border-[#EDE6D8] p-3">
-              <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#FFF8EE] group select-none">
+              <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#FFF8EE] group select-none" onMouseEnter={()=>setSliderHovered(true)} onMouseLeave={()=>setSliderHovered(false)}>
                 {/* main slider */}
                 <AnimatePresence initial={false} custom={direction} mode="wait">
                   <motion.img
@@ -405,48 +416,34 @@ export default function ProductDetail(){
                   />
                 </AnimatePresence>
 
-                {/* nav arrows */}
-                <button type="button" onClick={()=> paginate(-1)} className="absolute top-1/2 -translate-y-1/2 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur border border-[#EDE6D8] grid place-items-center shadow hover:bg-white transition opacity-0 group-hover:opacity-100">
-                  <ChevronRight size={16}/>
+                {/* nav arrows — semi-transparent, always visible on mobile, hover on desktop */}
+                <button type="button" onClick={()=> paginate(-1)} className="absolute top-1/2 -translate-y-1/2 right-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur text-white grid place-items-center hover:bg-black/50 transition md:opacity-0 md:group-hover:opacity-100 z-10">
+                  <ChevronRight size={14}/>
                 </button>
-                <button type="button" onClick={()=> paginate(1)} className="absolute top-1/2 -translate-y-1/2 left-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur border border-[#EDE6D8] grid place-items-center shadow hover:bg-white transition opacity-0 group-hover:opacity-100">
-                  <ChevronLeft size={16}/>
+                <button type="button" onClick={()=> paginate(1)} className="absolute top-1/2 -translate-y-1/2 left-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur text-white grid place-items-center hover:bg-black/50 transition md:opacity-0 md:group-hover:opacity-100 z-10">
+                  <ChevronLeft size={14}/>
                 </button>
 
-                {/* top badges */}
-                <div className="absolute top-3 right-3 bg-[#1A1A1E] text-white text-xs px-3 py-1 rounded-full flex items-center gap-1.5 pointer-events-none"><Layers size={12}/> {domain?.nameAr || product.category} • {product.category}</div>
-                <button type="button" onClick={()=> setShowLightbox(true)} className="absolute top-3 left-14 w-9 h-9 rounded-full bg-white shadow grid place-items-center hover:bg-[#1A1A1E] hover:text-white transition"><Expand size={16}/></button>
+                {/* small transparent zoom button — top-left, always visible but subtle */}
+                <button type="button" onClick={()=> setShowLightbox(true)} className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/30 backdrop-blur text-white grid place-items-center hover:bg-black/50 transition md:opacity-0 md:group-hover:opacity-100 z-10" aria-label="تكبير">
+                  <Expand size={12}/>
+                </button>
 
-                {/* heart/share */}
-                <div className="absolute bottom-3 left-3 flex gap-2">
-                  <button type="button" onClick={handleWish} className={`w-9 h-9 rounded-full shadow grid place-items-center transition border ${wished ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white text-[#1A1A1E] border-white hover:bg-[#FDF2F6] hover:text-[#A02A5B] hover:border-[#F6C0D4]'}`} aria-label="wishlist">
-                    <Heart size={16} className={wished ? 'fill-white' : ''}/>
-                  </button>
-                  <button type="button" onClick={handleShare} className="w-9 h-9 rounded-full bg-white shadow grid place-items-center hover:bg-[#1A1A1E] hover:text-white transition border border-white"><Share2 size={16}/></button>
+                {/* auto-advance progress dots — bottom center, minimal */}
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/30 backdrop-blur text-white px-2.5 py-1 rounded-full pointer-events-none">
+                  {images.map((_, i)=> <span key={i} className={`h-1.5 rounded-full transition-all ${i===selectedImg ? 'w-4 bg-white' : 'w-1.5 bg-white/40'}`}></span>)}
                 </div>
-
-                {hasVariants && <div className="absolute top-12 right-3 bg-white/90 backdrop-blur border border-[#F6C0D4] text-[#A02A5B] text-[11px] font-bold px-2.5 py-1 rounded-full pointer-events-none hidden md:block">{product.variants!.length} متغير • {domain?.variantConfig.hasSize ? 'مقاسات' : ''}{domain?.variantConfig.hasSize && domain?.variantConfig.hasColor ? ' + ' : ''}{domain?.variantConfig.hasColor ? 'ألوان' : ''}</div>}
-
-                {/* dots + counter */}
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 bg-black/55 backdrop-blur text-white px-3 py-1.5 rounded-full">
-                  <span className="text-[11px] font-bold">{selectedImg+1} / {images.length}</span>
-                  <span className="flex gap-1">
-                    {images.map((_, i)=> <span key={i} className={`h-1.5 rounded-full transition-all ${i===selectedImg ? 'w-5 bg-white' : 'w-1.5 bg-white/50'}`}></span>)}
-                  </span>
-                </div>
-                {/* swipe hint */}
-                <div className="absolute bottom-3 right-3 md:hidden bg-black/60 text-white text-[11px] px-2 py-1 rounded-full pointer-events-none">اسحبي ← →</div>
               </div>
 
-              {/* thumbnails - not causing page jump */}
-              <div className="relative mt-3">
+              {/* thumbnails */}
+              <div className="relative mt-2">
                 <div ref={thumbsRef} className="flex gap-2 overflow-x-auto thumb-scroll scroll-smooth snap-x snap-mandatory pb-1" style={{scrollbarWidth:'thin'}}>
                   {images.map((img,i)=> (
                     <button
                       key={i+img}
                       type="button"
                       onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); goTo(i)}}
-                      className={`shrink-0 w-[72px] h-[72px] md:w-20 md:h-20 rounded-xl overflow-hidden border-2 snap-start relative transition ${selectedImg===i ? (isRoseProduct ? 'border-[#A02A5B] shadow-[0_4px_12px_rgba(160,42,91,0.2)]' : 'border-[#C9A96A] shadow') : 'border-transparent hover:border-[#EDE6D8]'}`}
+                      className={`shrink-0 w-[64px] h-[64px] md:w-20 md:h-20 rounded-xl overflow-hidden border-2 snap-start relative transition ${selectedImg===i ? (isRoseProduct ? 'border-[#A02A5B] shadow-[0_4px_12px_rgba(160,42,91,0.2)]' : 'border-[#C9A96A] shadow') : 'border-transparent hover:border-[#EDE6D8]'}`}
                     >
                       <img src={img} alt={`صورة ${i+1}`} className="w-full h-full object-cover" draggable={false} loading="lazy"/>
                       {selectedImg===i && <span className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-xl pointer-events-none"></span>}
@@ -456,15 +453,17 @@ export default function ProductDetail(){
                 <button type="button" onClick={()=> thumbsRef.current?.scrollBy({left: -120, behavior:'smooth'})} className="hidden md:grid absolute top-1/2 -translate-y-1/2 -right-2 w-7 h-7 rounded-full bg-white border border-[#EDE6D8] place-items-center shadow"><ChevronRight size={14}/></button>
                 <button type="button" onClick={()=> thumbsRef.current?.scrollBy({left: 120, behavior:'smooth'})} className="hidden md:grid absolute top-1/2 -translate-y-1/2 -left-2 w-7 h-7 rounded-full bg-white border border-[#EDE6D8] place-items-center shadow"><ChevronLeft size={14}/></button>
               </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 mt-3">
+
+            {/* compact trust badges — much smaller */}
+            <div className="grid grid-cols-3 gap-1.5 mt-2">
               {[
                 {t:"توصيل 24-72ساعة", i:Truck, rose:false},
                 {t:"الدفع عند الاستلام", i:ShieldCheck, rose:true},
                 {t:"تغليف هدية", i:Gift, rose:false},
               ].map(b=> (
-                <div key={b.t} className={`rounded-2xl p-3 text-center border ${b.rose ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-[#EDE6D8]'}`}>
-                  <b.i size={18} className={`mx-auto ${b.rose ? 'text-[#A02A5B]' : 'text-[#C9A96A]'}`}/><div className={`text-xs font-bold mt-1 ${b.rose ? 'text-[#7A1F44]' : 'text-[#1A1A1E]'}`}>{b.t}</div>
+                <div key={b.t} className={`rounded-xl p-2 text-center border flex flex-col items-center gap-0.5 ${b.rose ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-[#EDE6D8]'}`}>
+                  <b.i size={14} className={`${b.rose ? 'text-[#A02A5B]' : 'text-[#C9A96A]'}`}/>
+                  <div className={`text-[10px] font-bold leading-tight ${b.rose ? 'text-[#7A1F44]' : 'text-[#1A1A1E]'}`}>{b.t}</div>
                 </div>
               ))}
             </div>
@@ -569,20 +568,16 @@ export default function ProductDetail(){
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3 mt-4">
+              {/* qty selector — stays in info card, controls price calc */}
+              <div className="flex items-center gap-3 mt-4">
                 <div className="flex items-center border border-[#EDE6D8] rounded-full p-1 bg-[#FFFCF8]">
-                  <button type="button" onClick={()=>setQty(q=>Math.max(1,q-1))} className="w-9 h-9 rounded-full bg-white border border-[#EDE6D8] grid place-items-center"><Minus size={14}/></button>
-                  <span className="w-12 text-center font-bold">{qty}</span>
-                  <button type="button" onClick={()=>setQty(q=> Math.min(effectiveStock||99, q+1))} className="w-9 h-9 rounded-full bg-[#1A1A1E] text-white grid place-items-center disabled:opacity-30" disabled={qty>=effectiveStock}><Plus size={14}/></button>
+                  <button type="button" onClick={()=>setQty(q=>Math.max(1,q-1))} className="w-8 h-8 rounded-full bg-white border border-[#EDE6D8] grid place-items-center"><Minus size={14}/></button>
+                  <span className="w-10 text-center font-bold text-sm">{qty}</span>
+                  <button type="button" onClick={()=>setQty(q=> Math.min(effectiveStock||99, q+1))} className="w-8 h-8 rounded-full bg-[#1A1A1E] text-white grid place-items-center disabled:opacity-30" disabled={qty>=effectiveStock}><Plus size={14}/></button>
                 </div>
-                <button type="button" onClick={handleAddToCart} disabled={!canAdd} className={`flex-1 min-w-[180px] rounded-full py-3 font-bold border-2 transition ${canAdd ? 'bg-white border-[#1A1A1E] text-[#1A1A1E] hover:bg-[#1A1A1E] hover:text-white' : 'bg-[#F5EFE6] border-[#EDE6D8] text-[#9A8A6B] cursor-not-allowed'}`}>{canAdd ? 'أضيفي للسلة' : variantMissing ? 'اختاري المتغير أولاً' : 'غير متوفر'}</button>
+                <div className="text-xs text-[#9A8A6B] leading-5">المجموع: <b className="text-[#1A1A1E] text-sm">{formatDZD(productTotal)}</b> {disc>0 && <span className={isRoseProduct ? 'text-[#A02A5B]' : 'text-emerald-600'}>(خصم {disc}%)</span>}</div>
               </div>
-              {errors.qty && <p className="text-xs text-red-600 mt-1 text-center">{errors.qty}</p>}
-              <div className="text-xs text-[#9A8A6B] mt-2 text-center leading-5">المجموع للمنتج: <b className="text-[#1A1A1E]">{formatDZD(productTotal)}</b> {disc>0 && <span className={isRoseProduct ? 'text-[#A02A5B]' : 'text-emerald-600'}>(خصم {disc}%)</span>} {variantLabel && <span className="ms-1 bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] px-2 py-0.5 rounded-full">{variantLabel}</span>}</div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button type="button" onClick={handleWish} className={`rounded-full py-2.5 text-sm font-bold border flex items-center justify-center gap-1.5 ${wished ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white border-[#EDE6D8] hover:bg-[#FDF2F6] hover:border-[#F6C0D4] hover:text-[#A02A5B]'}`}><Heart size={14} className={wished ? 'fill-white' : ''}/> {wished ? 'في الرغبات' : 'حفظ'}</button>
-                <button type="button" onClick={handleShare} className="rounded-full py-2.5 text-sm font-bold border bg-white border-[#EDE6D8] hover:bg-[#1A1A1E] hover:text-white flex items-center justify-center gap-1.5"><Share2 size={14}/> مشاركة رابط مباشر</button>
-              </div>
+              {errors.qty && <p className="text-xs text-red-600 mt-1">{errors.qty}</p>}
             </div>
 
             <form ref={orderRef} id="order" onSubmit={handleDirectOrder} className="bg-[#1A1A1E] rounded-[24px] p-5 md:p-6 text-white relative overflow-hidden scroll-mt-24" onFocus={onFormFocus} onBlur={onFormBlur}>
@@ -666,6 +661,24 @@ export default function ProductDetail(){
                 </div>
               </div>
             </form>
+
+            {/* compact action bar — below the payment form, smaller buttons */}
+            <div className="bg-white rounded-[24px] border border-[#EDE6D8] p-3 md:p-4">
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={handleAddToCart} disabled={!canAdd} className={`flex-1 min-w-0 rounded-full py-2.5 px-3 text-xs font-bold border-2 transition flex items-center justify-center gap-1.5 ${canAdd ? 'bg-white border-[#1A1A1E] text-[#1A1A1E] hover:bg-[#1A1A1E] hover:text-white' : 'bg-[#F5EFE6] border-[#EDE6D8] text-[#9A8A6B] cursor-not-allowed'}`}>
+                  <ShoppingBag size={14}/>
+                  <span className="truncate">{canAdd ? 'أضيفي للسلة' : variantMissing ? 'اختاري المتغير' : 'غير متوفر'}</span>
+                </button>
+                <button type="button" onClick={handleWish} className={`shrink-0 rounded-full py-2.5 px-3 text-xs font-bold border flex items-center justify-center gap-1.5 transition ${wished ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white border-[#EDE6D8] hover:bg-[#FDF2F6] hover:border-[#F6C0D4] hover:text-[#A02A5B]'}`} aria-label="حفظ">
+                  <Heart size={14} className={wished ? 'fill-white' : ''}/>
+                  <span className="hidden sm:inline">{wished ? 'محفوظ' : 'حفظ'}</span>
+                </button>
+                <button type="button" onClick={handleShare} className="shrink-0 rounded-full py-2.5 px-3 text-xs font-bold border bg-white border-[#EDE6D8] hover:bg-[#1A1A1E] hover:text-white flex items-center justify-center gap-1.5 transition" aria-label="مشاركة">
+                  <Share2 size={14}/>
+                  <span className="hidden sm:inline">مشاركة</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

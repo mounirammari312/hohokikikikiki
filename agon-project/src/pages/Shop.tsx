@@ -43,33 +43,45 @@ export default function Shop(){
   return (
     <div className="bg-[#FFFCF8] min-h-screen">
       <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-[28px] font-extrabold text-[#1A1A1E]">المتجر <span className="text-sm font-bold bg-[#1A1A1E] text-white px-2.5 py-1 rounded-full align-middle ms-2">{domain.nameAr}</span></h1>
-            <p className="text-sm text-[#9A8A6B]">اكتشفي {products.length} منتج ({countInDomain} في مجال {domain.nameAr}) • الدفع عند الاستلام • توصيل 58 ولاية • {domain.heroBadge}</p>
+        {/* Mobile: stack title + search vertically. Desktop: keep them on
+            one row with justify-between. The previous flex-wrap layout caused
+            the 240px search input to push the title off-screen on small phones. */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[24px] md:text-[28px] font-extrabold text-[#1A1A1E] flex items-center gap-2 flex-wrap">
+              <span>المتجر</span>
+              <span className="text-xs md:text-sm font-bold bg-[#1A1A1E] text-white px-2.5 py-1 rounded-full">{domain.nameAr}</span>
+            </h1>
+            <p className="text-xs md:text-sm text-[#9A8A6B] mt-1">اكتشفي {products.length} منتج ({countInDomain} في مجال {domain.nameAr}) • الدفع عند الاستلام • توصيل 58 ولاية</p>
             <p className="text-xs text-[#9A8A6B] mt-1 hidden md:block">{domain.descriptionAr}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-white border border-[#EDE6D8] rounded-full px-3 py-2 w-[240px]">
-              <Search size={16} className="text-[#B8AA8E]"/>
-              <input value={search} onChange={e=>{setSearch(e.target.value); const n=new URLSearchParams(params); if(e.target.value) n.set('q', e.target.value); else n.delete('q'); setParams(n, {replace:true})}} placeholder="بحث..." className="flex-1 outline-none px-2 text-sm bg-transparent" />
+          <div className="flex items-center gap-2 shrink-0">
+            {/* flex-1 lets the search input shrink on mobile instead of
+                staying fixed at 240px and overflowing. */}
+            <div className="flex items-center bg-white border border-[#EDE6D8] rounded-full px-3 py-2 flex-1 md:flex-initial md:w-[240px] min-w-0">
+              <Search size={16} className="text-[#B8AA8E] shrink-0"/>
+              <input value={search} onChange={e=>{setSearch(e.target.value); const n=new URLSearchParams(params); if(e.target.value) n.set('q', e.target.value); else n.delete('q'); setParams(n, {replace:true})}} placeholder="بحث..." className="flex-1 outline-none px-2 text-sm bg-transparent min-w-0" />
             </div>
-            <select value={sort} onChange={e=>setSort(e.target.value)} className="bg-white border border-[#EDE6D8] rounded-full px-3 py-2 text-sm font-bold">
+            <select value={sort} onChange={e=>setSort(e.target.value)} className="bg-white border border-[#EDE6D8] rounded-full px-3 py-2 text-sm font-bold shrink-0">
               <option value="featured">المميز</option>
-              <option value="price-asc">السعر: الأقل أولاً</option>
-              <option value="price-desc">السعر: الأعلى أولاً</option>
+              <option value="price-asc">الأقل أولاً</option>
+              <option value="price-desc">الأعلى أولاً</option>
               <option value="rating">الأعلى تقييماً</option>
             </select>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={()=>{const n=new URLSearchParams(params); n.delete('cat'); setParams(n)}} className={`px-4 py-2 rounded-full text-sm font-bold border flex items-center gap-1.5 ${cat==='all' ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>الكل <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${cat==='all' ? 'bg-white text-[#1A1A1E]' : 'bg-[#1A1A1E] text-white'}`}>{products.length}</span></button>
+        {/* Category chips: on mobile, allow horizontal scroll so the last chip
+            isn't cut off. On desktop, use flex-wrap as before. The padding-right
+            (RTL) / -mx-4 trick lets the chips scroll edge-to-edge on mobile
+            without the container padding cutting off the last chip. */}
+        <div className="mt-4 flex md:flex-wrap gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 thumb-scroll [&>button:last-child]:me-4 md:[&>button:last-child]:me-0">
+          <button type="button" onClick={()=>{const n=new URLSearchParams(params); n.delete('cat'); setParams(n)}} className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold border flex items-center gap-1.5 ${cat==='all' ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>الكل <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${cat==='all' ? 'bg-white text-[#1A1A1E]' : 'bg-[#1A1A1E] text-white'}`}>{products.length}</span></button>
           {domain.categories.map(c=> (
-            <button key={c.key} type="button" onClick={()=>{const n=new URLSearchParams(params); n.set('cat',c.key); setParams(n)}} className={`px-4 py-2 rounded-full text-sm font-bold border ${cat===c.key ? 'bg-[#A02A5B] text-white border-[#A02A5B] shadow shadow-[#A02A5B]/20' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>{c.labelAr} <span className="text-[10px] opacity-60 hidden md:inline">• {c.label}</span></button>
+            <button key={c.key} type="button" onClick={()=>{const n=new URLSearchParams(params); n.set('cat',c.key); setParams(n)}} className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold border ${cat===c.key ? 'bg-[#A02A5B] text-white border-[#A02A5B] shadow shadow-[#A02A5B]/20' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>{c.labelAr} <span className="text-[10px] opacity-60 hidden md:inline">• {c.label}</span></button>
           ))}
-          <span className="ms-auto flex items-center gap-1 text-xs text-[#9A8A6B]"><SlidersHorizontal size={14}/> {filtered.length} منتج</span>
         </div>
+        <div className="mt-2 flex items-center gap-1 text-xs text-[#9A8A6B]"><SlidersHorizontal size={14}/> {filtered.length} منتج</div>
 
         {/* hint when browsing cross-domain */}
         {cat!=='all' && !domainCatKeys.includes(cat) && (

@@ -1,57 +1,80 @@
-import { STORAGE_KEYS, load, save, generateId } from './db'
-import type { Order, OrderItem, OrderStatus } from './types'
-import { getWilayas } from './wilayas'
+/**
+ * Orders service.
+ *
+ * Sync API reads from an in-memory cache kept fresh by syncOrders().
+ * Mutations go through the async `*Api` helpers in ./client.
+ */
 
-export function getOrders(): Order[] { return load<Order[]>(STORAGE_KEYS.ORDERS, []) }
+import type { Order, OrderStatus } from './types'
+import {
+  fetchOrders, fetchOrderByNumber, createOrderApi,
+  updateOrderStatusApi, deleteOrderApi,
+} from './client'
 
-export function createOrder(data: Omit<Order,'_id'|'orderNumber'|'createdAt'|'updatedAt'|'status'| 'wilayaNameAr'> & {wilayaNameAr?:string}): Order {
-  const orders = getOrders()
-  const wilayas = getWilayas()
-  const w = wilayas.find(x=>x.code===data.wilaya || x.nameAr===data.wilaya)
-  const wilayaNameAr = data.wilayaNameAr || w?.nameAr || data.wilaya
-  const existingSignature = `${data.phone}-${data.items.map(i=>i.productId+":"+i.qty).join(',')}`
-  const duplicate = orders.find(o=> `${o.phone}-${o.items.map(i=>i.productId+":"+i.qty).join(',')}`===existingSignature && Date.now() - new Date(o.createdAt).getTime() < 1000*60*30)
-  if(duplicate) throw new Error('DUPLICATE_ORDER')
+let cache: Order[] = []
+let loaded = false
 
-  const order: Order = {
-    _id: generateId(),
-    orderNumber: "LUM-"+ (1000+orders.length+1).toString(),
-    customerName: data.customerName,
-    phone: data.phone,
-    phone2: data.phone2,
-    wilaya: w?.code || data.wilaya,
-    wilayaNameAr,
-    commune: data.commune,
-    address: data.address,
-    deliveryType: data.deliveryType,
-    items: data.items,
-    subtotal: data.subtotal,
-    discount: data.discount,
-    shippingCost: data.shippingCost,
-    total: data.total,
-    status: 'new',
-    notes: data.notes,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+export async function syncOrders(): Promise<Order[]> {
+  try {
+    const list = await fetchOrders()
+    cache = list
+    loaded = true
+    return list
+  } catch {
+    loaded = true
+    return cache
   }
-  orders.unshift(order)
-  save(STORAGE_KEYS.ORDERS, orders)
-  return order
 }
 
-export function updateOrderStatus(id:string, status: OrderStatus){
-  const orders = getOrders()
-  const idx = orders.findIndex(o=>o._id===id)
-  if(idx>=0){ orders[idx].status = status; orders[idx].updatedAt = new Date().toISOString(); save(STORAGE_KEYS.ORDERS, orders)}
-  return orders
+export function getOrders(): Order[] {
+  if (!loaded) void syncOrders()
+  return cache
 }
-export function deleteOrder(id:string){
-  const orders = getOrders().filter(o=>o._id!==id); save(STORAGE_KEYS.ORDERS, orders); return orders
+
+export async function getOrder(orderNumber: string): Promise<Order | undefined> {
+  // Try the cache first (cheap), then the API
+  const fromCache = cache.find(o => o.orderNumber === orderNumber)
+  if (fromCache) return fromCache
+  return await fetchOrderByNumber(orderNumber)
+}
+
+export async function createOrder(
+  data: Omit<Order,'_id'|'orderNumber'|'createdAt'|'updatedAt'|'status'| 'wilayaNameAr'> & {wilayaNameAr?:string}
+): Promise<Order> {
+  try {
+    const order = await createOrderApi(data)
+    cache = [order, ...cache]
+    return order
+  } catch (err: any) {
+    if (err?.message === 'DUPLICATE_ORDER' || err?.body?.error === 'DUPLICATE_ORDER') {
+      throw new Error('DUPLICATE_ORDER')
+    }
+    throw err
+  }
+}
+
+export async function updateOrderStatus(id: string, status: OrderStatus): Promise<Order[]> {
+  const list = await updateOrderStatusApi(id, status)
+  cache = list
+  return list
+}
+
+export async function deleteOrder(id: string): Promise<Order[]> {
+  const list = await deleteOrderApi(id)
+  cache = list
+  return list
 }
 
 export function exportOrdersCsv(orders: Order[]): string {
   const header = ["رقم الطلب","الاسم","الهاتف","الولاية","البلدية","المنتجات","الكمية","المجموع","الشحن","الإجمالي","الحالة","التاريخ"]
-  const rows = orders.map(o=>[o.orderNumber,o.customerName,o.phone,o.wilayaNameAr,o.commune, o.items.map(i=>i.nameAr).join(' | '), o.items.reduce((a,b)=>a+b.qty,0), o.subtotal, o.shippingCost, o.total, o.status, new Date(o.createdAt).toLocaleDateString('ar-DZ')])
-  const csv = [header, ...rows].map(r=> r.map(v=> `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
-  return csv
+  const rows = orders.map(o => [
+    o.orderNumber, o.customerName, o.phone, o.wilayaNameAr, o.commune,
+    o.items.map(i => i.nameAr).join(' | '),
+    o.items.reduce((a, b) => a + b.qty, 0),
+    o.subtotal, o.shippingCost, o.total, o.status,
+    new Date(o.createdAt).toLocaleDateString('ar-DZ')
+  ])
+  return [header, ...rows]
+    .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
 }

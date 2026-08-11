@@ -64,23 +64,30 @@ export default function ProductCard({p}:{p:Product}){
           </div>
         )}
       </Link>
-      <div className="p-4">
-        <div className="flex items-center gap-1 text-[#C9A96A] text-xs">
-          <Star size={12} fill="#C9A96A"/>{p.rating.toFixed(1)} <span className="text-[#9A8A6B]">({p.reviewsCount})</span>
-          <span className={`ms-auto text-[11px] px-2 py-0.5 rounded-full border truncate max-w-[110px] ${isRoseNote ? 'bg-[#FDF2F6] text-[#A02A5B] border-[#F6C0D4]' : 'bg-[#FFF3E0] text-[#8D6E3A] border-[#F0D9A8]'}`}>{p.materialAr}</span>
+      <div className="p-3 md:p-4">
+        {/* Rating + material badge: stack on mobile so the rating number
+            isn't squeezed/truncated by the material badge. */}
+        <div className="flex items-center gap-1 text-[#C9A96A] text-xs min-w-0">
+          <Star size={12} fill="#C9A96A" className="shrink-0"/>
+          <span className="font-bold shrink-0">{p.rating.toFixed(1)}</span>
+          <span className="text-[#9A8A6B] shrink-0">({p.reviewsCount})</span>
+          {p.materialAr && <span className={`ms-auto text-[10px] md:text-[11px] px-2 py-0.5 rounded-full border truncate max-w-[90px] md:max-w-[110px] ${isRoseNote ? 'bg-[#FDF2F6] text-[#A02A5B] border-[#F6C0D4]' : 'bg-[#FFF3E0] text-[#8D6E3A] border-[#F0D9A8]'}`}>{p.materialAr}</span>}
         </div>
         <Link to={`/product/${p._id}`} className="block mt-2">
-          <h3 className="font-bold text-[#1A1A1E] leading-tight line-clamp-1 hover:text-[#A02A5B] transition">{p.nameAr}</h3>
-          <p className="cormorant text-[12px] tracking-widest text-[#9A8A6B] truncate">{p.name.toUpperCase()}</p>
+          {/* Allow 2 lines on mobile so product names don't get cut off. */}
+          <h3 className="font-bold text-[#1A1A1E] leading-snug text-sm line-clamp-2 hover:text-[#A02A5B] transition">{p.nameAr}</h3>
+          <p className="cormorant text-[11px] md:text-[12px] tracking-widest text-[#9A8A6B] truncate mt-0.5">{p.name.toUpperCase()}</p>
         </Link>
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="font-extrabold text-[#1A1A1E]">{formatDZD(p.price)}</span>
+        {/* Price row: allow wrapping so the compare-at price doesn't push
+            the main price off-screen. */}
+        <div className="mt-2 flex items-baseline gap-2 flex-wrap">
+          <span className="font-extrabold text-[#1A1A1E] text-sm md:text-base">{formatDZD(p.price)}</span>
           {p.compareAtPrice && <span className="text-xs line-through text-[#B0A48A]">{formatDZD(p.compareAtPrice)}</span>}
         </div>
         {p.tierPricing[0] && (
-          <div className={`mt-2 text-[11px] font-bold rounded-full px-3 py-1 inline-flex items-center gap-1.5 border ${isRoseNote ? 'text-[#A02A5B] bg-[#FDF2F6] border-[#F6C0D4]' : 'text-[#8D6E3A] bg-[#FFFBF0] border-[#F5E6C8]'}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${isRoseNote ? 'bg-[#A02A5B]' : 'bg-[#C9A96A]'}`}></span>
-            وفّري حتى {p.tierPricing[p.tierPricing.length-1].discountPercent}% عند شراء {p.tierPricing[p.tierPricing.length-1].minQty} قطع
+          <div className={`mt-2 text-[10px] md:text-[11px] font-bold rounded-full px-2.5 py-1 inline-flex items-center gap-1.5 border ${isRoseNote ? 'text-[#A02A5B] bg-[#FDF2F6] border-[#F6C0D4]' : 'text-[#8D6E3A] bg-[#FFFBF0] border-[#F5E6C8]'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isRoseNote ? 'bg-[#A02A5B]' : 'bg-[#C9A96A]'}`}></span>
+            <span>وفّري حتى {p.tierPricing[p.tierPricing.length-1].discountPercent}% عند شراء {p.tierPricing[p.tierPricing.length-1].minQty} قطع</span>
           </div>
         )}
         {p.variants && p.variants.length>0 && (
