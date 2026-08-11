@@ -79,26 +79,16 @@ vercel --prod
 
 ```
 agon-project/
-├── api/                          ← Vercel Serverless Functions
-│   ├── lib/
-│   │   ├── mongo.ts              ← اتصال MongoDB + helpers
-│   │   ├── models.ts             ← Mongoose schemas
-│   │   ├── seed-runner.ts        ← منطق التهيئة التلقائية
-│   │   ├── seed.ts               ← بيانات أولية (نسخة الخادم)
-│   │   └── types.ts              ← أنواع TypeScript للخادم
-│   ├── products/
-│   │   ├── index.ts              ← GET/POST /api/products
-│   │   ├── [id].ts               ← GET/PUT/DELETE /api/products/:id
-│   │   └── [id]/action.ts        ← POST duplicate/toggleFeatured/toggleNew
-│   ├── orders/
-│   │   ├── index.ts              ← GET/POST /api/orders
-│   │   └── [orderNumber].ts      ← GET/PATCH/DELETE /api/orders/:orderNumber
-│   ├── domains/
-│   │   ├── (domains.ts)          ← GET/POST/PATCH/DELETE /api/domains
-│   │   └── activate/index.ts     ← POST /api/domains/activate
-│   ├── settings.ts               ← GET/PUT/PATCH /api/settings
-│   ├── wilayas.ts                ← GET/POST/PATCH /api/wilayas
-│   └── vercel.json               ← إعدادات النشر
+├── api/                          ← Vercel Serverless Function واحد
+│   ├── index.ts                  ← Catch-all router لكل مسارات /api/*
+│   │                                (يدعم 21 endpoint من ملف واحد — حلّ مشكلة
+│   │                                 حدّ الـ 12 Function على خطة Hobby)
+│   └── lib/
+│       ├── mongo.ts               ← اتصال MongoDB + helpers
+│       ├── models.ts              ← Mongoose schemas
+│       ├── seed-runner.ts         ← منطق التهيئة التلقائية
+│       ├── seed.ts                ← بيانات أولية (نسخة الخادم)
+│       └── types.ts               ← أنواع TypeScript للخادم
 ├── src/
 │   ├── services/api/
 │   │   ├── client.ts             ← طبقة fetch (المخزن المؤقت + fallback)
@@ -113,8 +103,20 @@ agon-project/
 │   ├── pages/                    ← Home, Shop, ProductDetail, Cart, Admin, …
 │   ├── components/               ← Header, Footer, ProductCard, ScrollToTop
 │   └── context/                  ← CartContext, WishlistContext
-└── vercel.json                   ← تكوين Vercel (Vite + api/)
+└── vercel.json                   ← تكوين Vercel (Vite + api/index.ts)
 ```
+
+### لماذا ملف واحد (Catch-All Route)؟
+
+خطة Vercel Hobby المجانية تسمح بحد أقصى **12 Serverless Function لكل
+Deployment**. النسخة السابقة كانت تحتوي على 9 ملفات منفصلة
+(`/api/products/index.ts`, `/api/products/[id].ts`, `/api/orders/index.ts`, …)
+مما تجاوز الحد عند إضافة functions داخلية خاصة بـ Vite/Next.
+
+الحل: دمج كل المسارات في ملف واحد `api/index.ts` يتعامل مع التوجيه
+(routing) داخلياً عن طريق تحليل `req.url.pathname` وتوزيعه على دوال
+معالجة منفصلة. هذا يحافظ على نفس مسارات URL للعميل (`/api/products`,
+`/api/orders/LUM-1001`, …) بينما Vercel يرى function واحد فقط.
 
 ## 🧪 التطوير المحلي
 

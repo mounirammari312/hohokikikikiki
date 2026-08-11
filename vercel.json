@@ -5,9 +5,9 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "functions": {
-    "api/**/*.ts": {
+    "api/index.ts": {
       "memory": 256,
-      "maxDuration": 10
+      "maxDuration": 30
     }
   },
   "crons": []
