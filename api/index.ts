@@ -1,9 +1,9 @@
 // @ts-nocheck
-import { connectDB } from './lib/mongo'
+import { connectDB } from './lib/mongo.js'
 import {
   ProductModel, WilayaModel, OrderModel, SettingsModel, DomainModel,
-} from './lib/models'
-import { ensureSeeded, SETTINGS_DOC_ID, presetDomains } from './lib/seed-runner'
+} from './lib/models.js'
+import { ensureSeeded, SETTINGS_DOC_ID, presetDomains } from './lib/seed-runner.js'
 
 export const config = {
   runtime: 'nodejs',
