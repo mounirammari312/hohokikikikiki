@@ -75,7 +75,7 @@ const VALID_ORDER_STATUSES = ['new', 'confirmed', 'shipping', 'delivered', 'canc
 // We parse `req.url`, dispatch to a handler, and that's it.
 
 export default async function handler(req: Request): Promise<Response> {
-  const url = new URL(req.url)
+  const url = new URL(req.url, 'https://localhost')
   const method = (req.method || 'GET').toUpperCase()
   // pathname looks like: /api/products/prod_001/action
   // Strip leading "/api" + leading slash, then split.
