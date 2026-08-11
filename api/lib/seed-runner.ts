@@ -15,9 +15,9 @@
  * This is called by the API routes on first access (lazy seeding).
  */
 
-import { ProductModel, WilayaModel, SettingsModel, DomainModel } from './models'
-import { seedProducts, seedWilayas, presetDomains, defaultSettings } from './seed'
-import type { StoreSettings } from './types'
+import { ProductModel, WilayaModel, SettingsModel, DomainModel } from './models.js'
+import { seedProducts, seedWilayas, presetDomains, defaultSettings } from './seed.js'
+import type { StoreSettings } from './types.js'
 
 // Re-export so API routes can import everything from a single module
 export { seedProducts, seedWilayas, presetDomains, defaultSettings }
@@ -93,3 +93,4 @@ async function doSeed(): Promise<void> {
 }
 
 export { SETTINGS_DOC_ID }
+
