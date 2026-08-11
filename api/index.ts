@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { connectDB, json, handleError } from './lib/mongo'
+import { connectDB } from './lib/mongo'
 import {
   ProductModel, WilayaModel, OrderModel, SettingsModel, DomainModel,
 } from './lib/models'
@@ -13,10 +13,39 @@ export const config = {
 const PRESET_IDS = new Set((presetDomains || []).map(d => d.id))
 const VALID_ORDER_STATUSES = ['new', 'confirmed', 'shipping', 'delivered', 'cancelled']
 
-export default async function handler(req: Request): Promise<Response> {
+// ─── Vercel Node.js Compatibility Helpers ─────────────────────────────────────
+
+async function getReqBody(req: any) {
+  if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'string') {
+      try { return JSON.parse(req.body) } catch (e) { return {} }
+    }
+    return req.body
+  }
+  if (typeof req.json === 'function') {
+    try { return await req.json() } catch (e) { return {} }
+  }
+  return {}
+}
+
+function reply(res: any, data: any, status = 200) {
+  if (res && typeof res.status === 'function') {
+    return res.status(status).json(data)
+  }
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+  })
+}
+
+// ─── Main Handler ─────────────────────────────────────────────────────────────
+
+export default async function handler(req: any, res: any) {
   try {
-    const url = new URL(req.url, 'https://localhost')
+    const rawUrl = req.url || '/'
+    const url = new URL(rawUrl, 'https://localhost')
     const method = (req.method || 'GET').toUpperCase()
+
     const segments = url.pathname
       .replace(/^\/api\/?/, '')
       .split('/')
@@ -25,40 +54,37 @@ export default async function handler(req: Request): Promise<Response> {
 
     const query = url.searchParams
 
-    // ─── /health (اختبار سريع للتحقق من عمل الخادم) ────────────────
+    // Health Check
     if (segments[0] === 'health') {
-      return json({ ok: true, ts: Date.now() })
+      return reply(res, { ok: true, ts: Date.now() })
     }
 
     const matched = matchRoute(segments, method)
     if (!matched) {
-      return json({ error: 'NOT_FOUND', path: url.pathname, method }, 404)
+      return reply(res, { error: 'NOT_FOUND', path: url.pathname, method }, 404)
     }
 
-    // الاتصال بقاعدة البيانات والتهيئة
     await connectDB()
     await ensureSeeded()
 
-    return await matched({ req, query, segments })
+    const result = await matched({ req, res, query, segments })
+    return reply(res, result.data, result.status || 200)
   } catch (err: any) {
-    console.error('SERVERLESS_API_ERROR:', err)
-    return new Response(
-      JSON.stringify({
+    console.error('SERVERLESS_HANDLER_ERROR:', err)
+    return reply(
+      res,
+      {
         error: 'SERVERLESS_CRASH',
-        name: err?.name || 'Error',
         message: err?.message || String(err),
         stack: err?.stack || null,
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      }
+      },
+      500
     )
   }
 }
 
-type RouteCtx = { req: Request; query: URLSearchParams; segments: string[] }
-type RouteHandler = (ctx: RouteCtx) => Promise<Response>
+type RouteCtx = { req: any; res: any; query: URLSearchParams; segments: string[] }
+type RouteHandler = (ctx: RouteCtx) => Promise<{ data: any; status?: number }>
 
 function matchRoute(segments: string[], method: string): RouteHandler | null {
   if (segments[0] === 'products') {
@@ -118,13 +144,15 @@ function matchRoute(segments: string[], method: string): RouteHandler | null {
   return null
 }
 
+// ─── ENDPOINTS ────────────────────────────────────────────────────────────────
+
 async function listProducts() {
   const docs = await ProductModel.find({}, null, { sort: { createdAt: -1 } }).lean()
-  return json({ products: docs })
+  return { data: { products: docs } }
 }
 
-async function createProduct(req: Request) {
-  const body = await req.json()
+async function createProduct(req: any) {
+  const body = await getReqBody(req)
   if (!body._id) {
     body._id = 'prod_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
   }
@@ -135,17 +163,17 @@ async function createProduct(req: Request) {
   }
   await ProductModel.create(body)
   const docs = await ProductModel.find({}, null, { sort: { createdAt: -1 } }).lean()
-  return json({ products: docs, created: body })
+  return { data: { products: docs, created: body } }
 }
 
 async function getProduct(id: string) {
   const doc = await ProductModel.findById(id).lean()
-  if (!doc) return json({ error: 'NOT_FOUND' }, 404)
-  return json({ product: doc })
+  if (!doc) return { data: { error: 'NOT_FOUND' }, status: 404 }
+  return { data: { product: doc } }
 }
 
-async function updateProduct(id: string, req: Request) {
-  const patch = await req.json()
+async function updateProduct(id: string, req: any) {
+  const patch = await getReqBody(req)
   if (patch.price !== undefined) patch.price = Number(patch.price)
   if (patch.compareAtPrice !== undefined) {
     patch.compareAtPrice = patch.compareAtPrice ? Number(patch.compareAtPrice) : null
@@ -160,21 +188,21 @@ async function updateProduct(id: string, req: Request) {
   const next = await ProductModel.findByIdAndUpdate(
     id, { $set: { ...patch, _id: id } }, { new: true, upsert: false }
   ).lean()
-  if (!next) return json({ error: 'NOT_FOUND' }, 404)
+  if (!next) return { data: { error: 'NOT_FOUND' }, status: 404 }
   const docs = await ProductModel.find({}, null, { sort: { createdAt: -1 } }).lean()
-  return json({ products: docs, updated: next })
+  return { data: { products: docs, updated: next } }
 }
 
 async function deleteProduct(id: string) {
   await ProductModel.findByIdAndDelete(id)
   const docs = await ProductModel.find({}, null, { sort: { createdAt: -1 } }).lean()
-  return json({ products: docs })
+  return { data: { products: docs } }
 }
 
-async function productAction(id: string, req: Request) {
-  const { action } = await req.json()
+async function productAction(id: string, req: any) {
+  const { action } = await getReqBody(req)
   const orig = await ProductModel.findById(id).lean()
-  if (!orig) return json({ error: 'NOT_FOUND' }, 404)
+  if (!orig) return { data: { error: 'NOT_FOUND' }, status: 404 }
 
   if (action === 'duplicate') {
     const copy = {
@@ -196,20 +224,20 @@ async function productAction(id: string, req: Request) {
     const flag = action === 'toggleFeatured' ? 'isFeatured' : 'isNew'
     await ProductModel.findByIdAndUpdate(id, { $set: { [flag]: !orig[flag] } })
   } else {
-    return json({ error: 'UNKNOWN_ACTION' }, 400)
+    return { data: { error: 'UNKNOWN_ACTION' }, status: 400 }
   }
 
   const docs = await ProductModel.find({}, null, { sort: { createdAt: -1 } }).lean()
-  return json({ products: docs })
+  return { data: { products: docs } }
 }
 
 async function listOrders() {
   const docs = await OrderModel.find({}, null, { sort: { createdAt: -1 } }).lean()
-  return json({ orders: docs })
+  return { data: { orders: docs } }
 }
 
-async function createOrder(req: Request) {
-  const data = await req.json()
+async function createOrder(req: any) {
+  const data = await getReqBody(req)
 
   if (!data.wilayaNameAr) {
     const w = await WilayaModel.findOne({ code: data.wilaya }).lean()
@@ -229,7 +257,7 @@ async function createOrder(req: Request) {
       .map(i => i.productId + ':' + i.qty).join(',')}`
     const ageMs = Date.now() - new Date(recent.createdAt).getTime()
     if (recentSig === sig && ageMs < 30 * 60 * 1000) {
-      return json({ error: 'DUPLICATE_ORDER' }, 409)
+      return { data: { error: 'DUPLICATE_ORDER' }, status: 409 }
     }
   }
 
@@ -257,62 +285,62 @@ async function createOrder(req: Request) {
     updatedAt: new Date().toISOString(),
   }
   await OrderModel.create(order)
-  return json({ order }, 201)
+  return { data: { order }, status: 201 }
 }
 
 async function getOrder(orderNumber: string) {
   let doc = await OrderModel.findOne({ orderNumber }).lean()
   if (!doc) doc = await OrderModel.findById(orderNumber).lean()
-  if (!doc) return json({ error: 'NOT_FOUND' }, 404)
-  return json({ order: doc })
+  if (!doc) return { data: { error: 'NOT_FOUND' }, status: 404 }
+  return { data: { order: doc } }
 }
 
-async function updateOrderStatus(orderNumber: string, req: Request) {
-  const { status } = await req.json()
+async function updateOrderStatus(orderNumber: string, req: any) {
+  const { status } = await getReqBody(req)
   if (!status || !VALID_ORDER_STATUSES.includes(status)) {
-    return json({ error: 'INVALID_STATUS' }, 400)
+    return { data: { error: 'INVALID_STATUS' }, status: 400 }
   }
   const next = await OrderModel.findOneAndUpdate(
     { orderNumber },
     { $set: { status, updatedAt: new Date().toISOString() } },
     { new: true }
   ).lean()
-  if (!next) return json({ error: 'NOT_FOUND' }, 404)
+  if (!next) return { data: { error: 'NOT_FOUND' }, status: 404 }
   const docs = await OrderModel.find({}, null, { sort: { createdAt: -1 } }).lean()
-  return json({ orders: docs, updated: next })
+  return { data: { orders: docs, updated: next } }
 }
 
 async function deleteOrder(orderNumber: string) {
   await OrderModel.findOneAndDelete({ orderNumber })
   const docs = await OrderModel.find({}, null, { sort: { createdAt: -1 } }).lean()
-  return json({ orders: docs })
+  return { data: { orders: docs } }
 }
 
 async function listWilayas() {
   const docs = await WilayaModel.find({}, null, { sort: { code: 1 } }).lean()
-  return json({ wilayas: docs })
+  return { data: { wilayas: docs } }
 }
 
-async function addWilaya(req: Request) {
-  const data = await req.json()
+async function addWilaya(req: any) {
+  const data = await getReqBody(req)
   if (!data._id) data._id = 'w_' + (data.code || Date.now().toString(36))
   await WilayaModel.create(data)
   const docs = await WilayaModel.find({}, null, { sort: { code: 1 } }).lean()
-  return json({ wilayas: docs })
+  return { data: { wilayas: docs } }
 }
 
-async function updateWilaya(query: URLSearchParams, req: Request) {
+async function updateWilaya(query: URLSearchParams, req: any) {
   const code = query.get('code')
-  if (!code) return json({ error: 'CODE_REQUIRED' }, 400)
-  const patch = await req.json()
+  if (!code) return { data: { error: 'CODE_REQUIRED' }, status: 400 }
+  const patch = await getReqBody(req)
   if (patch.deliveryHome !== undefined) patch.deliveryHome = Number(patch.deliveryHome)
   if (patch.deliveryDesk !== undefined) patch.deliveryDesk = Number(patch.deliveryDesk)
   const next = await WilayaModel.findOneAndUpdate(
     { code }, { $set: patch }, { new: true }
   ).lean()
-  if (!next) return json({ error: 'NOT_FOUND' }, 404)
+  if (!next) return { data: { error: 'NOT_FOUND' }, status: 404 }
   const docs = await WilayaModel.find({}, null, { sort: { code: 1 } }).lean()
-  return json({ wilayas: docs, updated: next })
+  return { data: { wilayas: docs, updated: next } }
 }
 
 async function getSettings() {
@@ -321,25 +349,25 @@ async function getSettings() {
     await ensureSeeded()
     doc = await SettingsModel.findById(SETTINGS_DOC_ID).lean()
   }
-  return json({ settings: doc })
+  return { data: { settings: doc } }
 }
 
-async function putSettings(req: Request) {
-  const data = await req.json()
+async function putSettings(req: any) {
+  const data = await getReqBody(req)
   const next = await SettingsModel.findByIdAndUpdate(
     SETTINGS_DOC_ID,
     { $set: { ...data, _id: SETTINGS_DOC_ID } },
     { new: true, upsert: true }
   ).lean()
-  return json({ settings: next })
+  return { data: { settings: next } }
 }
 
-async function patchSettings(req: Request) {
-  const patch = await req.json()
+async function patchSettings(req: any) {
+  const patch = await getReqBody(req)
   const next = await SettingsModel.findByIdAndUpdate(
     SETTINGS_DOC_ID, { $set: patch }, { new: true, upsert: true }
   ).lean()
-  return json({ settings: next })
+  return { data: { settings: next } }
 }
 
 async function listDomains() {
@@ -351,28 +379,28 @@ async function listDomains() {
     const ob = order[b.id] ?? 999
     return oa - ob
   })
-  return json({ domains: sorted })
+  return { data: { domains: sorted } }
 }
 
-async function createDomain(req: Request) {
-  const data = await req.json()
+async function createDomain(req: any) {
+  const data = await getReqBody(req)
   if (!data.id) {
     data.id = 'domain_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
   }
   data.isPreset = false
   await DomainModel.create(data)
   const docs = await DomainModel.find({}).lean()
-  return json({ domains: docs, created: data })
+  return { data: { domains: docs, created: data } }
 }
 
-async function updateDomain(query: URLSearchParams, req: Request) {
+async function updateDomain(query: URLSearchParams, req: any) {
   const id = query.get('id')
-  if (!id) return json({ error: 'ID_REQUIRED' }, 400)
-  const patch = await req.json()
+  if (!id) return { data: { error: 'ID_REQUIRED' }, status: 400 }
+  const patch = await getReqBody(req)
   const next = await DomainModel.findOneAndUpdate(
     { id }, { $set: patch }, { new: true }
   ).lean()
-  if (!next) return json({ error: 'NOT_FOUND' }, 404)
+  if (!next) return { data: { error: 'NOT_FOUND' }, status: 404 }
 
   const settings = await SettingsModel.findById(SETTINGS_DOC_ID).lean()
   if (settings?.activeDomainId === id) {
@@ -388,13 +416,13 @@ async function updateDomain(query: URLSearchParams, req: Request) {
     })
   }
   const docs = await DomainModel.find({}).lean()
-  return json({ domains: docs, updated: next })
+  return { data: { domains: docs, updated: next } }
 }
 
 async function deleteDomain(query: URLSearchParams) {
   const id = query.get('id')
-  if (!id) return json({ error: 'ID_REQUIRED' }, 400)
-  if (PRESET_IDS.has(id)) return json({ error: 'CANNOT_DELETE_PRESET' }, 400)
+  if (!id) return { data: { error: 'ID_REQUIRED' }, status: 400 }
+  if (PRESET_IDS.has(id)) return { data: { error: 'CANNOT_DELETE_PRESET' }, status: 400 }
   await DomainModel.findOneAndDelete({ id })
 
   const settings = await SettingsModel.findById(SETTINGS_DOC_ID).lean()
@@ -413,14 +441,14 @@ async function deleteDomain(query: URLSearchParams) {
     })
   }
   const docs = await DomainModel.find({}).lean()
-  return json({ domains: docs })
+  return { data: { domains: docs } }
 }
 
-async function activateDomain(req: Request) {
-  const { id } = await req.json()
-  if (!id) return json({ error: 'ID_REQUIRED' }, 400)
+async function activateDomain(req: any) {
+  const { id } = await getReqBody(req)
+  if (!id) return { data: { error: 'ID_REQUIRED' }, status: 400 }
   const domain = await DomainModel.findOne({ id }).lean()
-  if (!domain) return json({ error: 'NOT_FOUND' }, 404)
+  if (!domain) return { data: { error: 'NOT_FOUND' }, status: 404 }
   const settings = await SettingsModel.findByIdAndUpdate(
     SETTINGS_DOC_ID,
     {
@@ -436,6 +464,6 @@ async function activateDomain(req: Request) {
     },
     { new: true }
   ).lean()
-  return json({ domain, settings })
+  return { data: { domain, settings } }
 }
 
