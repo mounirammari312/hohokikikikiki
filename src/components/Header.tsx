@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingBag, Search, Menu, X, LayoutDashboard, Heart } from 'lucide-react'
+import { ShoppingBag, Search, Menu, X, Heart } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
 import { getSettings } from '../services/api/settings'
@@ -24,8 +24,6 @@ export default function Header(){
     <header className="sticky top-0 z-50 bg-[#FFFCF8]/90 glass border-b border-[#EDE6D8]">
       <div className="bg-[#1A1A1E] text-[#C9A96A] text-[12px] py-2 text-center tracking-widest manrope flex items-center justify-center gap-2 px-3">
         <span className="hidden md:inline-flex items-center gap-2 text-center leading-tight">{store.announcement} {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B] shadow-[0_0_8px_rgba(160,42,91,0.6)] shrink-0"></span>}</span>
-        {/* On mobile, allow the announcement to wrap to 2 lines instead of
-            truncating with `...` which hid important info like the COD threshold. */}
         <span className="md:hidden leading-snug tracking-normal text-[11px] line-clamp-2">{store.announcement}</span>
         <span className="hidden lg:flex items-center gap-2 shrink-0 ms-2 ps-2 border-s border-white/10 text-white/60 text-[11px]">خدمة العملاء: {store.phone} <span className="w-1 h-1 rounded-full bg-white/30"></span> {store.enableRoseEdition ? 'لمسة وردية • ÉDITION ROSE' : store.storeName}</span>
       </div>
@@ -46,7 +44,6 @@ export default function Header(){
             <Link to="/" className="hover:text-[#C9A96A] transition">الرئيسية</Link>
             <Link to="/shop" className="hover:text-[#C9A96A] transition">المتجر</Link>
             <Link to="/#collection" onClick={e=>{ e.preventDefault(); setOpen(false); if(window.location.pathname==='/'){ document.getElementById('collection')?.scrollIntoView({behavior:'smooth'}) }else{ nav('/#collection') }}} className="hover:text-[#C9A96A] transition">الكولكشن</Link>
-            <Link to="/admin" className="flex items-center gap-1.5 text-[#7A6F5A] hover:text-[#1A1A1E]"><LayoutDashboard size={14}/> لوحة التحكم</Link>
           </nav>
         </div>
 
@@ -77,7 +74,6 @@ export default function Header(){
           <Link onClick={()=>setOpen(false)} to="/" className="block py-2 font-semibold">الرئيسية</Link>
           <Link onClick={()=>setOpen(false)} to="/shop" className="block py-2 font-semibold">المتجر</Link>
           <Link onClick={()=>setOpen(false)} to="/wishlist" className="block py-2 font-semibold flex items-center gap-2"><Heart size={16}/> الرغبات {wishCount>0 && `(${wishCount})`}</Link>
-          <Link onClick={()=>setOpen(false)} to="/admin" className="block py-2 font-semibold flex items-center gap-2"><LayoutDashboard size={16}/> لوحة التحكم</Link>
           <Link onClick={()=>setOpen(false)} to="/cart" className="block py-2 font-semibold">السلة ({totalQty})</Link>
           <div className="text-xs text-[#9A8A6B] border-t border-[#EDE6D8] pt-3">{store.phone} • {store.email}</div>
         </div>
@@ -85,3 +81,4 @@ export default function Header(){
     </header>
   )
 }
+
