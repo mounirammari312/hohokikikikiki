@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
@@ -17,20 +17,70 @@ import { syncWilayas } from './services/api/wilayas'
 import { syncSettings } from './services/api/settings'
 import { syncDomains } from './services/api/domains'
 
-// حارس حماية لوحة التحكم عبر الرابط السري
+// 🔑 كلمة السر الخاصة بلوحة التحكم (غيرها من هنا في أي وقت)
+const ADMIN_PASSWORD = '1234'
+
+// حارس حماية لوحة التحكم مع شاشة كلمة السر
 function AdminGuard() {
   const location = useLocation()
   const searchParams = new URLSearchParams(location.search)
   const hasSecret = searchParams.get('admin') === 'true'
 
-  if (hasSecret) {
-    sessionStorage.setItem('lumiere_admin_auth', 'true')
+  const [passInput, setPassInput] = useState('')
+  const [isAuth, setIsAuth] = useState(() => {
+    return sessionStorage.getItem('lumiere_admin_auth') === 'true'
+  })
+  const [error, setError] = useState(false)
+
+  // التفعيل التلقائي عند استخدام الرابط السري
+  useEffect(() => {
+    if (hasSecret) {
+      sessionStorage.setItem('lumiere_admin_auth', 'true')
+      setIsAuth(true)
+    }
+  }, [hasSecret])
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (passInput === ADMIN_PASSWORD) {
+      sessionStorage.setItem('lumiere_admin_auth', 'true')
+      setIsAuth(true)
+      setError(false)
+    } else {
+      setError(true)
+    }
   }
 
-  const isAuth = sessionStorage.getItem('lumiere_admin_auth') === 'true' || hasSecret
-
+  // إذا لم يكن مسجلاً للدخول، تظهر شاشة كلمة السر
   if (!isAuth) {
-    return <Navigate to="/" replace />
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <form onSubmit={handleLogin} className="bg-white p-6 md:p-8 rounded-2xl border border-[#EDE6D8] shadow-lg max-w-sm w-full text-center space-y-4">
+          <div className="w-12 h-12 bg-[#1A1A1E] text-[#C9A96A] rounded-xl flex items-center justify-center mx-auto text-xl font-bold">
+            🔒
+          </div>
+          <h2 className="text-xl font-bold text-[#1A1A1E]">دخول المسؤول</h2>
+          <p className="text-xs text-[#7A6F5A]">أدخل كلمة السر للوصول إلى لوحة التحكم</p>
+          
+          <input
+            type="password"
+            value={passInput}
+            onChange={(e) => setPassInput(e.target.value)}
+            placeholder="كلمة السر..."
+            className="w-full border border-[#EDE6D8] rounded-xl px-4 py-2.5 text-center outline-none focus:border-[#C9A96A] transition text-sm"
+          />
+          
+          {error && <p className="text-xs text-red-500 font-semibold">كلمة السر غير صحيحة!</p>}
+
+          <button
+            type="submit"
+            className="w-full bg-[#1A1A1E] text-white py-2.5 rounded-xl font-semibold hover:bg-black transition text-sm"
+          >
+            دخول
+          </button>
+        </form>
+      </div>
+    )
   }
 
   return <Admin />
