@@ -471,5 +471,24 @@ export const defaultSettings: StoreSettings = {
   yalidineApiToken: "",
   zrExpressEnabled: false,
   zrExpressApiKey: "",
-  zrExpressApiSecret: ""
+  zrExpressApiSecret: "",
+
+  // Theme Colors
+  primaryColor: "#C9A96A",
+  secondaryColor: "#1A1A1E",
+  bgColor: "#FFFCF8",
+  cardBgColor: "#FFFFFF",
+  textColor: "#1A1A1E",
+  accentColor: "#A02A5B",
+
+  // Customizable storefront texts
+  editorialTitle: "جودة تلمس، أسعار تناسبك",
+  editorialText1: "جودة عالية تدوم طويلاً مع ضمان الاسترجاع 14 يوم.",
+  editorialText2: "خامات مختارة بعناية، تصميم عملي ومريح للاستعمال اليومي.",
+  review1Name: "سارة - الجزائر",
+  review1Text: "وصلني في 24 ساعة، الجودة ممتازة والتغليف فخم جداً!",
+  review2Name: "أمينة - وهران",
+  review2Text: "خدمة رائعة، اتصلوا بي للتأكيد وأعطوني نصائح للحفاظ على الجودة.",
+  review3Name: "نور - قسنطينة",
+  review3Text: "أخذت عرض 3 قطع ووفّرت 18%، الجودة ممتازة والسعر معقول."
 }

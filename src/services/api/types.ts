@@ -209,4 +209,23 @@ export interface StoreSettings {
   zrExpressEnabled: boolean
   zrExpressApiKey: string
   zrExpressApiSecret: string
+
+  // Theme Colors (customizable by merchant)
+  primaryColor: string
+  secondaryColor: string
+  bgColor: string
+  cardBgColor: string
+  textColor: string
+  accentColor: string
+
+  // Customizable storefront texts
+  editorialTitle: string
+  editorialText1: string
+  editorialText2: string
+  review1Name: string
+  review1Text: string
+  review2Name: string
+  review2Text: string
+  review3Name: string
+  review3Text: string
 }

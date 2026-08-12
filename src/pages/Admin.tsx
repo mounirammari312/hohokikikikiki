@@ -909,6 +909,95 @@ export default function Admin() {
                   <div><label className="text-xs font-bold">وصف الهيرو</label><textarea value={storeForm.heroSubtitleAr} onChange={e => setStoreForm({ ...storeForm, heroSubtitleAr: e.target.value })} rows={2} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm" /></div>
                 </div>
               </div>
+
+              {/* ─── Theme Colors Editor ─────────────────────────────── */}
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+                <h3 className="font-extrabold flex items-center gap-2"><PaletteIcon size={16} className="text-[#A02A5B]" /> ألوان الثيم (تخصيص هوية المتجر)</h3>
+                <p className="text-xs text-[#9A8A6B] mt-1">غيّر ألوان متجرك لتتناسب مع علامتك التجارية. تنطبق فوراً على كل الصفحات.</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+                  {[
+                    { key: 'primaryColor', label: 'اللون الأساسي (ذهبي)' },
+                    { key: 'secondaryColor', label: 'اللون الثانوي (داكن)' },
+                    { key: 'bgColor', label: 'خلفية الصفحة' },
+                    { key: 'cardBgColor', label: 'خلفية البطاقات' },
+                    { key: 'textColor', label: 'لون النص' },
+                    { key: 'accentColor', label: 'لون التمييز (وردي)' },
+                  ].map(c => (
+                    <div key={c.key}>
+                      <label className="text-xs font-bold text-[#7A6F5A]">{c.label}</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="color"
+                          value={(storeForm as any)[c.key] || '#C9A96A'}
+                          onChange={e => setStoreForm({ ...storeForm, [c.key]: e.target.value } as any)}
+                          className="w-10 h-10 rounded-lg border border-[#EDE6D8] p-0 cursor-pointer"
+                        />
+                        <input
+                          value={(storeForm as any)[c.key] || ''}
+                          onChange={e => setStoreForm({ ...storeForm, [c.key]: e.target.value } as any)}
+                          className="flex-1 border border-[#EDE6D8] rounded-lg px-2 py-1.5 text-xs font-mono"
+                          dir="ltr"
+                          placeholder="#C9A96A"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Preset themes */}
+                <div className="mt-4">
+                  <label className="text-xs font-bold text-[#7A6F5A]">ثيمات جاهزة</label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {[
+                      { name: 'ذهبي كلاسيكي', colors: { primaryColor: '#C9A96A', secondaryColor: '#1A1A1E', bgColor: '#FFFCF8', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#A02A5B' } },
+                      { name: 'أزرق تقني', colors: { primaryColor: '#2563EB', secondaryColor: '#0F172A', bgColor: '#F8FAFC', cardBgColor: '#FFFFFF', textColor: '#1E293B', accentColor: '#7C3AED' } },
+                      { name: 'أخضر طبيعي', colors: { primaryColor: '#16A34A', secondaryColor: '#14532D', bgColor: '#F0FDF4', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#CA8A04' } },
+                      { name: 'وردي راقي', colors: { primaryColor: '#EC4899', secondaryColor: '#831843', bgColor: '#FDF2F8', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#9333EA' } },
+                      { name: 'برتقالي حيوي', colors: { primaryColor: '#EA580C', secondaryColor: '#1C1917', bgColor: '#FFFBEB', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#DC2626' } },
+                    ].map(preset => (
+                      <button
+                        key={preset.name}
+                        onClick={() => setStoreForm({ ...storeForm, ...preset.colors } as any)}
+                        className="flex items-center gap-2 bg-[#FFFCF8] border border-[#EDE6D8] rounded-full px-3 py-1.5 text-xs font-bold hover:border-[#C9A96A] transition"
+                      >
+                        <span className="flex gap-0.5">
+                          <span className="w-3 h-3 rounded-full" style={{background: preset.colors.primaryColor}}></span>
+                          <span className="w-3 h-3 rounded-full" style={{background: preset.colors.secondaryColor}}></span>
+                          <span className="w-3 h-3 rounded-full" style={{background: preset.colors.accentColor}}></span>
+                        </span>
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Customizable Storefront Texts ──────────────────── */}
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+                <h3 className="font-extrabold flex items-center gap-2"><FileText size={16} className="text-[#C9A96A]" /> نصوص الواجهة القابلة للتخصيص</h3>
+                <p className="text-xs text-[#9A8A6B] mt-1">هذه النصوص تظهر في الصفحة الرئيسية لمتجرك — عدّلها لتناسب تخصصك (إلكترونيات، ملابس، رقمي...)</p>
+                <div className="grid gap-3 mt-4">
+                  <div><label className="text-xs font-bold">عنوان القسم التحريري</label><input value={storeForm.editorialTitle || ''} onChange={e => setStoreForm({ ...storeForm, editorialTitle: e.target.value } as any)} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm" placeholder="جودة تلمس، أسعار تناسبك" /></div>
+                  <div><label className="text-xs font-bold">ميزة 1</label><input value={storeForm.editorialText1 || ''} onChange={e => setStoreForm({ ...storeForm, editorialText1: e.target.value } as any)} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm" placeholder="جودة عالية مع ضمان الاسترجاع" /></div>
+                  <div><label className="text-xs font-bold">ميزة 2</label><input value={storeForm.editorialText2 || ''} onChange={e => setStoreForm({ ...storeForm, editorialText2: e.target.value } as any)} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm" placeholder="خامات مختارة بعناية" /></div>
+                  <div className="border-t border-[#EDE6D8] pt-3 mt-1">
+                    <div className="text-xs font-bold text-[#7A6F5A] mb-2">آراء العملاء (تظهر في الرئيسية)</div>
+                    <div className="grid gap-2">
+                      <div className="grid grid-cols-12 gap-2 items-center">
+                        <input value={storeForm.review1Name || ''} onChange={e => setStoreForm({ ...storeForm, review1Name: e.target.value } as any)} placeholder="الاسم" className="col-span-4 border border-[#EDE6D8] rounded-lg px-2 py-1.5 text-xs" />
+                        <input value={storeForm.review1Text || ''} onChange={e => setStoreForm({ ...storeForm, review1Text: e.target.value } as any)} placeholder="نص الرأي" className="col-span-8 border border-[#EDE6D8] rounded-lg px-2 py-1.5 text-xs" />
+                      </div>
+                      <div className="grid grid-cols-12 gap-2 items-center">
+                        <input value={storeForm.review2Name || ''} onChange={e => setStoreForm({ ...storeForm, review2Name: e.target.value } as any)} placeholder="الاسم" className="col-span-4 border border-[#EDE6D8] rounded-lg px-2 py-1.5 text-xs" />
+                        <input value={storeForm.review2Text || ''} onChange={e => setStoreForm({ ...storeForm, review2Text: e.target.value } as any)} placeholder="نص الرأي" className="col-span-8 border border-[#EDE6D8] rounded-lg px-2 py-1.5 text-xs" />
+                      </div>
+                      <div className="grid grid-cols-12 gap-2 items-center">
+                        <input value={storeForm.review3Name || ''} onChange={e => setStoreForm({ ...storeForm, review3Name: e.target.value } as any)} placeholder="الاسم" className="col-span-4 border border-[#EDE6D8] rounded-lg px-2 py-1.5 text-xs" />
+                        <input value={storeForm.review3Text || ''} onChange={e => setStoreForm({ ...storeForm, review3Text: e.target.value } as any)} placeholder="نص الرأي" className="col-span-8 border border-[#EDE6D8] rounded-lg px-2 py-1.5 text-xs" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">

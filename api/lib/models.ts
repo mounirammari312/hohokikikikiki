@@ -160,6 +160,28 @@ const SettingsSchema = new mongoose.Schema({
   zrExpressEnabled: { type: Boolean, default: false },
   zrExpressApiKey: { type: String, default: '' },
   zrExpressApiSecret: { type: String, default: '' },
+
+  // ─── Theme Colors (customizable by merchant) ───────────────────────
+  primaryColor: { type: String, default: '#C9A96A' },     // gold accent
+  secondaryColor: { type: String, default: '#1A1A1E' },   // dark base
+  bgColor: { type: String, default: '#FFFCF8' },           // page background
+  cardBgColor: { type: String, default: '#FFFFFF' },       // card background
+  textColor: { type: String, default: '#1A1A1E' },         // main text
+  accentColor: { type: String, default: '#A02A5B' },       // rose accent (CTA, badges)
+
+  // ─── Customizable storefront texts (editable from dashboard) ──────
+  // These replace the old domain-specific hardcoded texts in Home.tsx.
+  // The merchant can set them to match ANY niche — electronics, digital
+  // products, clothing, etc.
+  editorialTitle: { type: String, default: 'جودة تلمس، أسعار تناسبك' },
+  editorialText1: { type: String, default: 'جودة عالية تدوم طويلاً مع ضمان الاسترجاع 14 يوم.' },
+  editorialText2: { type: String, default: 'خامات مختارة بعناية، تصميم عملي ومريح للاستعمال اليومي.' },
+  review1Name: { type: String, default: 'سارة - الجزائر' },
+  review1Text: { type: String, default: 'وصلني في 24 ساعة، الجودة ممتازة والتغليف فخم جداً!' },
+  review2Name: { type: String, default: 'أمينة - وهران' },
+  review2Text: { type: String, default: 'خدمة رائعة، اتصلوا بي للتأكيد وأعطوني نصائح للحفاظ على الجودة.' },
+  review3Name: { type: String, default: 'نور - قسنطينة' },
+  review3Text: { type: String, default: 'أخذت عرض 3 قطع ووفّرت 18%، الجودة ممتازة والسعر معقول.' },
 }, { _id: false, versionKey: false, strict: false })
 
 // ─── Domain (store-scoped category presets) ─────────────────────────────────
