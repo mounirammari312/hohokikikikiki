@@ -62,8 +62,8 @@ export default function Home(){
               <h1 className="cormorant text-[38px] md:text-[52px] leading-[0.95] font-bold text-white mt-4" style={{whiteSpace:'pre-line'}}>{domain.heroTitleAr}</h1>
               <p className="text-white/85 mt-4 leading-7">{domain.heroSubtitleAr}</p>
               <div className="flex flex-wrap gap-3 mt-6">
-                <Link to="/shop" className="bg-[#C9A96A] text-white px-7 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-[#B8945A] transition">تسوّقي الآن <ArrowLeft size={16}/></Link>
-                <a href="#collection" className="bg-white text-[#1A1A1E] px-7 py-3 rounded-full font-bold hover:bg-[#FFFCF8] transition">اكتشفي الكولكشن</a>
+                <Link to="/shop" className="bg-[#C9A96A] text-white px-7 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-[#B8945A] transition">تسوّق الآن <ArrowLeft size={16}/></Link>
+                <a href="#collection" className="bg-white text-[#1A1A1E] px-7 py-3 rounded-full font-bold hover:bg-[#FFFCF8] transition">اكتشف الكولكشن</a>
               </div>
               <div className="flex items-center gap-6 mt-6 text-white/90 text-xs">
                 <span className="flex items-center gap-1.5"><BadgeCheck size={14} className="text-[#C9A96A]"/> 4.9/5 (1.2k تقييم)</span>
@@ -80,7 +80,7 @@ export default function Home(){
                   <div className="text-[#C9A96A] font-extrabold text-sm">{products.find(p=> domainCats.has(p.category)) ? formatDZD(products.find(p=> domainCats.has(p.category))!.price) : formatDZD(6800)}</div>
                 </div>
               </div>
-              <Link to={products.find(p=> domainCats.has(p.category)) ? `/product/${products.find(p=> domainCats.has(p.category))!._id}` : '/shop'} className="mt-3 block text-center bg-[#1A1A1E] text-white rounded-full py-2 text-xs font-bold hover:bg-black transition">اطلبي الآن - COD</Link>
+              <Link to={products.find(p=> domainCats.has(p.category)) ? `/product/${products.find(p=> domainCats.has(p.category))!._id}` : '/shop'} className="mt-3 block text-center bg-[#1A1A1E] text-white rounded-full py-2 text-xs font-bold hover:bg-black transition">اطلب الآن - COD</Link>
             </div>
           </div>
           <div className="grid grid-rows-[1.1fr_0.9fr] gap-4">
@@ -91,7 +91,7 @@ export default function Home(){
               <div className="relative">
                 <span className={`border rounded-full px-3 py-1 text-xs font-bold inline-flex gap-1.5 items-center ${store.enableRoseEdition ? 'bg-white border-[#F6C0D4] text-[#A02A5B]' : 'bg-white border-[#EDE6D8] text-[#7A6F5A]'}`}><Sparkles size={12} className={store.enableRoseEdition ? 'text-[#A02A5B]' : 'text-[#C9A96A]'}/> عروض الكمية {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B] animate-pulse"></span>}</span>
                 <h3 className="text-[28px] font-extrabold leading-none mt-3 text-[#1A1A1E]">وفّري حتى <span className={store.enableRoseEdition ? 'text-[#A02A5B]' : 'text-[#C9A96A]'}>22%</span><br/>عند شراء 3 قطع</h3>
-                <p className={`text-sm mt-2 ${store.enableRoseEdition ? 'text-[#7A5A65]' : 'text-[#7A6F5A]'}`}>شاركي الأناقة مع صديقاتك — خصم تلقائي في السلة</p>
+                <p className={`text-sm mt-2 ${store.enableRoseEdition ? 'text-[#7A5A65]' : 'text-[#7A6F5A]'}`}>شارك الأناقة مع صديقاتك — خصم تلقائي في السلة</p>
               </div>
               <Link to="/shop" className={`relative inline-flex w-fit px-5 py-2.5 rounded-full text-sm font-bold mt-4 transition ${store.enableRoseEdition ? 'bg-[#A02A5B] text-white hover:bg-[#7A1F44]' : 'bg-[#1A1A1E] text-white hover:bg-black'}`}>استفيدي من العرض</Link>
             </div>
@@ -131,7 +131,7 @@ export default function Home(){
         <div className="flex items-end justify-between">
           <div>
             <div className="text-xs tracking-[0.3em] text-[#C9A96A] font-bold flex items-center gap-2">SHOP BY CATEGORY <span className="w-8 h-px bg-[#EDE6D8]"></span> {store.enableRoseEdition && <span className="text-[#A02A5B] text-[10px] tracking-widest border border-[#F6C0D4] bg-[#FDF2F6] px-2 py-0.5 rounded-full">ÉDITION ROSE</span>} <span className="hidden md:inline text-[11px] tracking-normal bg-[#1A1A1E] text-white px-2 py-1 rounded-full">{domain.nameAr} • {domain.categories.length} فئات</span></div>
-            <h2 className="text-[28px] font-extrabold text-[#1A1A1E]">تسوّقي حسب الفئة <span className="text-[#C9A96A] text-[15px]">— {domain.nameAr}</span></h2>
+            <h2 className="text-[28px] font-extrabold text-[#1A1A1E]">تسوّق حسب الفئة <span className="text-[#C9A96A] text-[15px]">— {domain.nameAr}</span></h2>
             <p className="text-xs text-[#9A8A6B] mt-1 line-clamp-1">{domain.descriptionAr}</p>
           </div>
           <Link to="/shop" className="hidden md:inline-flex text-sm font-bold border border-[#EDE6D8] rounded-full px-4 py-2 bg-white hover:bg-[#1A1A1E] hover:text-white transition">عرض الكل</Link>
@@ -170,8 +170,8 @@ export default function Home(){
             <div className="inline-flex items-center gap-2 text-xs font-bold tracking-widest text-[#C9A96A] border border-[#F0D9A8] bg-[#FFFBF0] px-3 py-1 rounded-full">EDITORIAL • لماذا {store.storeName}؟</div>
             <h3 className="text-[26px] font-extrabold leading-tight mt-3 text-[#1A1A1E]">{domain.id==='domain_jewelry' ? 'ذهب يلمع، سعر يلمع أكثر.' : domain.id==='domain_fashion' ? 'أناقة تُحكى، جودة تُلمس.' : 'جمال طبيعي، ثقة تدوم.'}<br/><span className="text-[#9A8A6B] text-[16px] font-normal">{domain.descriptionAr}</span></h3>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-[#5A5340]">
-              <li className="flex gap-2"><BadgeCheck size={18} className="text-[#C9A96A] mt-0.5"/> {domain.id==='domain_jewelry' ? 'طلاء ذهب 18ق بتقنية PVD لا يتغير لونه مع الماء والعطور.' : domain.id==='domain_fashion' ? 'خامات فاخرة وقصّات مدروسة تناسب كل مقاس.' : 'تركيبات آمنة ومجربة، نتائج تظهر من أول استعمال.'}</li>
-              <li className="flex gap-2"><BadgeCheck size={18} className="text-[#C9A96A] mt-0.5"/> {domain.id==='domain_jewelry' ? 'لؤلؤ طبيعي وزركون 3A مقطوع يدوياً، خفيف ومريح للاستعمال اليومي.' : 'تصميم باريسي وخياطة جزائرية متقنة.'}</li>
+              <li className="flex gap-2"><BadgeCheck size={18} className="text-[#C9A96A] mt-0.5"/> {domain.id==='domain_jewelry' ? 'جودة عالية تدوم طويلاً مع ضمان الاسترجاع.' : domain.id==='domain_fashion' ? 'خامات فاخرة وقصّات مدروسة تناسب كل مقاس.' : 'تركيبات آمنة ومجربة، نتائج تظهر من أول استعمال.'}</li>
+              <li className="flex gap-2"><BadgeCheck size={18} className="text-[#C9A96A] mt-0.5"/> {domain.id==='domain_jewelry' ? 'خامات مختارة بعناية، تصميم عملي ومريح للاستعمال اليومي.' : 'تصميم باريسي وخياطة جزائرية متقنة.'}</li>
               <li className="flex gap-2"><BadgeCheck size={18} className="text-[#C9A96A] mt-0.5"/> كل طلب يأتي في علبة {store.storeName} المخملية + كيس قماش + شهادة ضمان.</li>
             </ul>
             <div className="mt-6 flex gap-3">
@@ -189,7 +189,7 @@ export default function Home(){
             <h3 className="text-[24px] font-bold mt-1">ماذا قالت زبوناتنا؟</h3>
             <div className="mt-5 space-y-4">
               {[
-                {n:"سارة - الجزائر", t: domain.id==='domain_jewelry' ? "وصلني في 24 ساعة للعاصمة، العلبة فخمة جداً والقلادة تلمع كأنها ذهب حقيقي!" : domain.id==='domain_fashion' ? "العباءة قماشها فاخر والقصة أنيقة جداً، مقاسي مضبوط 100%!" : "العطر ثباته مذهل وسيروم الإشراقة أعطاني نضارة من أول أسبوع!", s:5, rose:false},
+                {n:"سارة - الجزائر", t: domain.id==='domain_jewelry' ? "وصلني في 24 ساعة للعاصمة، العلبة فخمة جداً والالمنتج وصل بحالة ممتازة والجودة فاقت توقعاتي!" : domain.id==='domain_fashion' ? "العباءة قماشها فاخر والقصة أنيقة جداً، مقاسي مضبوط 100%!" : "العطر ثباته مذهل وسيروم الإشراقة أعطاني نضارة من أول أسبوع!", s:5, rose:false},
                 {n:"أمينة - وهران", t:`خدمة رائعة، اتصلوا بي لتأكيد الطلب وأعطوني نصائح للحفاظ على الجودة. شكراً ${store.storeName}`, s:5, rose: store.enableRoseEdition},
                 {n:"نور - قسنطينة", t:"أخذت عرض 3 قطع ووفّرت 18%، الجودة ممتازة والسعر معقول مقارنة بالسوق.", s:5, rose:false},
               ].map(r=>(
@@ -209,7 +209,7 @@ export default function Home(){
         <div className="bg-white border border-[#EDE6D8] rounded-[28px] p-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="font-extrabold text-[#1A1A1E]">تابعينا على إنستغرام <span className="text-[#C9A96A]">{store.instagram}</span> {store.enableRoseEdition && <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] px-2 py-0.5 rounded-full ms-2">♥ ÉDITION ROSE</span>}</div>
-            <div className="text-xs text-[#9A8A6B]">شاركي صورك بـ #LumiereDz وادخلي سحب مجاني كل شهر • {store.phone} • مجال: {domain.nameAr}</div>
+            <div className="text-xs text-[#9A8A6B]">شارك صورك بـ #LumiereDz وأدخل سحب مجاني كل شهر • {store.phone} • مجال: {domain.nameAr}</div>
           </div>
           <div className="flex gap-2 overflow-x-auto">
             {[1,2,3,4].map(i=> <img key={i} src={`https://images.unsplash.com/photo-${['1515562141207-7a88fb7ce338','1599643477877-530eb83abc8e','1535632066927-ab7c9ab60908','1611591437281-460bfbe1220a'][i-1]}?w=200&q=80`} className={`w-16 h-16 rounded-xl object-cover shrink-0 ${i===2 && store.enableRoseEdition ? 'ring-2 ring-[#A02A5B]/30 ring-offset-2' : ''}`}/> )}

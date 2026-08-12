@@ -52,7 +52,7 @@ export default function Shop(){
               <span>المتجر</span>
               <span className="text-xs md:text-sm font-bold bg-[#1A1A1E] text-white px-2.5 py-1 rounded-full">{domain.nameAr}</span>
             </h1>
-            <p className="text-xs md:text-sm text-[#9A8A6B] mt-1">اكتشفي {products.length} منتج ({countInDomain} في مجال {domain.nameAr}) • الدفع عند الاستلام • توصيل 58 ولاية</p>
+            <p className="text-xs md:text-sm text-[#9A8A6B] mt-1">اكتشف {products.length} منتج ({countInDomain} في مجال {domain.nameAr}) • الدفع عند الاستلام • توصيل 58 ولاية</p>
             <p className="text-xs text-[#9A8A6B] mt-1 hidden md:block">{domain.descriptionAr}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -85,7 +85,7 @@ export default function Shop(){
 
         {/* hint when browsing cross-domain */}
         {cat!=='all' && !domainCatKeys.includes(cat) && (
-          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-800">أنت تستعرضين فئة خارج المجال النشط ({domain.nameAr}). يمكنك تغيير المجال من لوحة التحكم أو تصفح كل المنتجات.</div>
+          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-800">أنت تستعرض فئة خارج المجال النشط ({domain.nameAr}). يمكنك تغيير المجال من لوحة التحكم أو تصفح كل المنتجات.</div>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">

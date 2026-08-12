@@ -24,8 +24,8 @@ export default function Cart(){
     <div className="max-w-[1280px] mx-auto px-4 py-16 text-center bg-[#FFFCF8] min-h-[60vh]">
       <div className="w-20 h-20 rounded-full bg-white border border-[#F6C0D4]/40 grid place-items-center mx-auto shadow-sm relative"><ShoppingBag size={28} className="text-[#C9A96A]"/><span className="absolute translate-x-6 -translate-y-6 w-2 h-2 rounded-full bg-[#A02A5B]"></span></div>
       <h2 className="text-xl font-bold mt-4">سلة التسوق فارغة</h2>
-      <p className="text-sm text-[#9A8A6B] mt-1">اكتشفي كولكشن 2026 واضيفي قطعك المفضلة</p>
-      <Link to="/shop" className="inline-block mt-4 bg-[#1A1A1E] text-white px-6 py-3 rounded-full font-bold hover:bg-black transition">تسوّقي الآن</Link>
+      <p className="text-sm text-[#9A8A6B] mt-1">اكتشف كولكشن 2026 وأضف قطعك المفضلة</p>
+      <Link to="/shop" className="inline-block mt-4 bg-[#1A1A1E] text-white px-6 py-3 rounded-full font-bold hover:bg-black transition">تسوّق الآن</Link>
     </div>
   )
 

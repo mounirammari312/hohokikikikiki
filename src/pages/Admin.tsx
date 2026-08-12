@@ -289,7 +289,7 @@ export default function Admin() {
     } catch (err: any) {
       console.error('Save product error:', err)
       if (err.message === 'IMAGES_REQUIRED') {
-        setProdErrors({ images: 'أضيفي رابط صورة صحيح' })
+        setProdErrors({ images: 'أضف رابط صورة صحيح' })
       }
       showToast('❌ حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى')
     } finally {
@@ -548,8 +548,8 @@ export default function Admin() {
                   <b className="text-[#C9A96A]">خطوات:</b>
                   <ol className="list-decimal list-inside mt-1 space-y-0.5">
                     <li>سجّلي الدخول إلى لوحة تحكم نطاقك</li>
-                    <li>ابحثي عن قسم DNS / Zone Management</li>
-                    <li>أضيفي سجلي A و CNAME كما هو موضح أعلاه</li>
+                    <li>ابحث عن قسم DNS / Zone Management</li>
+                    <li>أضف سجلي A و CNAME كما هو موضح أعلاه</li>
                     <li>انتظري من 5 دقائق إلى 24 ساعة حتى ينتشر الـ DNS</li>
                     <li>سيتم تفعيل شهادة SSL تلقائياً بمجرد عمل النطاق</li>
                   </ol>
@@ -631,7 +631,7 @@ export default function Admin() {
                 <span className="font-extrabold">كيف تعمل المجالات؟</span>
                 <span className="text-[#7A6F5A]"> كل مجال يحدد فئات المنتجات، الحقول المخصصة (مثل القماش/الطلاء/الحجم)، ومتغيرات الألوان والمقاسات. يمكنك إنشاء مجال للإلكترونيات (مع حقول: الماركة، الضمان، المواصفات)، أو للمنتجات الرقمية (مع حقول: نوع الملف، الرخصة)، أو أي تخصص آخر. عند اختيار مجال في نموذج المنتج، تظهر حقوله تلقائياً.</span>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="bg-white border border-[#EDE6D8] px-3 py-1 rounded-full text-xs font-bold">مجوهرات: خامة + طلاء + حجر + مقاس</span>
+                  <span className="bg-white border border-[#EDE6D8] px-3 py-1 rounded-full text-xs font-bold">مجوهرات: خامة + طلاء + حجر</span>
                   <span className="bg-[#A02A5B] text-white px-3 py-1 rounded-full text-xs font-bold">إلكترونيات: ماركة + ضمان + مواصفات</span>
                   <span className="bg-white border border-[#EDE6D8] px-3 py-1 rounded-full text-xs font-bold">ملابس: قماش + مقاس + لون + طول</span>
                   <span className="bg-white border border-[#EDE6D8] px-3 py-1 rounded-full text-xs font-bold">رقمي: نوع الملف + الرخصة</span>
@@ -757,7 +757,7 @@ export default function Admin() {
               <div className="bg-white border-2 border-dashed border-[#EDE6D8] rounded-2xl p-10 text-center">
                 <div className="w-14 h-14 rounded-full bg-[#FDF2F6] border border-[#F6C0D4] grid place-items-center mx-auto text-[#A02A5B]"><Search size={20} /></div>
                 <div className="font-bold mt-3">لا توجد منتجات مطابقة</div>
-                <p className="text-sm text-[#9A8A6B]">جربي بحثاً آخر أو أضيفي منتجاً جديداً — المجال: {activeDomain.nameAr}</p>
+                <p className="text-sm text-[#9A8A6B]">جرب بحثاً آخر أو أضف منتجاً جديداً — المجال: {activeDomain.nameAr}</p>
                 <button onClick={openAddModal} className="mt-4 bg-[#A02A5B] text-white px-5 py-2 rounded-full text-sm font-bold">+ إضافة منتج</button>
               </div>
             )}
@@ -945,7 +945,7 @@ export default function Admin() {
                     <div className="text-[10px] tracking-widest bg-white border border-[#EDE6D8] inline-flex px-2 py-1 rounded-full">{storeForm.heroBadge}</div>
                     <div className="font-extrabold text-lg mt-2">{storeForm.heroTitleAr}</div>
                     <div className="text-xs text-[#7A6F5A] mt-1 leading-5">{storeForm.heroSubtitleAr}</div>
-                    <div className="mt-3 flex gap-2 text-xs"><span className="bg-[#1A1A1E] text-white px-3 py-1.5 rounded-full">تسوّقي الآن</span><span className="border border-[#EDE6D8] px-3 py-1.5 rounded-full">الكولكشن</span></div>
+                    <div className="mt-3 flex gap-2 text-xs"><span className="bg-[#1A1A1E] text-white px-3 py-1.5 rounded-full">تسوّق الآن</span><span className="border border-[#EDE6D8] px-3 py-1.5 rounded-full">الكولكشن</span></div>
                   </div>
                   <div className="bg-[#1A1A1E] text-[#B8AA8E] text-xs p-3 rounded-xl leading-5">{storeForm.footerDescriptionAr}</div>
                 </div>
@@ -1207,7 +1207,7 @@ export default function Admin() {
                   <label className="text-xs font-bold flex items-center gap-1.5"><FileText size={14} className="text-[#8D6E3A]"/> حقول المنتج الخاصة بهذا المجال — ستظهر في نموذج إضافة المنتج</label>
                   <button onClick={()=> setDomainForm({...domainForm, attributeSchema: [...domainForm.attributeSchema, {key:`field${domainForm.attributeSchema.length+1}`, label:'Field', labelAr:'حقل جديد', type:'text', placeholder:'مثال: قيمة'}]})} className="bg-white border border-[#F0D9A8] text-[#8D6E3A] px-3 py-1 rounded-full text-xs font-bold">+ حقل</button>
                 </div>
-                <p className="text-[11px] text-[#9A8A6B] mt-1">مثال مجوهرات: الطلاء/الحجر/الوزن — ملابس: القماش/القصة/الطول — بيوتي: الحجم/نوع البشرة. كل حقل يظهر تلقائياً عند اختيار المجال.</p>
+                <p className="text-[11px] text-[#9A8A6B] mt-1">مثال: الطلاء/الحجر/الوزن — أو القماش/القصة/الطول — أو الحجم/نوع البشرة. كل حقل يظهر تلقائياً عند اختيار المجال.</p>
                 <div className="grid gap-2 mt-3">
                   {domainForm.attributeSchema.map((a:any, idx:number)=> (
                     <div key={idx} className="grid grid-cols-12 gap-1.5 items-center bg-white border border-[#F0D9A8] rounded-xl px-2 py-2">
@@ -1317,7 +1317,7 @@ export default function Admin() {
               </div>
 
               <div className="grid md:grid-cols-2 gap-3">
-                <div><label className="text-xs font-bold">الاسم العربي *</label><input value={prodForm.nameAr} onChange={e => setProdForm({ ...prodForm, nameAr: e.target.value })} placeholder={currentDomainForForm.id==='domain_fashion' ? "مثال: عباءة فيلور ملكية" : "مثال: قلادة لؤلؤ فاخرة"} className={`mt-1 w-full border rounded-xl px-3 py-2.5 text-sm bg-white outline-none ${prodErrors.nameAr ? 'border-red-300 bg-red-50' : 'border-[#EDE6D8] focus:border-[#C9A96A]'}`} />{prodErrors.nameAr && <p className="text-xs text-red-600 mt-1">{prodErrors.nameAr}</p>}</div>
+                <div><label className="text-xs font-bold">الاسم العربي *</label><input value={prodForm.nameAr} onChange={e => setProdForm({ ...prodForm, nameAr: e.target.value })} placeholder="مثال: منتج فاخر" className={`mt-1 w-full border rounded-xl px-3 py-2.5 text-sm bg-white outline-none ${prodErrors.nameAr ? 'border-red-300 bg-red-50' : 'border-[#EDE6D8] focus:border-[#C9A96A]'}`} />{prodErrors.nameAr && <p className="text-xs text-red-600 mt-1">{prodErrors.nameAr}</p>}</div>
                 <div><label className="text-xs font-bold">الاسم FR *</label><input value={prodForm.name} onChange={e => setProdForm({ ...prodForm, name: e.target.value })} placeholder={currentDomainForForm.id==='domain_fashion' ? "Velours Abaya" : "Aurore Necklace"} className={`mt-1 w-full border rounded-xl px-3 py-2.5 text-sm bg-white outline-none ${prodErrors.name ? 'border-red-300' : 'border-[#EDE6D8]'}`} dir="ltr" />{prodErrors.name && <p className="text-xs text-red-600 mt-1">{prodErrors.name}</p>}</div>
               </div>
 
@@ -1341,14 +1341,14 @@ export default function Admin() {
 
               <div className="grid md:grid-cols-2 gap-3">
                 <div><label className="text-xs font-bold">الخامة FR</label><input value={prodForm.material} onChange={e => setProdForm({ ...prodForm, material: e.target.value })} placeholder={currentDomainForForm.id==='domain_fashion' ? "Velvet" : "18k Gold Plated"} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white" dir="ltr" /></div>
-                <div><label className="text-xs font-bold">الخامة عربي</label><input value={prodForm.materialAr} onChange={e => setProdForm({ ...prodForm, materialAr: e.target.value })} placeholder={currentDomainForForm.id==='domain_fashion' ? "مخمل" : "ذهب 18ق + لؤلؤ"} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white" /></div>
+                <div><label className="text-xs font-bold">الخامة عربي</label><input value={prodForm.materialAr} onChange={e => setProdForm({ ...prodForm, materialAr: e.target.value })} placeholder="مثال: خامة فاخرة" className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white" /></div>
               </div>
 
               {/* DOMAIN-SPECIFIC ATTRIBUTES */}
               {currentDomainForForm.attributeSchema.length>0 && (
                 <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4">
                   <label className="text-xs font-bold flex items-center gap-1.5"><FileText size={14} className="text-[#C9A96A]"/> خصائص خاصة بمجال {currentDomainForForm.nameAr} — تتغير تلقائياً مع المجال</label>
-                  <p className="text-[11px] text-[#9A8A6B] mt-1">هذه الحقول تعتمد على المجال المختار أعلاه. غيّر المجال لترى حقول ملابس/مجوهرات/بيوتي المختلفة.</p>
+                  <p className="text-[11px] text-[#9A8A6B] mt-1">هذه الحقول تعتمد على المجال المختار أعلاه. غيّر المجال لترى الحقول المختلفة حسب التخصص.</p>
                   <div className="grid md:grid-cols-2 gap-3 mt-3">
                     {currentDomainForForm.attributeSchema.map(attr=>{
                       const val = (prodForm.attributes as any)?.[attr.key] || ''
@@ -1360,7 +1360,7 @@ export default function Admin() {
                           {attr.type==='textarea' && <textarea value={val} onChange={e=> setProdForm(f=> ({...f, attributes:{...(f.attributes||{}), [attr.key]: e.target.value}}))} rows={2} placeholder={attr.placeholder||''} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2 text-sm bg-[#FFFCF8]"/>}
                           {attr.type==='select' && (
                             <select value={val} onChange={e=> setProdForm(f=> ({...f, attributes:{...(f.attributes||{}), [attr.key]: e.target.value}}))} className={`mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-[#FFFCF8] ${prodErrors[errKey] ? 'border-red-300' : 'border-[#EDE6D8]'}`}>
-                              <option value="">— اختاري —</option>
+                              <option value="">— اختر —</option>
                               {(attr.options||[]).map((o:string)=> <option key={o} value={o}>{o}</option>)}
                             </select>
                           )}
@@ -1456,7 +1456,7 @@ export default function Admin() {
                       <button onClick={() => setProdForm(f => ({ ...f, tierPricing: f.tierPricing.filter((_, i) => i !== idx) }))} className="col-span-2 md:col-span-2 w-7 h-7 rounded-full bg-red-50 text-red-600 border border-red-200 grid place-items-center justify-self-end"><X size={12} /></button>
                     </div>
                   ))}
-                  {prodForm.tierPricing.length === 0 && <p className="text-xs text-[#9A8A6B] text-center py-2">لا توجد عروض — أضيفي عرضاً لزيادة المبيعات</p>}
+                  {prodForm.tierPricing.length === 0 && <p className="text-xs text-[#9A8A6B] text-center py-2">لا توجد عروض — أضف عرضاً لزيادة المبيعات</p>}
                 </div>
               </div>
             </div>

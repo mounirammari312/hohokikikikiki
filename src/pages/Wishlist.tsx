@@ -13,7 +13,7 @@ export default function Wishlist(){
       <div className="w-20 h-20 rounded-full bg-white border border-[#F6C0D4] grid place-items-center mx-auto"><Heart size={28} className="text-[#A02A5B]"/></div>
       <h2 className="text-xl font-extrabold mt-4">قائمة الرغبات فارغة</h2>
       <p className="text-sm text-[#9A8A6B] mt-1">اضغطي على القلب في أي منتج لحفظه هنا</p>
-      <Link to="/shop" className="inline-flex items-center gap-2 mt-6 bg-[#1A1A1E] text-white px-6 py-3 rounded-full font-bold">تسوّقي الآن <ArrowLeft size={14}/></Link>
+      <Link to="/shop" className="inline-flex items-center gap-2 mt-6 bg-[#1A1A1E] text-white px-6 py-3 rounded-full font-bold">تسوّق الآن <ArrowLeft size={14}/></Link>
     </div>
   )
   return (
@@ -36,7 +36,7 @@ export default function Wishlist(){
                 <div className="font-extrabold mt-1">{formatDZD(p.price)}</div>
                 <div className="flex gap-1.5 mt-2">
                   <button onClick={()=> addToCart(p,1)} className="flex-1 bg-[#1A1A1E] text-white rounded-full py-1.5 text-xs font-bold flex items-center justify-center gap-1"><ShoppingBag size={12}/> للسلة</button>
-                  <Link to={`/product/${p._id}#order`} className="flex-1 bg-[#A02A5B] text-white rounded-full py-1.5 text-xs font-bold text-center">اطلبي الآن</Link>
+                  <Link to={`/product/${p._id}#order`} className="flex-1 bg-[#A02A5B] text-white rounded-full py-1.5 text-xs font-bold text-center">اطلب الآن</Link>
                 </div>
               </div>
               <button onClick={()=> remove(p._id)} className="w-8 h-8 rounded-full bg-red-50 border border-red-200 text-red-600 grid place-items-center self-start shrink-0"><Trash2 size={12}/></button>

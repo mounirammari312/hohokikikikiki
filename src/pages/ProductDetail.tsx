@@ -276,10 +276,10 @@ export default function ProductDetail(){
     const e: Record<string,string> = {}
     if(!form.name.trim() || form.name.trim().length<3) e.name='الاسم مطلوب (3 أحرف على الأقل)'
     if(!validateDZPhone(form.phone)) e.phone='رقم هاتف غير صحيح. مثال: 0550123456'
-    if(!form.wilaya) e.wilaya='اختاري الولاية'
+    if(!form.wilaya) e.wilaya='اختر الولاية'
     if(!form.commune.trim()) e.commune='البلدية مطلوبة'
     if(!form.address.trim()) e.address='العنوان مطلوب'
-    if(variantMissing) e.variant='اختاري اللون والمقاس'
+    if(variantMissing) e.variant='اختر اللون والمقاس'
     if(effectiveStock<=0) e.stock='المنتج غير متوفر بهذا المتغير'
     if(qty>effectiveStock) e.qty=`الكمية المطلوبة أكبر من المخزون (${effectiveStock})`
     setErrors(e)
@@ -293,7 +293,7 @@ export default function ProductDetail(){
 
   const handleAddToCart = (e?:React.MouseEvent)=>{
     if(e){ e.preventDefault(); e.stopPropagation() }
-    if(!validate()){ if(errors.variant) showToast('اختاري اللون والمقاس أولاً') ; return }
+    if(!validate()){ if(errors.variant) showToast('اختر اللون والمقاس أولاً') ; return }
     addToCart(product, qty, selectedVariant?.id)
     showToast(`تمت الإضافة للسلة ${variantLabel ? `• ${variantLabel}`:''} ✓`)
   }
@@ -323,7 +323,7 @@ export default function ProductDetail(){
       nav(`/thank-you/${order.orderNumber}`)
     }catch(err:any){
       if(err.message==='DUPLICATE_ORDER'){ setDuplicateWarn(true); setTimeout(()=>setDuplicateWarn(false),4000)}
-      else showToast('حدث خطأ، حاولي مرة أخرى')
+      else showToast('حدث خطأ، حاول مرة أخرى')
     }finally{ setSubmitting(false)}
   }
 
@@ -538,7 +538,7 @@ export default function ProductDetail(){
                       </div>
                     </div>
                   )}
-                  {variantMissing && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">اختاري {needColor ? 'اللون' : ''}{needColor && needSize ? ' و ' : ''}{needSize ? 'المقاس' : ''} لإضافة المنتج. المقاسات المتاحة تختلف حسب اللون.</p>}
+                  {variantMissing && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">اختر {needColor ? 'اللون' : ''}{needColor && needSize ? ' و ' : ''}{needSize ? 'المقاس' : ''} لإضافة المنتج. المقاسات المتاحة تختلف حسب اللون.</p>}
                   {selectedVariant && (
                     <div className="bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-3 flex items-center gap-3">
                       {selectedVariant.colorHex && <span className="w-6 h-6 rounded-full border" style={{background:selectedVariant.colorHex}}></span>}
@@ -588,7 +588,7 @@ export default function ProductDetail(){
                   <h3 className="font-extrabold text-lg flex items-center gap-2"><span className="w-7 h-7 rounded-full bg-[#C9A96A] grid place-items-center text-white text-xs">⚡</span> طلب مباشر - الدفع عند الاستلام</h3>
                   <span className="text-[10px] tracking-widest bg-white/10 border border-white/15 px-2 py-1 rounded-full hidden md:inline">COD 2026 • آمن 100%</span>
                 </div>
-                <p className="text-xs text-white/70 mt-1">املئي النموذج وسيتصل بك فريق التأكيد خلال ساعات. الشحن يحسب تلقائياً حسب الولاية.</p>
+                <p className="text-xs text-white/70 mt-1">املأ النموذج وسيتصل بك فريق التأكيد خلال ساعات. الشحن يحسب تلقائياً حسب الولاية.</p>
 
                 {duplicateWarn && <div className="mt-3 bg-amber-400 text-[#1A1A1E] rounded-xl px-3 py-2 text-xs font-bold flex gap-2 items-center"><AlertTriangle size={14}/> طلب مكرر! لديك طلب مشابه خلال آخر 30 دقيقة. سنتصل بك قريباً.</div>}
 
@@ -632,7 +632,7 @@ export default function ProductDetail(){
                   {hasVariants && (
                     <div className="bg-white/10 border border-white/15 rounded-xl p-3">
                       <div className="text-xs font-bold text-white/90">المتغير المختار</div>
-                      {variantLabel ? <div className="text-sm font-bold text-white mt-1 flex items-center gap-2 flex-wrap">{selectedVariant?.colorHex && <span className="w-4 h-4 rounded-full border border-white/30" style={{background:selectedVariant.colorHex}}></span>} {variantLabel} • {formatDZD(unitPrice)} {effectiveStock<=5 && effectiveStock>0 && <span className="bg-amber-400 text-black text-[11px] px-2 py-0.5 rounded-full">متبقي {effectiveStock}</span>}{effectiveStock<=0 && <span className="bg-red-500 text-white text-[11px] px-2 py-0.5 rounded-full">نفد</span>}</div> : <div className="text-xs text-amber-300 mt-1">لم تختاري المتغير بعد — اختاريه أعلاه</div>}
+                      {variantLabel ? <div className="text-sm font-bold text-white mt-1 flex items-center gap-2 flex-wrap">{selectedVariant?.colorHex && <span className="w-4 h-4 rounded-full border border-white/30" style={{background:selectedVariant.colorHex}}></span>} {variantLabel} • {formatDZD(unitPrice)} {effectiveStock<=5 && effectiveStock>0 && <span className="bg-amber-400 text-black text-[11px] px-2 py-0.5 rounded-full">متبقي {effectiveStock}</span>}{effectiveStock<=0 && <span className="bg-red-500 text-white text-[11px] px-2 py-0.5 rounded-full">نفد</span>}</div> : <div className="text-xs text-amber-300 mt-1">لم تختاري المتغير بعد — اختره أعلاه</div>}
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-2">
@@ -653,7 +653,7 @@ export default function ProductDetail(){
                 <button type="submit" disabled={submitting || !canAdd} className={`mt-4 w-full disabled:opacity-60 text-white rounded-full py-3.5 font-extrabold text-[15px] flex items-center justify-center gap-2 transition ${isRoseProduct ? 'bg-[#A02A5B] hover:bg-[#7A1F44]' : 'bg-[#C9A96A] hover:bg-[#B8945A]'}`}>
                   {submitting? 'جاري الإرسال...': <><Check size={18}/> تأكيد الطلب - الدفع عند الاستلام {variantLabel && `• ${variantLabel}`}</>}
                 </button>
-                {!canAdd && variantMissing && <p className="text-center text-amber-300 text-xs mt-2">اختاري المتغير قبل تأكيد الطلب</p>}
+                {!canAdd && variantMissing && <p className="text-center text-amber-300 text-xs mt-2">اختر المتغير قبل تأكيد الطلب</p>}
                 <div className="flex items-center justify-center gap-3 mt-3 text-[11px] text-white/60">
                   <span className="flex gap-1 items-center"><ShieldCheck size={12}/> حماية الطلبات المكررة مفعّلة</span>
                   <span>•</span>
@@ -667,7 +667,7 @@ export default function ProductDetail(){
               <div className="flex items-center gap-2">
                 <button type="button" onClick={handleAddToCart} disabled={!canAdd} className={`flex-1 min-w-0 rounded-full py-2.5 px-3 text-xs font-bold border-2 transition flex items-center justify-center gap-1.5 ${canAdd ? 'bg-white border-[#1A1A1E] text-[#1A1A1E] hover:bg-[#1A1A1E] hover:text-white' : 'bg-[#F5EFE6] border-[#EDE6D8] text-[#9A8A6B] cursor-not-allowed'}`}>
                   <ShoppingBag size={14}/>
-                  <span className="truncate">{canAdd ? 'أضيفي للسلة' : variantMissing ? 'اختاري المتغير' : 'غير متوفر'}</span>
+                  <span className="truncate">{canAdd ? 'أضف للسلة' : variantMissing ? 'اختر المتغير' : 'غير متوفر'}</span>
                 </button>
                 <button type="button" onClick={handleWish} className={`shrink-0 rounded-full py-2.5 px-3 text-xs font-bold border flex items-center justify-center gap-1.5 transition ${wished ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white border-[#EDE6D8] hover:bg-[#FDF2F6] hover:border-[#F6C0D4] hover:text-[#A02A5B]'}`} aria-label="حفظ">
                   <Heart size={14} className={wished ? 'fill-white' : ''}/>
@@ -687,7 +687,7 @@ export default function ProductDetail(){
         <div className="flex-1 min-w-0">
           <div className="text-xs text-[#9A8A6B] truncate">الإجمالي {variantLabel && `• ${variantLabel}`}</div><div className={`font-extrabold ${isRoseProduct ? 'text-[#A02A5B]' : 'text-[#1A1A1E]'}`}>{formatDZD(grandTotal)}</div>
         </div>
-        <button type="button" onClick={scrollToOrder} className={`flex-1 text-white rounded-full py-3 text-center font-bold shrink-0 ${isRoseProduct ? 'bg-[#A02A5B]' : 'bg-[#1A1A1E]'}`}>اطلبي الآن</button>
+        <button type="button" onClick={scrollToOrder} className={`flex-1 text-white rounded-full py-3 text-center font-bold shrink-0 ${isRoseProduct ? 'bg-[#A02A5B]' : 'bg-[#1A1A1E]'}`}>اطلب الآن</button>
       </div>
     </div>
   )

@@ -44,7 +44,7 @@ export default function Footer(){
           </div>
           <div className="bg-white/[0.05] rounded-2xl p-4 border border-white/10 relative overflow-hidden">
             {store.enableRoseEdition && <div className="absolute -top-8 -left-8 w-20 h-20 bg-[#A02A5B]/10 rounded-full blur-xl pointer-events-none"></div>}
-            <h4 className="font-bold text-white flex items-center gap-2">اشتركي واحصلي على 10% خصم {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B]"></span>}</h4>
+            <h4 className="font-bold text-white flex items-center gap-2">اشتركي واحصل على 10% خصم {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B]"></span>}</h4>
             <p className="text-xs text-[#B8AA8E] mt-1">لأول طلب + كود خصم حصري للكولكشن الجديد</p>
             <form onSubmit={e=>{e.preventDefault(); alert('تم التسجيل! كود الخصم: LUMIERE10')}} className="mt-3 flex gap-2">
               <input placeholder="بريدك الإلكتروني" className="flex-1 rounded-full px-3 py-2 text-sm bg-white text-black outline-none focus:ring-2 focus:ring-[#A02A5B]/20"/>
