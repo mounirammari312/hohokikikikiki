@@ -1,15 +1,16 @@
 import { Instagram, Phone, MapPin, Truck, ShieldCheck, Award } from 'lucide-react'
-import { getSettings } from '../services/api/settings'
+import { getSettings, syncSettings } from '../services/api/settings'
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { useTenant } from '../context/TenantContext'
 export default function Footer(){
   const [store, setStore] = useState(()=> getSettings())
-  useEffect(()=>{
-    const sync=()=> setStore(getSettings())
-    window.addEventListener('focus', sync)
-    window.addEventListener('storage', sync)
-    const id=setInterval(sync, 1200)
-    return()=>{ clearInterval(id); window.removeEventListener('focus', sync); window.removeEventListener('storage', sync)}
-  },[])
+  const { storeId, storeSlug } = useTenant()
+  const storeParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('store') : null
+  const storeQuery = storeParam ? `?store=${encodeURIComponent(storeParam)}` : ''
+  useEffect(() => {
+    void syncSettings().then(() => setStore(getSettings()))
+  }, [storeId, storeSlug])
   return (
     <footer className="bg-[#1A1A1E] text-[#E8E0CC] mt-16">
       <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-10">
@@ -26,10 +27,10 @@ export default function Footer(){
           <div>
             <h4 className="font-bold text-white mb-3">روابط سريعة</h4>
             <ul className="space-y-2 text-sm text-[#B8AA8E]">
-              <li><a href="/shop" className="hover:text-[#C9A96A]">المتجر</a></li>
-              <li><a href="#" className="hover:text-[#C9A96A]">سياسة الاسترجاع 14 يوم</a></li>
+              <li><Link to={`/shop${storeQuery}`} className="hover:text-[#C9A96A]">المتجر</Link></li>
+              <li><a href={`/${storeQuery}#collection`} className="hover:text-[#C9A96A]">سياسة الاسترجاع 14 يوم</a></li>
               <li><a href="#" className="hover:text-[#C9A96A]">تتبع الطلب</a></li>
-              <li><a href="/admin" className="hover:text-[#C9A96A]">لوحة التحكم</a></li>
+              <li><Link to={`/admin${storeQuery}`} className="hover:text-[#C9A96A]">لوحة التحكم</Link></li>
             </ul>
           </div>
           <div>
@@ -37,7 +38,7 @@ export default function Footer(){
             <ul className="space-y-2 text-sm text-[#B8AA8E]">
               <li className="flex gap-2"><Truck size={16} className="text-[#C9A96A]"/> توصيل 24-96 ساعة حسب الولاية {store.freeShippingThreshold>0 && `• مجاني فوق ${store.freeShippingThreshold.toLocaleString()} د.ج`}</li>
               <li className="flex gap-2"><ShieldCheck size={16} className={store.enableCod ? 'text-[#C9A96A]' : 'text-white/30'}/> {store.enableCod ? 'الدفع عند الاستلام فقط (COD)' : 'الدفع عند الاستلام — متوقف حالياً'}</li>
-              <li className="flex gap-2"><Award size={16} className="text-[#C9A96A]"/> ضمان لمعان 12 شهر</li>
+              <li className="flex gap-2"><Award size={16} className="text-[#C9A96A]"/> ضمان جودة + استرجاع 14 يوم</li>
               <li className="flex gap-2"><MapPin size={16} className="text-[#C9A96A]"/> {store.phone} • 58 ولاية</li>
             </ul>
           </div>

@@ -126,20 +126,29 @@ function MerchantDashboard() {
 
 function AppRoutes() {
   const { isPlatformHost, storeId, storeSlug } = useTenant()
+  const location = useLocation()
 
-  // On the platform host, we still allow tenant-scoped routes when
-  // ?storeId= or ?store= is present (e.g. on vercel.app previews).
+  // On the platform host, we allow tenant-scoped routes when ?store= or
+  // ?storeId= is present in the URL (e.g. on vercel.app previews).
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
-  const hasTenantOnPlatform =
-    !!urlParams?.get('storeId') ||
-    !!urlParams?.get('store') ||
-    !!storeId ||
-    !!storeSlug
+  const hasStoreParam = !!urlParams?.get('storeId') || !!urlParams?.get('store')
 
-  // Treat the app as "tenant mode" when EITHER we're on a tenant
-  // subdomain OR we're on the platform host but with an explicit tenant
-  // context via query params / cached state.
-  const tenantMode = !isPlatformHost || hasTenantOnPlatform
+  // Determine if we're in tenant mode (show storefront) or platform mode
+  // (show SaaS landing). The logic:
+  //
+  //   1. NOT on platform host (i.e. on a tenant subdomain) → tenant mode
+  //   2. On platform host + ?store=/storeId= in URL → tenant mode
+  //   3. On platform host + cached storeId/storeSlug in localStorage
+  //      AND NOT on the root path "/" → tenant mode
+  //      (e.g. navigating to /admin or /shop after visiting a store)
+  //   4. On platform host + root path "/" + no URL param → platform mode
+  //      (show the SaaS landing — ignore stale localStorage cache)
+  //
+  // Case 4 is the critical fix: previously, a cached storeId from a
+  // previous visit would make "/" show the old storefront instead of
+  // the SaaS landing page.
+  const isRoot = location.pathname === '/'
+  const tenantMode = !isPlatformHost || (hasStoreParam || (!!(storeId || storeSlug) && !isRoot))
 
   return (
     <BrowserRouter>

@@ -46,35 +46,41 @@ function lsSet(key: string, data: unknown) {
 function getActiveStoreId(): string | undefined {
   if (!isBrowser()) return undefined
   const urlParams = new URLSearchParams(window.location.search)
-  // 1) ?storeId= explicit query (used by dashboard + super-admin preview)
+  // 1) ?storeId= explicit query — highest priority (dashboard, super-admin)
   const explicitId = urlParams.get('storeId')
   if (explicitId) return explicitId
-  // 2) ?store=<slug> query (used in vercel.app / localhost environments
-  //    where subdomains aren't available). Resolved to a storeId via
-  //    the server's tenant middleware (the slug is looked up in DB).
-  //    We pass it as `x-store-slug` and the server converts it.
-  //    However — the server expects either an explicit storeId OR a
-  //    hostname-based slug. So for ?store=slug, we let the server
-  //    resolve via the x-store-slug header (handled in tenant.ts).
-  //    Here we just leave it undefined and let the server do the work.
-  // 3) Cached active store from previous dashboard login
+  // 2) ?store=<slug> query — if present, DON'T fall back to cached storeId.
+  //    The server will resolve the slug → storeId via x-store-slug header.
+  //    Returning the old cached storeId here would override the URL slug
+  //    and cause the wrong store's data to load.
+  const slugFromUrl = urlParams.get('store')
+  if (slugFromUrl) return undefined  // let the server resolve via x-store-slug
+  // 3) No URL tenant → use cached storeId from previous dashboard login
   try {
     const cached = localStorage.getItem('lumiere_saas_active_store')
     if (cached) return cached
   } catch {}
   // 4) Fall back to undefined — the server will resolve via hostname
-  //    OR via x-store-slug header (set below).
   return undefined
 }
 
 /** Get the ?store= slug from the URL (if any). Used as a fallback for
- *  environments where subdomains aren't available (vercel.app, localhost). */
+ *  environments where subdomains aren't available (vercel.app, localhost).
+ *
+ *  IMPORTANT: if there's a ?store= slug in the URL, we return ONLY that
+ *  and ignore the cached slug — so visiting `/?store=my-shop` always
+ *  loads `my-shop`'s data, not the previously-cached store's. */
 function getActiveStoreSlug(): string | undefined {
   if (!isBrowser()) return undefined
   const urlParams = new URLSearchParams(window.location.search)
-  const slug = urlParams.get('store')
-  if (slug) return slug
-  // Also try the cached slug from a previous registration
+  const slugFromUrl = urlParams.get('store')
+  if (slugFromUrl) return slugFromUrl
+  // No URL slug → fall back to cached slug from a previous registration.
+  // But ONLY if there's also no ?storeId= in the URL (because ?storeId=
+  // means the user is accessing a specific store directly and we
+  // shouldn't send a stale slug header that might confuse the server).
+  const explicitStoreId = urlParams.get('storeId')
+  if (explicitStoreId) return undefined
   try {
     const cached = localStorage.getItem('lumiere_saas_active_slug')
     if (cached) return cached

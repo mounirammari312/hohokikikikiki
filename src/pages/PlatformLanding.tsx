@@ -71,6 +71,8 @@ export default function PlatformLanding() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
+  const [faqOpen, setFaqOpen] = useState<number | null>(0)
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -160,6 +162,7 @@ export default function PlatformLanding() {
             <a href="#features" className="hover:text-[#C9A96A] transition">المزايا</a>
             <a href="#pricing" className="hover:text-[#C9A96A] transition">الأسعار</a>
             <a href="#how" className="hover:text-[#C9A96A] transition">كيف يعمل</a>
+            <a href="#faq" className="hover:text-[#C9A96A] transition">الأسئلة الشائعة</a>
           </nav>
           <div className="flex items-center gap-2">
             <button onClick={() => { setShowLogin(true); setShowRegister(false) }} className="text-sm font-bold px-4 py-2 rounded-full hover:bg-[#F5EFE6] transition">دخول</button>
@@ -176,18 +179,18 @@ export default function PlatformLanding() {
               <Sparkles size={12} /> منصة SaaS متعددة المتاجر • إطلاق 2026
             </span>
             <h1 className="text-[36px] md:text-[56px] font-extrabold leading-[1.05] text-[#1A1A1E] mt-4">
-              أنشئي متجرك الإلكتروني<br />
+              أنشئ متجرك الإلكتروني<br />
               <span className="bg-gradient-to-l from-[#C9A96A] to-[#A02A5B] bg-clip-text text-transparent">في أقل من دقيقة</span>
             </h1>
             <p className="text-[#5A5340] text-lg leading-7 mt-4 max-w-[560px]">
-              منصة جزائرية متكاملة لإنشاء متاجر الدفع عند الاستلام. احصلي على متجر بأسمك الخاص، لوحة تحكم احترافية، حاسبة شحن لـ 58 ولاية، وتتبع تلقائي لكل الطلبات — بدون كود وبدون خبرة تقنية.
+              منصة جزائرية متكاملة لإنشاء متاجر الدفع عند الاستلام. احصل على متجر بأسمك الخاص، لوحة تحكم احترافية، حاسبة شحن لـ 58 ولاية، وتتبع تلقائي لكل الطلبات — بدون كود وبدون خبرة تقنية.
             </p>
             <div className="flex flex-wrap gap-3 mt-6">
               <button onClick={() => setShowRegister(true)} className="bg-[#1A1A1E] text-white px-7 py-3.5 rounded-full font-bold flex items-center gap-2 hover:bg-black transition shadow-lg shadow-[#1A1A1E]/10">
-                <Rocket size={18} /> ابدأي متجرك الآن
+                <Rocket size={18} /> ابدأ متجرك الآن
               </button>
               <a href="#pricing" className="bg-white border border-[#EDE6D8] text-[#1A1A1E] px-7 py-3.5 rounded-full font-bold flex items-center gap-2 hover:bg-[#F5EFE6] transition">
-                شاهدي الأسعار
+                شاهد الأسعار
               </a>
             </div>
             <div className="flex items-center gap-6 mt-8 text-xs text-[#7A6F5A]">
@@ -243,12 +246,12 @@ export default function PlatformLanding() {
         <div className="max-w-[1280px] mx-auto px-4 md:px-6">
           <div className="text-center mb-12">
             <span className="text-[#C9A96A] text-xs font-bold tracking-widest">FEATURES</span>
-            <h2 className="text-[32px] font-extrabold text-[#1A1A1E] mt-2">كل ما تحتاجينه في مكان واحد</h2>
-            <p className="text-[#7A6F5A] mt-2">منصتنا تتعامل مع كل التفاصيل التقنية لتُركّزي على مبيعاتك</p>
+            <h2 className="text-[32px] font-extrabold text-[#1A1A1E] mt-2">كل ما تحتاجه في مكان واحد</h2>
+            <p className="text-[#7A6F5A] mt-2">منصتنا تتعامل مع كل التفاصيل التقنية لتُركّز على مبيعاتك</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { icon: ShoppingBag, t: 'إدارة المنتجات', d: 'أضيفي منتجات بصور متعددة، متغيرات (ألوان/مقاسات)، أسعار بالجملة، وحقول مخصصة حسب فئة المنتج.', c: '#C9A96A' },
+              { icon: ShoppingBag, t: 'إدارة المنتجات', d: 'أضف منتجات بصور متعددة، متغيرات (ألوان/مقاسات)، أسعار بالجملة، وحقول مخصصة حسب فئة المنتج.', c: '#C9A96A' },
               { icon: Truck, t: 'شحن 58 ولاية', d: 'حاسبة شحن مدمجة لكل ولايات الجزائر مع أسعار قابلة للتخصيص، توصيل للمنزل أو مكتب Yalidine.', c: '#A02A5B' },
               { icon: ShieldCheck, t: 'الدفع عند الاستلام', d: 'نظام COD كامل مع كشف الطلبات المكررة تلقائياً، تأكيد هاتفي، وحماية من الإرسال المزدوج.', c: '#8D6E3A' },
               { icon: Globe, t: 'نطاق مخصص', d: 'كل متجر يحصل على نطاق فرعي slug.lumiere.saas أو نطاقك الخاص mystore.dz مع شهادة SSL مجانية.', c: '#1A1A1E' },
@@ -267,6 +270,34 @@ export default function PlatformLanding() {
         </div>
       </section>
 
+      {/* ─── Integrations Grid (Delivery + Marketing) ─── */}
+      <section className="py-16 bg-[#FFFCF8]">
+        <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+          <div className="text-center mb-12">
+            <span className="text-[#A02A5B] text-xs font-bold tracking-widest">INTEGRATIONS</span>
+            <h2 className="text-[32px] font-extrabold text-[#1A1A1E] mt-2">متكامل مع أدواتك المفضلة</h2>
+            <p className="text-[#7A6F5A] mt-2">اربط متجرك بشركات التوصيل وأدوات التسويق الجزائرية والعالمية</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[
+              { name: 'Yalidine', desc: 'توصيل 58 ولاية', icon: Truck, color: '#C9A96A' },
+              { name: 'ZR Express', desc: 'توصيل سريع', icon: Truck, color: '#A02A5B' },
+              { name: 'Meta Pixel', desc: 'تتبع إعلانات فيسبوك', icon: TrendingUp, color: '#1A1A1E' },
+              { name: 'TikTok Pixel', desc: 'تتبع إعلانات تيك توك', icon: Zap, color: '#8D6E3A' },
+              { name: 'COD', desc: 'الدفع عند الاستلام', icon: ShieldCheck, color: '#A02A5B' },
+            ].map(int => (
+              <div key={int.name} className="bg-white border border-[#EDE6D8] rounded-2xl p-4 text-center hover:shadow-lg hover:border-[#F0D9A8] transition">
+                <div className="w-12 h-12 rounded-xl grid place-items-center mx-auto mb-2" style={{ background: int.color + '15' }}>
+                  <int.icon size={22} style={{ color: int.color }} />
+                </div>
+                <div className="font-bold text-sm text-[#1A1A1E]">{int.name}</div>
+                <div className="text-[11px] text-[#9A8A6B] mt-0.5">{int.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── How it works ─── */}
       <section id="how" className="py-16">
         <div className="max-w-[1280px] mx-auto px-4 md:px-6">
@@ -276,9 +307,9 @@ export default function PlatformLanding() {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { n: '01', t: 'سجّلي حساب', d: 'أنشئي حساب تاجر باسمك وبريدك الإلكتروني. تختارين اسم المتجر والسلاج (الرابط الفرعي).' },
-              { n: '02', t: 'خصّصي متجرك', d: 'تُضاف تلقائياً 8 منتجات تجريبية، 28 ولاية، و 3 مجالات (مجوهرات/أزياء/جمال) لتعدّليها كما تشائين.' },
-              { n: '03', t: 'ابدئي البيع', d: 'شاركي رابط متجرك (slug.lumiere.saas) واستقبلي الطلبات. كل طلب يأتيك في لوحة التحكم مع تأكيد هاتفي.' },
+              { n: '01', t: 'سجّل حساب', d: 'أنشئ حساب تاجر باسمك وبريدك الإلكتروني. تختار اسم المتجر والسلاج (الرابط الفرعي).' },
+              { n: '02', t: 'خصّص متجرك', d: 'تُضاف تلقائياً 8 منتجات تجريبية، 28 ولاية، و 3 مجالات (مجوهرات/أزياء/جمال) لتعدّلها كما تشاء.' },
+              { n: '03', t: 'ابدأ البيع', d: 'شارك رابط متجرك (slug.lumiere.saas) واستقبل الطلبات. كل طلب يأتيك في لوحة التحكم مع تأكيد هاتفي.' },
             ].map(s => (
               <div key={s.n} className="bg-white border border-[#EDE6D8] rounded-2xl p-6 relative overflow-hidden">
                 <div className="absolute top-2 left-4 text-[80px] font-extrabold text-[#F5EFE6] leading-none select-none">{s.n}</div>
@@ -332,13 +363,46 @@ export default function PlatformLanding() {
         </div>
       </section>
 
+      {/* ─── FAQ ─── */}
+      <section id="faq" className="py-16 bg-[#FFFCF8]">
+        <div className="max-w-[800px] mx-auto px-4 md:px-6">
+          <div className="text-center mb-10">
+            <span className="text-[#C9A96A] text-xs font-bold tracking-widest">FAQ</span>
+            <h2 className="text-[32px] font-extrabold text-[#1A1A1E] mt-2">أسئلة شائعة</h2>
+          </div>
+          <div className="space-y-3">
+            {[
+              { q: 'هل أحتاج خبرة تقنية لإنشاء متجر؟', a: 'لا، المنصة لا تتطلب أي كود. تملأين نموذج التسجيل، ويُنشأ متجرك تلقائياً مع منتجات تجريبية ولوحة تحكم كاملة. كل ما تحتاجينه هو بريد إلكتروني وكلمة مرور.' },
+              { q: 'كم تكلفة إنشاء متجر؟', a: 'الخطة التجريبية مجانية لمدة 14 يوماً بدون بطاقة بنكية. بعدها تختارين الخطة المناسبة: ستارتر (2,500 دج/شهر)، برو (6,900 دج/شهر)، أو VIP (15,000 دج/شهر).' },
+              { q: 'هل يدعم الدفع عند الاستلام (COD)؟', a: 'نعم، نظام COD كامل مدمج في كل المتاجر. كل طلب يأتيك في لوحة التحكم مع كشف الطلبات المكررة تلقائياً وحماية من الإرسال المزدوج.' },
+              { q: 'كيف يعمل الشحن للولايات؟', a: 'حاسبة شحن مدمجة لكل 58 ولاية جزائرية مع أسعار قابلة للتخصيص. يمكنك أيضاً ربط متجرك بـ Yalidine و ZR Express لإنشاء بوالص الشحن تلقائياً.' },
+              { q: 'هل يمكنني ربط نطاقي الخاص؟', a: 'نعم، في خطة برو وما فوق. يمكنك ربط نطاق مخصص مثل mystore.dz مع شهادة SSL مجانية. في الخطة المجانية تحصلين على نطاق فرعي slug.lumiere.saas.' },
+              { q: 'هل المنصة تدعم Meta Pixel و TikTok Pixel؟', a: 'نعم، مدمجان تلقائياً مع أحداث ViewContent، AddToCart، InitiateCheckout، Purchase. تُسجل المفاتيح من لوحة التحكم في تبويب "التتبع".' },
+            ].map((faq, i) => (
+              <div key={i} className="bg-white border border-[#EDE6D8] rounded-2xl overflow-hidden">
+                <button
+                  onClick={() => setFaqOpen(faqOpen === i ? null : i)}
+                  className="w-full px-5 py-4 flex items-center justify-between text-right hover:bg-[#FFFCF8] transition"
+                >
+                  <span className="font-bold text-sm text-[#1A1A1E]">{faq.q}</span>
+                  <span className={`text-[#C9A96A] transition-transform shrink-0 ms-2 ${faqOpen === i ? 'rotate-180' : ''}`}>▼</span>
+                </button>
+                {faqOpen === i && (
+                  <div className="px-5 pb-4 text-sm text-[#7A6F5A] leading-6 border-t border-[#EDE6D8] pt-3">{faq.a}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── CTA ─── */}
       <section className="py-16">
         <div className="max-w-[800px] mx-auto px-4 text-center">
-          <h2 className="text-[28px] font-extrabold text-[#1A1A1E]">جاهزة تبدئي؟</h2>
-          <p className="text-[#7A6F5A] mt-2">انضمي لعشرات التجار الجزائريين الذين يبيعون عبر LUMIÈRE SaaS</p>
+          <h2 className="text-[28px] font-extrabold text-[#1A1A1E]">جاهز تبدأ؟</h2>
+          <p className="text-[#7A6F5A] mt-2">انضم لعشرات التجار الجزائريين الذين يبيعون عبر LUMIÈRE SaaS</p>
           <button onClick={() => setShowRegister(true)} className="mt-6 bg-[#1A1A1E] text-white px-8 py-3.5 rounded-full font-bold flex items-center gap-2 mx-auto hover:bg-black transition">
-            <Rocket size={18} /> أنشئي متجرك الآن — مجاناً
+            <Rocket size={18} /> أنشئ متجرك الآن — مجاناً
           </button>
         </div>
       </section>
@@ -354,7 +418,7 @@ export default function PlatformLanding() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#1A1A1E]/60 backdrop-blur-sm" onClick={() => setShowRegister(false)}>
           <div className="bg-white rounded-[24px] p-6 w-full max-w-md shadow-2xl border border-[#EDE6D8]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-extrabold text-xl text-[#1A1A1E]">أنشئي متجرك في دقيقة</h3>
+              <h3 className="font-extrabold text-xl text-[#1A1A1E]">أنشئ متجرك في دقيقة</h3>
               <button onClick={() => setShowRegister(false)} className="text-[#9A8A6B] hover:text-[#1A1A1E] text-2xl leading-none">×</button>
             </div>
             <form onSubmit={handleRegister} className="space-y-3">
@@ -364,7 +428,14 @@ export default function PlatformLanding() {
               <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="الهاتف (اختياري)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
               <div className="border-t border-[#EDE6D8] pt-3 mt-3">
                 <div className="text-xs font-bold text-[#7A6F5A] mb-2">معلومات المتجر</div>
-                <input value={form.storeName} onChange={e => setForm({...form, storeName: e.target.value})} placeholder="اسم المتجر (فرنسي/إنجليزي) *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+                <input value={form.storeName} onChange={e => {
+                  const newStoreName = e.target.value
+                  setForm(prev => ({
+                    ...prev,
+                    storeName: newStoreName,
+                    slug: slugManuallyEdited ? prev.slug : newStoreName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+                  }))
+                }} placeholder="اسم المتجر (فرنسي/إنجليزي) *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
                 <input value={form.storeNameAr} onChange={e => setForm({...form, storeNameAr: e.target.value})} placeholder="اسم المتجر (عربي)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] mt-2" />
                 <div className="flex items-center gap-2 mt-2">
                   {(() => {
@@ -374,14 +445,14 @@ export default function PlatformLanding() {
                       return (
                         <>
                           <span className="text-xs text-[#9A8A6B] truncate">{hostname}/?store=</span>
-                          <input value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} placeholder="my-store" className="flex-1 min-w-0 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+                          <input value={form.slug} onFocus={() => setSlugManuallyEdited(true)} onChange={e => setForm({...form, slug: e.target.value})} placeholder="my-store" className="flex-1 min-w-0 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
                         </>
                       )
                     }
                     return (
                       <>
                         <span className="text-xs text-[#9A8A6B]">https://</span>
-                        <input value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} placeholder="my-store" className="flex-1 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+                        <input value={form.slug} onFocus={() => setSlugManuallyEdited(true)} onChange={e => setForm({...form, slug: e.target.value})} placeholder="my-store" className="flex-1 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
                         <span className="text-xs text-[#9A8A6B]">.{hostname}</span>
                       </>
                     )
@@ -392,7 +463,7 @@ export default function PlatformLanding() {
               <button type="submit" disabled={loading} className="w-full bg-[#1A1A1E] text-white py-3 rounded-xl font-bold hover:bg-black transition disabled:opacity-50">
                 {loading ? 'جاري الإنشاء...' : 'إنشاء المتجر →'}
               </button>
-              <p className="text-[11px] text-[#9A8A6B] text-center">بالضغط على "إنشاء المتجر" أنتِ توافقين على شروط الخدمة وسياسة الخصوصية</p>
+              <p className="text-[11px] text-[#9A8A6B] text-center">بالضغط على "إنشاء المتجر" أنت توافق على شروط الخدمة وسياسة الخصوصية</p>
             </form>
           </div>
         </div>

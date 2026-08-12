@@ -157,40 +157,44 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     const platformHost = isPlatformHostNow()
     setIsPlatformHost(platformHost)
 
-    // Check all tenant sources
+    // Check URL tenant sources
     const explicitStoreId = detectStoreIdFromQuery()
     const slugFromQuery = detectTenantSlugFromQuery()
     const slugFromHost = detectTenantSlugFromHost()
+
+    // If an explicit store query is present in the URL, prioritize it over cached localStorage!
+    const hasExplicitUrlTenant = !!explicitStoreId || !!slugFromQuery || !!slugFromHost
+
     let cachedSlug: string | null = null
     let cachedStoreId: string | null = null
-    try {
-      cachedSlug = localStorage.getItem(ACTIVE_SLUG_KEY)
-      cachedStoreId = localStorage.getItem(ACTIVE_STORE_KEY)
-    } catch {}
+    if (!hasExplicitUrlTenant) {
+      try {
+        cachedSlug = localStorage.getItem(ACTIVE_SLUG_KEY)
+        cachedStoreId = localStorage.getItem(ACTIVE_STORE_KEY)
+      } catch {}
+    }
 
-    // Pick the first non-null source
     const resolvedStoreId = explicitStoreId || cachedStoreId
     const resolvedSlug = slugFromQuery || slugFromHost || cachedSlug
 
-    if (resolvedStoreId) {
-      setStoreId(resolvedStoreId)
+    if (explicitStoreId) {
+      setStoreId(explicitStoreId)
       setStoreSlug(resolvedSlug)
-      setIsPlatformHost(false)  // we have a tenant context
+      setIsPlatformHost(false)
     } else if (resolvedSlug) {
-      // We have a slug but no explicit storeId — let the server resolve
-      // the slug → storeId via the x-store-slug header (client.ts handles this).
-      // The storeId state stays null here, but client.ts attaches the slug
-      // header so API calls are still scoped correctly.
+      // When resolving by slug, clear explicit storeId so client.ts uses x-store-slug header
       setStoreId(null)
       setStoreSlug(resolvedSlug)
       setIsPlatformHost(false)
+    } else if (resolvedStoreId) {
+      setStoreId(resolvedStoreId)
+      setStoreSlug(resolvedSlug)
+      setIsPlatformHost(false)
     } else if (platformHost) {
-      // Bare platform apex, no tenant — show SaaS landing
       setStoreId(null)
       setStoreSlug(null)
       setStore(null)
     } else {
-      // Subdomain host but we couldn't extract a slug — treat as platform
       setStoreId(null)
       setStoreSlug(null)
     }

@@ -36,6 +36,11 @@ export default function Admin() {
   const [domains, setDomains] = useState<StoreDomain[]>(() => getDomains())
   const [activeDomain, setActiveDomainState] = useState<StoreDomain>(() => getActiveDomain())
   const [tab, setTab] = useState<'domains' | 'products' | 'orders' | 'wilayas' | 'store' | 'tracking' | 'delivery'>('domains')
+  const currentSlug = (() => {
+    try {
+      return localStorage.getItem('lumiere_saas_active_slug') || 'demo'
+    } catch { return 'demo' }
+  })()
   const [q, setQ] = useState('')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
   const [editingWilaya, setEditingWilaya] = useState<Record<string, Partial<WilayaRate>>>({})
@@ -369,7 +374,7 @@ export default function Admin() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a href="/" target="_blank" className="bg-white border border-[#EDE6D8] px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[#FFFCF8]"><Eye size={16} /> عرض المتجر</a>
+            <a href={`/?store=${currentSlug}`} target="_blank" className="bg-white border border-[#EDE6D8] px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[#FFFCF8]"><Eye size={16} /> عرض المتجر</a>
             <button onClick={handleExport} className="bg-[#1A1A1E] text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-black"><Download size={16} /> تصدير CSV</button>
             <button onClick={() => { if (confirm('إعادة تهيئة كل البيانات؟')) { localStorage.clear(); location.reload() } }} className="bg-white border border-[#EDE6D8] px-3 py-2 rounded-full text-xs font-bold text-[#9A8A6B] hover:text-red-600">إعادة تهيئة</button>
           </div>
@@ -396,7 +401,7 @@ export default function Admin() {
           </div>
           <div className="relative flex flex-col gap-2 w-full md:w-auto">
             <div className="flex gap-2">
-              <a href="/" target="_blank" className="flex-1 md:flex-initial bg-white text-[#1A1A1E] px-4 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#FFFCF8]"><Eye size={14}/> معاينة المتجر</a>
+              <a href={`/?store=${currentSlug}`} target="_blank" className="flex-1 md:flex-initial bg-white text-[#1A1A1E] px-4 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#FFFCF8]"><Eye size={14}/> معاينة المتجر</a>
               <button onClick={()=> setTab('domains')} className="flex-1 md:flex-initial bg-[#C9A96A] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#B8945A]"><Wand2 size={14}/> تغيير المجال</button>
             </div>
             <span className="text-[11px] text-white/40 text-center">التبديل يحدث فوراً — إعدادات المنتج تتبدل حسب المجال</span>
@@ -506,7 +511,7 @@ export default function Admin() {
                       </div>
                       <div className="grid grid-cols-3 gap-1.5 mt-2">
                         <button onClick={async ()=>{ const c=await duplicateDomain(d.id); if(c){ refreshAll(); showToast('تم نسخ المجال') } }} className="bg-white border border-[#EDE6D8] rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1"><Copy size={11}/> نسخ</button>
-                        <a href="/" target="_blank" className="bg-white border border-[#EDE6D8] rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-[#1A1A1E] hover:text-white"><Eye size={11}/> معاينة</a>
+                        <a href={`/?store=${currentSlug}`} target="_blank" className="bg-white border border-[#EDE6D8] rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-[#1A1A1E] hover:text-white"><Eye size={11}/> معاينة</a>
                         {!d.isPreset ? (
                           <button onClick={async ()=>{ if(!confirm(`حذف مجال ${d.nameAr}؟`))return; try{ await deleteDomain(d.id); refreshAll(); showToast('تم حذف المجال')}catch(e:any){ showToast('لا يمكن حذف مجال جاهز')} }} className="bg-red-50 border border-red-200 text-red-600 rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-red-500 hover:text-white"><Trash2 size={11}/> حذف</button>
                         ) : (
@@ -636,7 +641,7 @@ export default function Admin() {
                       <button onClick={() => openEditModal(p)} className="bg-[#1A1A1E] text-white rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-black"><Pencil size={12} /> تعديل</button>
                       <button onClick={async () => { const c = await duplicateProduct(p._id); if (c) { setProducts([...getProducts()]); showToast('تم نسخ المنتج') } }} className="bg-white border border-[#EDE6D8] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#FFFCF8]"><Copy size={12} /> نسخ</button>
                       <button onClick={() => handleDeleteProduct(p._id)} className="bg-white border border-red-200 text-red-600 rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-50"><Trash2 size={12} /> حذف</button>
-                      <a href={`/product/${p._id}`} target="_blank" className="bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#A02A5B] hover:text-white transition"><Eye size={12} /> عرض</a>
+                      <a href={`/product/${p._id}?store=${currentSlug}`} target="_blank" className="bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#A02A5B] hover:text-white transition"><Eye size={12} /> عرض</a>
                     </div>
                     <div className="flex gap-1.5 mt-2">
                       <button onClick={async () => { const u = await toggleProductFlag(p._id, 'isFeatured'); setProducts([...u]); showToast(p.isFeatured ? 'أزيلت من المميزة' : 'أضيفت للمميزة ⭐') }} className={`flex-1 rounded-full py-1.5 text-[11px] font-bold border flex items-center justify-center gap-1 ${p.isFeatured ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFCF8]'}`}><Crown size={11} /> {p.isFeatured ? 'مميز ✓' : 'تمييز'}</button>
