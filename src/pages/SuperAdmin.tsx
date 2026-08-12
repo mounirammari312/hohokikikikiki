@@ -112,11 +112,19 @@ export default function SuperAdmin() {
     } catch (err: any) {
       console.error('super-admin refresh failed:', err)
       const msg = err?.body?.error || err?.message || 'NETWORK_ERROR'
-      setDataError(msg === 'UNAUTHORIZED' ? 'انتهت الجلسة — سجّل الدخول مجدداً' : `فشل تحميل البيانات: ${msg}`)
-      // If we got 401, the user's session is invalid — log them out so
-      // the login form shows on the next render.
-      if (msg === 'UNAUTHORIZED' || err?.status === 401) {
-        logout()
+      // IMPORTANT: do NOT auto-logout on 401. A 401 here usually means
+      // the auth header didn't reach the server (e.g. network glitch,
+      // cold-start race, or a stale token in the legacy localStorage
+      // key). Auto-logging out makes the dashboard flash-redirect back
+      // to the login form within ~100ms of opening — terrible UX.
+      // Instead, show the error + let the user retry via the refresh
+      // button. They can always log out manually via the top bar.
+      if (msg === 'UNAUTHORIZED') {
+        setDataError('انتهت الجلسة أو لم يصل التوكن للخادم — اضغط "تحديث" للمحاولة مجدداً، أو سجّل الخروج يدوياً')
+      } else if (err?.status === 401) {
+        setDataError('خطأ 401 — تأكد من أن الـ API يستقبل الـ Authorization header. اضغط "تحديث" للمحاولة مجدداً')
+      } else {
+        setDataError(`فشل تحميل البيانات: ${msg}`)
       }
     } finally {
       setDataLoading(false)

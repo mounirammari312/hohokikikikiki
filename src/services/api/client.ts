@@ -359,23 +359,48 @@ export async function updateStoreApi(id: string, patch: Partial<TenantStore>): P
 }
 
 // ─── Public API: Super-Admin ────────────────────────────────────────────────
+// All super-admin functions go through `apiFetch()` which calls
+// `buildHeaders()` — that function already attaches the token as both
+// `Authorization: Bearer <token>` AND `x-merchant-token: <token>` on
+// every request. The explicit `authHeader()` helper below is just a
+// safety net: if some future code path bypasses `apiFetch`, the
+// super-admin functions will still send the token.
+function authHeader(): Record<string, string> {
+  if (!isBrowser()) return {}
+  const token = localStorage.getItem('lumiere_token') || localStorage.getItem('lumiere_saas_token')
+  if (!token) return {}
+  return {
+    'Authorization': `Bearer ${token}`,
+    'x-merchant-token': token,
+  }
+}
 
 export async function superAdminListStores(): Promise<TenantStore[]> {
-  const { stores } = await apiFetch<{ stores: TenantStore[] }>('/api/super-admin/stores')
+  const { stores } = await apiFetch<{ stores: TenantStore[] }>('/api/super-admin/stores', {
+    headers: authHeader(),
+  })
   return stores || []
 }
 export async function superAdminUpdateStore(id: string, patch: Partial<TenantStore>): Promise<{ store: TenantStore }> {
-  return await apiFetch(`/api/super-admin/stores/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) })
+  return await apiFetch(`/api/super-admin/stores/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+    headers: authHeader(),
+  })
 }
 export async function superAdminListUsers(): Promise<MerchantUser[]> {
-  const { users } = await apiFetch<{ users: MerchantUser[] }>('/api/super-admin/users')
+  const { users } = await apiFetch<{ users: MerchantUser[] }>('/api/super-admin/users', {
+    headers: authHeader(),
+  })
   return users || []
 }
 export async function superAdminStats(): Promise<{
   storeCount: number; userCount: number; productCount: number; orderCount: number
   storesByStatus: Record<string, number>; storesByPlan: Record<string, number>
 }> {
-  return await apiFetch('/api/super-admin/stats')
+  return await apiFetch('/api/super-admin/stats', {
+    headers: authHeader(),
+  })
 }
 
 // ─── Cross-tab refresh subscription ─────────────────────────────────────────

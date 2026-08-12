@@ -314,12 +314,23 @@ export default async function handler(req: any, res: any) {
     }
 
     // ─── Match the route FIRST so unknown routes 404 without touching
-    //     the DB. This also lets us return 401 (UNAUTHORIZED) for
-    //     mutations without a token before paying for a DB connection. ─
+    //     the DB. ─
     if (segments[0] === 'stores' || segments[0] === 'super-admin') {
-      // These routes do their own auth check inside their handlers,
-      // but we can short-circuit a missing token here for super-admin
-      // mutations before touching the DB.
+      // Step 1: Quick short-circuit — if there's no token at all, 401
+      // immediately. This doesn't need a DB connection.
+      const token = extractToken(req)
+      if (!token) return reply(res, { error: 'UNAUTHORIZED' }, 401)
+
+      // Step 2: Connect to the DB. We need it for step 3 because
+      // `userFromToken()` calls `MerchantUserModel.findById()` which
+      // requires a live connection (bufferCommands is disabled).
+      // IMPORTANT: this must happen BEFORE `userFromToken()` — otherwise
+      // mongoose throws a buffering error and the request fails with 401
+      // even when the token is valid.
+      await connectDB()
+      await ensureSeeded()
+
+      // Step 3: Look up the user from the token (needs DB).
       if (segments[0] === 'super-admin') {
         const user = await userFromToken(req)
         if (!user) return reply(res, { error: 'UNAUTHORIZED' }, 401)
@@ -329,8 +340,6 @@ export default async function handler(req: any, res: any) {
         const user = await userFromToken(req)
         if (!user) return reply(res, { error: 'UNAUTHORIZED' }, 401)
       }
-      await connectDB()
-      await ensureSeeded()
       if (segments[0] === 'stores') return reply(res, ...(await storesRoute(segments, method, req, query)))
       return reply(res, ...(await superAdminRoute(segments, method, req, query)))
     }
@@ -341,22 +350,30 @@ export default async function handler(req: any, res: any) {
     if (!matched) return reply(res, { error: 'NOT_FOUND', path: url.pathname, method }, 404)
 
     // For mutations, check the auth token BEFORE connecting to the DB
-    // so an unauthenticated request fails fast with 401 (no DB needed).
+    // — but only the "is there a token?" part. The actual user lookup
+    // happens after connectDB() below (same buffering fix as above).
     const isMutation =
       method !== 'GET' &&
       (segments[0] === 'products' || segments[0] === 'orders' ||
        segments[0] === 'settings' || segments[0] === 'domains' ||
        segments[0] === 'wilayas')
 
-    let authUser: any = null
     if (isMutation) {
-      authUser = await userFromToken(req)
-      if (!authUser) return reply(res, { error: 'UNAUTHORIZED' }, 401)
+      const token = extractToken(req)
+      if (!token) return reply(res, { error: 'UNAUTHORIZED' }, 401)
     }
 
     // Now we know we need the DB — connect (cached) + ensure seeded.
     await connectDB()
     await ensureSeeded()
+
+    // For mutations, now that the DB is connected, look up the user
+    // from the token to verify it's valid + the merchant owns the store.
+    let authUser: any = null
+    if (isMutation) {
+      authUser = await userFromToken(req)
+      if (!authUser) return reply(res, { error: 'UNAUTHORIZED' }, 401)
+    }
 
     const tenant = await resolveTenant(req)
     const ctx: RouteCtx = {
