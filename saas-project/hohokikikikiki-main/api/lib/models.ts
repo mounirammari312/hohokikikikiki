@@ -1,11 +1,15 @@
 // @ts-nocheck — serverless functions are type-checked by Vercel at deploy time, not by the client tsc build
 /**
- * Mongoose schemas/models for the LUMIÈRE store.
+ * Mongoose schemas/models — MULTI-TENANT version.
  *
- * Schemas are deliberately permissive (Mixed types for attributes,
- * flexible tierPricing/variants) so the admin can edit any field
- * without server-side migrations. The `_id` field is forced to String
- * type so we can use readable ids like `prod_001` instead of ObjectId.
+ * Every domain schema (Product, Order, Settings, Domain, Wilaya) carries
+ * a `storeId: String` field, indexed for fast filtering. All server-side
+ * queries scope by `{ storeId }` so stores can never read or write each
+ * other's data.
+ *
+ * The two new schemas (TenantStore, MerchantUser) hold the platform-level
+ * metadata that the dynamic-tenant middleware uses to resolve which
+ * store a request belongs to.
  *
  * IMPORTANT: Each model is registered with `mongoose.models.X || mongoose.model(...)`
  * to avoid the "Cannot overwrite model once compiled" error in serverless
@@ -15,10 +19,40 @@
 import mongoose from 'mongoose'
 
 const STRING_ID = { type: String, required: true } as const
+const { Mixed } = mongoose.Schema.Types
 
-// ─── Product ────────────────────────────────────────────────────────────────
+// ─── TenantStore (one document per merchant store) ──────────────────────────
+const TenantStoreSchema = new mongoose.Schema({
+  _id: STRING_ID,
+  slug: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+  customDomain: { type: String, default: null, unique: true, sparse: true, lowercase: true, trim: true, index: true },
+  ownerId: { type: String, required: true, index: true },
+  name: { type: String, required: true },
+  nameAr: { type: String, default: '' },
+  status: { type: String, enum: ['active', 'suspended', 'expired'], default: 'active', index: true },
+  plan: { type: String, enum: ['free_trial', 'starter', 'pro', 'vip'], default: 'free_trial' },
+  planExpiresAt: { type: String, default: null },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+  updatedAt: { type: String, default: () => new Date().toISOString() },
+}, { _id: false, versionKey: false, strict: false })
+
+// ─── MerchantUser (auth + ownership) ────────────────────────────────────────
+const MerchantUserSchema = new mongoose.Schema({
+  _id: STRING_ID,
+  fullName: { type: String, required: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+  phone: { type: String, default: '' },
+  passwordHash: { type: String, required: true },
+  role: { type: String, enum: ['super_admin', 'merchant'], default: 'merchant', index: true },
+  storeIds: { type: [String], default: [] },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+  updatedAt: { type: String, default: () => new Date().toISOString() },
+}, { _id: false, versionKey: false, strict: false })
+
+// ─── Product (scoped to a store) ────────────────────────────────────────────
 const ProductSchema = new mongoose.Schema({
   _id: STRING_ID,
+  storeId: { type: String, required: true, index: true },
   sku: { type: String, default: '' },
   name: { type: String, required: true },
   nameAr: { type: String, required: true },
@@ -35,17 +69,20 @@ const ProductSchema = new mongoose.Schema({
   stock: { type: Number, default: 0 },
   isFeatured: { type: Boolean, default: false },
   isNew: { type: Boolean, default: false },
-  attributes: { type: mongoose.Schema.Types.Mixed, default: {} },
-  variants: { type: [mongoose.Schema.Types.Mixed], default: [] },
-  tierPricing: { type: [mongoose.Schema.Types.Mixed], default: [] },
+  attributes: { type: Mixed, default: {} },
+  variants: { type: [Mixed], default: [] },
+  tierPricing: { type: [Mixed], default: [] },
   createdAt: { type: String, default: () => new Date().toISOString() },
   domainId: { type: String, default: null },
 }, { _id: false, versionKey: false, strict: false })
+ProductSchema.index({ storeId: 1, createdAt: -1 })
+ProductSchema.index({ storeId: 1, category: 1 })
 
-// ─── Wilaya ─────────────────────────────────────────────────────────────────
+// ─── Wilaya (per-store override of the 58 Algerian wilayas) ─────────────────
 const WilayaSchema = new mongoose.Schema({
   _id: STRING_ID,
-  code: { type: String, required: true, unique: true },
+  storeId: { type: String, required: true, index: true },
+  code: { type: String, required: true },
   name: { type: String, required: true },
   nameAr: { type: String, required: true },
   deliveryHome: { type: Number, default: 600 },
@@ -53,11 +90,13 @@ const WilayaSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   deliveryDays: { type: String, default: '48 ساعة' },
 }, { _id: false, versionKey: false, strict: false })
+WilayaSchema.index({ storeId: 1, code: 1 }, { unique: true })
 
-// ─── Order ──────────────────────────────────────────────────────────────────
+// ─── Order (scoped to a store) ──────────────────────────────────────────────
 const OrderSchema = new mongoose.Schema({
   _id: STRING_ID,
-  orderNumber: { type: String, required: true, unique: true },
+  storeId: { type: String, required: true, index: true },
+  orderNumber: { type: String, required: true },
   customerName: { type: String, required: true },
   phone: { type: String, required: true },
   phone2: { type: String, default: '' },
@@ -66,7 +105,7 @@ const OrderSchema = new mongoose.Schema({
   commune: { type: String, required: true },
   address: { type: String, required: true },
   deliveryType: { type: String, enum: ['home', 'desk'], default: 'home' },
-  items: { type: [mongoose.Schema.Types.Mixed], default: [] },
+  items: { type: [Mixed], default: [] },
   subtotal: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
   shippingCost: { type: Number, default: 0 },
@@ -74,19 +113,20 @@ const OrderSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['new', 'confirmed', 'shipping', 'delivered', 'cancelled'],
-    default: 'new'
+    default: 'new',
   },
   notes: { type: String, default: '' },
   createdAt: { type: String, default: () => new Date().toISOString() },
   updatedAt: { type: String, default: () => new Date().toISOString() },
 }, { _id: false, versionKey: false, strict: false })
+OrderSchema.index({ storeId: 1, createdAt: -1 })
+OrderSchema.index({ storeId: 1, orderNumber: 1 }, { unique: true })
+OrderSchema.index({ storeId: 1, phone: 1, createdAt: -1 })
 
-// Index for the duplicate-order signature check
-OrderSchema.index({ phone: 1, createdAt: -1 })
-
-// ─── Settings (singleton document) ──────────────────────────────────────────
+// ─── Settings (singleton per store: _id === storeId) ────────────────────────
 const SettingsSchema = new mongoose.Schema({
   _id: STRING_ID,
+  storeId: { type: String, required: true, unique: true, index: true },
   metaPixelId: { type: String, default: '' },
   tiktokPixelId: { type: String, default: '' },
   storeName: { type: String, default: 'LUMIÈRE' },
@@ -107,9 +147,11 @@ const SettingsSchema = new mongoose.Schema({
   activeDomainId: { type: String, default: 'domain_jewelry' },
 }, { _id: false, versionKey: false, strict: false })
 
-// ─── Domain ─────────────────────────────────────────────────────────────────
+// ─── Domain (store-scoped category presets) ─────────────────────────────────
 const DomainSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
+  _id: STRING_ID,
+  storeId: { type: String, required: true, index: true },
+  id: { type: String, required: true },
   name: { type: String, required: true },
   nameAr: { type: String, required: true },
   descriptionAr: { type: String, default: '' },
@@ -118,12 +160,17 @@ const DomainSchema = new mongoose.Schema({
   heroSubtitleAr: { type: String, default: '' },
   heroImage: { type: String, default: '' },
   footerDescriptionAr: { type: String, default: '' },
-  categories: { type: [mongoose.Schema.Types.Mixed], default: [] },
-  attributeSchema: { type: [mongoose.Schema.Types.Mixed], default: [] },
-  variantConfig: { type: mongoose.Schema.Types.Mixed, default: {} },
+  categories: { type: [Mixed], default: [] },
+  attributeSchema: { type: [Mixed], default: [] },
+  variantConfig: { type: Mixed, default: {} },
   isPreset: { type: Boolean, default: false },
 }, { _id: false, versionKey: false, strict: false })
+DomainSchema.index({ storeId: 1, id: 1 }, { unique: true })
 
+export const TenantStoreModel =
+  mongoose.models.TenantStore || mongoose.model('TenantStore', TenantStoreSchema)
+export const MerchantUserModel =
+  mongoose.models.MerchantUser || mongoose.model('MerchantUser', MerchantUserSchema)
 export const ProductModel =
   mongoose.models.Product || mongoose.model('Product', ProductSchema)
 export const WilayaModel =

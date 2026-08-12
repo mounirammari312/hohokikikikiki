@@ -1,3 +1,50 @@
+/**
+ * Client-side TypeScript types.
+ *
+ * Mirrors api/lib/types.ts. KEEP IN SYNC when adding fields on either side.
+ *
+ * MULTI-TENANCY: every domain entity carries a `storeId` field. The
+ * TenantContext (src/context/TenantContext.tsx) resolves the current
+ * store from `window.location.hostname` and injects `x-store-id` into
+ * every outgoing API request.
+ */
+
+// ─── Multi-Tenancy primitives ───────────────────────────────────────────────
+
+export type StorePlan = 'free_trial' | 'starter' | 'pro' | 'vip'
+export type StoreStatus = 'active' | 'suspended' | 'expired'
+
+export interface TenantStore {
+  _id: string
+  slug: string
+  customDomain?: string
+  ownerId: string
+  name: string
+  nameAr: string
+  status: StoreStatus
+  plan: StorePlan
+  planExpiresAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type MerchantRole = 'super_admin' | 'merchant'
+
+export interface MerchantUser {
+  _id: string
+  fullName: string
+  email: string
+  phone?: string
+  /** Never sent to the client from the API — kept here only for type symmetry */
+  passwordHash?: string
+  role: MerchantRole
+  storeIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+// ─── Catalog / commerce entities ────────────────────────────────────────────
+
 export type AttributeType = 'text' | 'textarea' | 'select' | 'multiselect' | 'color'
 
 export interface AttributeDef {
@@ -36,6 +83,8 @@ export interface DomainCategory {
 }
 
 export interface StoreDomain {
+  _id?: string
+  storeId?: string
   id: string
   name: string
   nameAr: string
@@ -53,6 +102,8 @@ export interface StoreDomain {
 
 export interface Product {
   _id: string
+  /** Tenant discriminator — assigned server-side on create + on seed */
+  storeId?: string
   sku: string
   name: string
   nameAr: string
@@ -78,6 +129,8 @@ export interface Product {
 
 export interface WilayaRate {
   _id: string
+  /** Tenant discriminator — assigned server-side on create + on seed */
+  storeId?: string
   code: string
   name: string
   nameAr: string
@@ -102,6 +155,8 @@ export type OrderStatus = 'new' | 'confirmed' | 'shipping' | 'delivered' | 'canc
 
 export interface Order {
   _id: string
+  /** Tenant discriminator — assigned server-side on create */
+  storeId?: string
   orderNumber: string
   customerName: string
   phone: string
@@ -123,6 +178,9 @@ export interface Order {
 }
 
 export interface StoreSettings {
+  _id?: string
+  /** Tenant discriminator — singleton per store: _id === storeId */
+  storeId?: string
   metaPixelId: string
   tiktokPixelId: string
   storeName: string
