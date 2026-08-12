@@ -557,26 +557,86 @@ export default function Admin() {
               </div>
             </div>
 
-            {/* ─── Active Domain Selector (compact) ───────────────────── */}
-            <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4">
-              <h4 className="font-bold text-sm flex items-center gap-2 mb-3"><Wand2 size={14} className="text-[#C9A96A]"/> تخصص المتجر النشط</h4>
-              <div className="flex flex-wrap gap-2">
-                {domains.map(d => (
-                  <button
-                    key={d.id}
-                    onClick={() => handleActivateDomain(d.id)}
-                    className={`px-3 py-2 rounded-full text-xs font-bold border transition flex items-center gap-1.5 ${
-                      d.id === activeDomain.id
-                        ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]'
-                        : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:border-[#C9A96A]'
-                    }`}
-                  >
-                    {d.id === activeDomain.id && <Check size={10} />}
-                    {d.nameAr}
-                  </button>
-                ))}
+            {/* ─── Domains Management (full cards + create custom) ─────── */}
+            <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <h3 className="font-extrabold flex items-center gap-2"><Wand2 size={16} className="text-[#C9A96A]"/> مجالات المتجر — أنشئ مجالك الخاص حسب تخصصك</h3>
+                <p className="text-xs text-[#9A8A6B] mt-1">كل مجال يملك فئاته وحقوله الخاصة ومتغيرات الألوان/المقاسات. أنشئ مجالاً للإلكترونيات، الملابس، المنتجات الرقمية، أو أي تخصص تريده.</p>
               </div>
-              <p className="text-[11px] text-[#9A8A6B] mt-2">تبديل التخصص يغيّر فئات المنتجات وحقول الإضافة حسب نوع المتجر (مجوهرات / أزياء / جمال).</p>
+              <button onClick={openDomainCreate} className="bg-[#A02A5B] hover:bg-[#7A1F44] text-white px-5 py-2.5 rounded-full text-sm font-extrabold flex items-center gap-2 shadow shadow-[#A02A5B]/20 shrink-0"><Plus size={16}/> إنشاء مجال مخصص</button>
+            </div>
+
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {domains.map(d=>{
+                const isActive = d.id===activeDomain.id
+                const Icon = domainIcons[d.id] || Store
+                const relatedCount = products.filter(p=> d.categories.some(c=> c.key===p.category)).length
+                return (
+                  <div key={d.id} className={`relative bg-white rounded-[22px] overflow-hidden border-2 flex flex-col ${isActive ? 'border-[#A02A5B] shadow-[0_10px_30px_rgba(160,42,91,0.15)]' : 'border-[#EDE6D8] hover:border-[#C9A96A]/40'}`}>
+                    {isActive && <span className="absolute top-3 left-3 z-10 bg-[#A02A5B] text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1"><Check size={12}/> نشط الآن</span>}
+                    {d.isPreset && <span className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur border border-[#EDE6D8] text-[#7A6F5A] text-[10px] font-bold px-2 py-1 rounded-full">جاهز</span>}
+                    {!d.isPreset && <span className="absolute top-3 right-3 z-10 bg-[#1A1A1E] text-white text-[10px] font-bold px-2 py-1 rounded-full">مخصص</span>}
+                    <div className="h-36 relative bg-[#FFF8EE] overflow-hidden">
+                      <img src={d.heroImage} alt={d.nameAr} className="w-full h-full object-cover"/>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"/>
+                      <div className="absolute bottom-3 right-3 left-3 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-white grid place-items-center shrink-0 shadow"><Icon size={18} className="text-[#1A1A1E]"/></div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-extrabold text-white leading-tight line-clamp-1">{d.nameAr}</div>
+                          <div className="text-[11px] text-white/80 cormorant tracking-widest">{d.name}</div>
+                        </div>
+                        <span className="bg-white text-[#1A1A1E] text-xs font-bold px-2.5 py-1 rounded-full">{relatedCount} منتج</span>
+                      </div>
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col">
+                      <p className="text-xs leading-5 text-[#7A6F5A] line-clamp-2 min-h-[40px]">{d.descriptionAr}</p>
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {d.categories.map(c=> <span key={c.key} className={`text-[11px] px-2 py-1 rounded-full border font-bold ${isActive ? 'bg-[#FDF2F6] border-[#F6C0D4] text-[#A02A5B]' : 'bg-[#FFFBF0] border-[#F0D9A8] text-[#8D6E3A]'}`}>{c.labelAr}</span>)}
+                      </div>
+                      <div className="mt-3 bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-3">
+                        <div className="text-[10px] font-bold text-[#9A8A6B] tracking-widest flex items-center gap-1.5"><Layers size={10}/> الحقول: {d.attributeSchema.map(a=> a.labelAr).join(' • ') || '—'}</div>
+                        <div className="text-[11px] mt-1 flex flex-wrap gap-1.5">
+                          {d.variantConfig.hasColor && <span className="bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] px-2 py-0.5 rounded-full flex items-center gap-1"><PaletteIcon size={10}/> ألوان</span>}
+                          {d.variantConfig.hasSize && <span className="bg-white border border-[#EDE6D8] px-2 py-0.5 rounded-full flex items-center gap-1"><Ruler size={10}/> مقاسات: {d.variantConfig.sizeOptions.join(', ')}</span>}
+                          {!d.variantConfig.hasColor && !d.variantConfig.hasSize && <span className="text-[#9A8A6B]">بدون متغيرات</span>}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        {isActive ? (
+                          <span className="bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1"><Check size={12}/> المجال النشط</span>
+                        ) : (
+                          <button onClick={()=> handleActivateDomain(d.id)} className="bg-[#1A1A1E] text-white rounded-full py-2 text-xs font-extrabold flex items-center justify-center gap-1 hover:bg-black"><RefreshCw size={12}/> تفعيل المجال</button>
+                        )}
+                        <button onClick={()=> openDomainEdit(d)} className="bg-white border border-[#EDE6D8] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#FFFCF8]"><Pencil size={12}/> تعديل</button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 mt-2">
+                        <button onClick={async ()=>{ const c=await duplicateDomain(d.id); if(c){ refreshAll(); showToast('تم نسخ المجال') } }} className="bg-white border border-[#EDE6D8] rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1"><Copy size={11}/> نسخ</button>
+                        <a href={`/?store=${currentSlug}`} target="_blank" className="bg-white border border-[#EDE6D8] rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-[#1A1A1E] hover:text-white"><Eye size={11}/> معاينة</a>
+                        {!d.isPreset ? (
+                          <button onClick={async ()=>{ if(!confirm(`حذف مجال ${d.nameAr}؟`))return; try{ await deleteDomain(d.id); refreshAll(); showToast('تم حذف المجال')}catch(e:any){ showToast('لا يمكن حذف مجال جاهز')} }} className="bg-red-50 border border-red-200 text-red-600 rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-red-500 hover:text-white"><Trash2 size={11}/> حذف</button>
+                        ) : (
+                          <span className="bg-[#F5EFE6] border border-[#EDE6D8] text-[#9A8A6B] rounded-full py-1.5 text-[11px] font-bold text-center">جاهز</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* ─── How domain settings affect products ────────────────── */}
+            <div className={`rounded-2xl p-4 border flex gap-3 items-start ${settings.enableRoseEdition ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-[#FFFBF0] border-[#F5E6C8]'}`}>
+              <div className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${settings.enableRoseEdition ? 'bg-[#A02A5B] text-white' : 'bg-[#C9A96A] text-white'}`}><Wand2 size={16}/></div>
+              <div className="text-sm leading-6">
+                <span className="font-extrabold">كيف تعمل المجالات؟</span>
+                <span className="text-[#7A6F5A]"> كل مجال يحدد فئات المنتجات، الحقول المخصصة (مثل القماش/الطلاء/الحجم)، ومتغيرات الألوان والمقاسات. يمكنك إنشاء مجال للإلكترونيات (مع حقول: الماركة، الضمان، المواصفات)، أو للمنتجات الرقمية (مع حقول: نوع الملف، الرخصة)، أو أي تخصص آخر. عند اختيار مجال في نموذج المنتج، تظهر حقوله تلقائياً.</span>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <span className="bg-white border border-[#EDE6D8] px-3 py-1 rounded-full text-xs font-bold">مجوهرات: خامة + طلاء + حجر + مقاس</span>
+                  <span className="bg-[#A02A5B] text-white px-3 py-1 rounded-full text-xs font-bold">إلكترونيات: ماركة + ضمان + مواصفات</span>
+                  <span className="bg-white border border-[#EDE6D8] px-3 py-1 rounded-full text-xs font-bold">ملابس: قماش + مقاس + لون + طول</span>
+                  <span className="bg-white border border-[#EDE6D8] px-3 py-1 rounded-full text-xs font-bold">رقمي: نوع الملف + الرخصة</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
