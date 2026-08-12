@@ -197,11 +197,22 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   // ─── Auth ──────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
+    let res: Response
+    try {
+      res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+        signal: AbortSignal.timeout(10000),
+      })
+    } catch (err: any) {
+      // Network error / timeout — throw a clear error so the login form
+      // can display a helpful message instead of hanging forever.
+      if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+        throw new Error('انتهت مهلة الاتصال — حاول مرة أخرى')
+      }
+      throw new Error('LOGIN_FAILED')
+    }
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.error || 'LOGIN_FAILED')
@@ -230,19 +241,32 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch('/api/auth/me', {
         headers: { 'x-merchant-token': token },
+        // Use an explicit timeout via AbortController so a hung API
+        // never blocks the loading state forever.
+        signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) { logout(); return }
       const { user } = await res.json()
       localStorage.setItem(USER_KEY, JSON.stringify(user))
       setUser(user)
     } catch {
-      // network error — keep cached user
+      // network error / timeout — keep cached user (if any) so the
+      // dashboard can still try to render with stale data.
     }
   }, [logout])
 
   // Refresh user on mount + when token changes
   useEffect(() => {
-    if (getToken()) void refreshUser()
+    if (getToken()) {
+      void refreshUser()
+    } else {
+      // No token — make sure we don't sit in the loading state forever.
+      setUser(null)
+    }
+    // Safety net: force loading=false after a short delay even if
+    // refreshUser() never resolves (e.g. slow network, hung request).
+    const t = setTimeout(() => setLoading(false), 1500)
+    return () => clearTimeout(t)
   }, [refreshUser])
 
   return (

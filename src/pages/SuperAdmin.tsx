@@ -2,6 +2,13 @@
  * SuperAdmin — platform-wide dashboard at /super-admin.
  *
  * Only accessible to MerchantUser with role === 'super_admin'.
+ *
+ * Routing note: this component handles BOTH /super-admin AND
+ * /super-admin/login — when the user isn't authenticated, it renders
+ * an inline login form instead of redirecting. This avoids the
+ * "stuck on loading" bug where a redirect loop + missing data fetch
+ * left the page forever in the loading state.
+ *
  * Lets the platform owner:
  *   - View all TenantStore documents on the platform
  *   - Toggle store status (active / suspended / expired)
@@ -11,15 +18,15 @@
  */
 
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTenant } from '../context/TenantContext'
 import {
   superAdminListStores, superAdminListUsers, superAdminStats, superAdminUpdateStore,
 } from '../services/api/client'
 import type { TenantStore, MerchantUser, StorePlan, StoreStatus } from '../services/api/types'
 import {
-  Store, Users, ShoppingBag, TrendingUp, Crown, AlertCircle, Check, X,
-  Pause, Play, Star, LogOut, ExternalLink, RefreshCw,
+  Store, Users, ShoppingBag, TrendingUp, Crown, Check,
+  Pause, Play, LogOut, ExternalLink, RefreshCw, LogIn, AlertCircle, Loader2, Zap,
 } from 'lucide-react'
 
 const PLANS: StorePlan[] = ['free_trial', 'starter', 'pro', 'vip']
@@ -35,57 +42,135 @@ const statusLabels: Record<StoreStatus, { label: string; color: string }> = {
 }
 
 export default function SuperAdmin() {
-  const { user, logout, loading: tenantLoading } = useTenant()
+  const { user, login: tenantLogin, logout, refreshUser } = useTenant()
   const nav = useNavigate()
+
+  // Two independent loading flags:
+  //   authChecked: have we confirmed whether the user is logged in? (from cached user OR /api/auth/me)
+  //   dataLoading: are we fetching the dashboard data (stores/users/stats)?
+  const [authChecked, setAuthChecked] = useState(false)
+  const [dataLoading, setDataLoading] = useState(false)
   const [stores, setStores] = useState<TenantStore[]>([])
   const [users, setUsers] = useState<MerchantUser[]>([])
   const [stats, setStats] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'stores' | 'users' | 'stats'>('stores')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [dataError, setDataError] = useState<string | null>(null)
 
+  // ─── Step 1: confirm auth state on mount ────────────────────────────
+  // We need to know if the user is logged in (and is a super_admin)
+  // before deciding to render the login form vs. the dashboard. The
+  // cached user from localStorage is the fast path; if there's a token
+  // we also re-validate it against /api/auth/me so a logged-in super
+  // admin doesn't have to re-login on every page refresh.
   useEffect(() => {
-    if (!tenantLoading) {
-      if (!user) nav('/super-admin/login')
-      else if (user.role !== 'super_admin') nav('/')
+    let cancelled = false
+    async function checkAuth() {
+      // If the cached user is already a super_admin, we're done — no
+      // need to hit the network.
+      if (user?.role === 'super_admin') {
+        if (!cancelled) setAuthChecked(true)
+        return
+      }
+      // If there's no token, there's nothing to validate — show the login form.
+      const token = typeof window !== 'undefined' ? localStorage.getItem('lumiere_saas_token') : null
+      if (!token) {
+        if (!cancelled) setAuthChecked(true)
+        return
+      }
+      // Otherwise, refresh the user from the API. The TenantContext's
+      // refreshUser() will update the `user` state — we just wait a tick
+      // and re-check.
+      try {
+        await refreshUser()
+      } catch {
+        // network error — fall back to whatever cached user we have
+      }
+      if (!cancelled) setAuthChecked(true)
     }
-  }, [user, tenantLoading, nav])
+    void checkAuth()
+    return () => { cancelled = true }
+  }, [])  // run once on mount
 
+  // ─── Step 2: fetch dashboard data once we know the user is a super_admin ─
   const refresh = async () => {
-    setLoading(true)
+    setDataLoading(true)
+    setDataError(null)
     try {
       const [s, u, st] = await Promise.all([
-        superAdminListStores(), superAdminListUsers(), superAdminStats(),
+        superAdminListStores(),
+        superAdminListUsers(),
+        superAdminStats(),
       ])
-      setStores(s); setUsers(u); setStats(st)
-    } catch (err) {
+      setStores(s)
+      setUsers(u)
+      setStats(st)
+    } catch (err: any) {
       console.error('super-admin refresh failed:', err)
+      const msg = err?.body?.error || err?.message || 'NETWORK_ERROR'
+      setDataError(msg === 'UNAUTHORIZED' ? 'انتهت الجلسة — سجّل الدخول مجدداً' : `فشل تحميل البيانات: ${msg}`)
+      // If we got 401, the user's session is invalid — log them out so
+      // the login form shows on the next render.
+      if (msg === 'UNAUTHORIZED' || err?.status === 401) {
+        logout()
+      }
     } finally {
-      setLoading(false)
+      setDataLoading(false)
     }
   }
 
   useEffect(() => {
-    if (user?.role === 'super_admin') void refresh()
-  }, [user])
+    // Only fetch data once we've confirmed the user is a super_admin.
+    if (authChecked && user?.role === 'super_admin') {
+      void refresh()
+    }
+  }, [authChecked, user?.role])
 
+  // ─── Step 3: handle store status/plan updates ──────────────────────
   const handleUpdateStore = async (id: string, patch: Partial<TenantStore>) => {
     setUpdatingId(id)
     try {
       await superAdminUpdateStore(id, patch)
       await refresh()
-    } catch (err) {
-      console.error(err)
+    } catch (err: any) {
+      console.error('update store failed:', err)
+      const msg = err?.body?.error || err?.message || 'UNKNOWN'
+      setDataError(`فشل تحديث المتجر: ${msg}`)
     } finally {
       setUpdatingId(null)
     }
   }
 
-  if (tenantLoading || loading) {
-    return <div className="min-h-screen grid place-items-center text-[#9A8A6B]">جاري التحميل…</div>
+  // ─── Render: loading screen (only while auth is being confirmed) ────
+  // IMPORTANT: this is a SHORT, bounded wait — just the time it takes
+  // to check localStorage + (maybe) hit /api/auth/me. If the API is
+  // unreachable, refreshUser() swallows the error and we proceed to
+  // the login form. This is what prevents the "stuck on loading" bug.
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-[#FFFCF8]">
+        <div className="text-center">
+          <Loader2 size={28} className="animate-spin text-[#C9A96A] mx-auto" />
+          <div className="text-sm text-[#9A8A6B] mt-3">جاري التحقق من الجلسة…</div>
+        </div>
+      </div>
+    )
   }
-  if (!user || user.role !== 'super_admin') return null
 
+  // ─── Render: login form (when not authenticated as super_admin) ────
+  if (!user || user.role !== 'super_admin') {
+    return <SuperAdminLogin
+      onLogin={async (email, password) => {
+        await tenantLogin(email, password)
+        // After a successful login, refreshUser picks up the new token,
+        // and the data-fetch effect will fire on the next render.
+        await refreshUser()
+      }}
+      onBackHome={() => nav('/')}
+    />
+  }
+
+  // ─── Render: dashboard ──────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#FFFCF8]">
       {/* Top bar */}
@@ -101,16 +186,27 @@ export default function SuperAdmin() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={refresh} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/20 transition" title="تحديث">
-              <RefreshCw size={14} />
+            <button onClick={() => void refresh()} disabled={dataLoading} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/20 transition disabled:opacity-50" title="تحديث">
+              <RefreshCw size={14} className={dataLoading ? 'animate-spin' : ''} />
             </button>
-            <span className="text-xs text-white/70">{user.email}</span>
+            <span className="text-xs text-white/70 hidden sm:inline">{user.email}</span>
             <button onClick={() => { logout(); nav('/') }} className="text-xs bg-white/10 px-3 py-2 rounded-full hover:bg-white/20 flex items-center gap-1.5">
               <LogOut size={12} /> خروج
             </button>
           </div>
         </div>
       </header>
+
+      {/* Error banner */}
+      {dataError && (
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6 mt-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0" />
+            <span className="flex-1">{dataError}</span>
+            <button onClick={() => setDataError(null)} className="text-red-400 hover:text-red-700">×</button>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6">
@@ -142,8 +238,15 @@ export default function SuperAdmin() {
           </div>
         )}
 
+        {/* Data loading indicator (overlay, not full-screen) */}
+        {dataLoading && (
+          <div className="text-center py-8 text-sm text-[#9A8A6B] flex items-center justify-center gap-2">
+            <Loader2 size={14} className="animate-spin" /> جاري تحميل البيانات…
+          </div>
+        )}
+
         {/* Stores tab */}
-        {tab === 'stores' && (
+        {tab === 'stores' && !dataLoading && (
           <div className="bg-white border border-[#EDE6D8] rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -203,7 +306,7 @@ export default function SuperAdmin() {
                             </button>
                           )}
                           <a
-                            href={`https://${s.slug}.${((import.meta as any).env?.VITE_PLATFORM_APEX || 'lumiere.saas')}/?storeId=${s._id}`}
+                            href={`/?store=${s.slug}&storeId=${s._id}`}
                             target="_blank"
                             rel="noreferrer"
                             title="زيارة المتجر"
@@ -225,7 +328,7 @@ export default function SuperAdmin() {
         )}
 
         {/* Users tab */}
-        {tab === 'users' && (
+        {tab === 'users' && !dataLoading && (
           <div className="bg-white border border-[#EDE6D8] rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -259,11 +362,14 @@ export default function SuperAdmin() {
                 </tbody>
               </table>
             </div>
+            {users.length === 0 && (
+              <div className="text-center py-12 text-[#9A8A6B] text-sm">لا يوجد تجار بعد</div>
+            )}
           </div>
         )}
 
         {/* Stats tab */}
-        {tab === 'stats' && stats && (
+        {tab === 'stats' && !dataLoading && stats && (
           <div className="grid md:grid-cols-2 gap-4">
             <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
               <h3 className="font-bold text-[#1A1A1E] mb-4">المتاجر حسب الحالة</h3>
@@ -293,6 +399,152 @@ export default function SuperAdmin() {
             </div>
           </div>
         )}
+
+        {/* Empty state (data loaded but nothing to show) */}
+        {tab === 'stats' && !dataLoading && !stats && (
+          <div className="text-center py-12 text-[#9A8A6B] text-sm">لا توجد إحصائيات بعد</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Inline Super Admin Login Form
+// ═══════════════════════════════════════════════════════════════════════════
+
+function SuperAdminLogin({
+  onLogin,
+  onBackHome,
+}: {
+  onLogin: (email: string, password: string) => Promise<void>
+  onBackHome: () => void
+}) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      await onLogin(email, password)
+      // The parent component will re-render to the dashboard on success
+      // (no manual navigation needed — `user` from useTenant() updates).
+    } catch (err: any) {
+      const msg = err?.message
+      if (msg === 'INVALID_CREDENTIALS') {
+        setError('البريد أو كلمة المرور غير صحيحة')
+      } else if (msg === 'LOGIN_FAILED' || msg === 'Failed to fetch') {
+        setError('تعذّر الاتصال بالخادم — تأكد من تشغيل الـ API وإعداد MONGODB_URI')
+      } else {
+        setError(msg || 'فشل تسجيل الدخول')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Quick demo login — fills the form + submits with the default
+  // super admin credentials. Useful for mobile testing where typing
+  // a long email + password is tedious.
+  const handleQuickDemo = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      await onLogin('admin@lumiere.saas', 'admin12345')
+    } catch (err: any) {
+      const msg = err?.message
+      if (msg === 'INVALID_CREDENTIALS') {
+        setError('حساب المدير العام غير موجود — تأكد من تهيئة قاعدة البيانات (MONGODB_URI)')
+      } else if (msg === 'LOGIN_FAILED' || msg === 'Failed to fetch') {
+        setError('تعذّر الاتصال بالخادم — تأكد من تشغيل الـ API وإعداد MONGODB_URI')
+      } else {
+        setError(msg || 'فشل الدخول التجريبي')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen grid place-items-center bg-[#FFFCF8] px-4 py-12">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#A02A5B] to-[#7A1F44] grid place-items-center mx-auto">
+            <Crown size={24} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-[#1A1A1E] mt-3">دخول المدير العام</h1>
+          <p className="text-sm text-[#7A6F5A] mt-1">لوحة تحكم منصة LUMIÈRE SaaS</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border border-[#EDE6D8] shadow-lg space-y-3">
+          <div>
+            <label className="text-xs font-bold text-[#7A6F5A]">البريد الإلكتروني</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="admin@lumiere.saas"
+              dir="ltr"
+              className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#A02A5B]"
+              required
+              autoComplete="email"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-[#7A6F5A]">كلمة المرور</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#A02A5B]"
+              required
+              autoComplete="current-password"
+            />
+          </div>
+
+          {error && (
+            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-start gap-2">
+              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-l from-[#A02A5B] to-[#7A1F44] text-white py-3 rounded-xl font-bold hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
+            {loading ? 'جاري الدخول...' : 'دخول المدير العام'}
+          </button>
+
+          {/* Quick demo login — uses the default super admin account
+              created by seed-runner.ts on first DB init. */}
+          <button
+            type="button"
+            onClick={handleQuickDemo}
+            disabled={loading}
+            className="w-full bg-[#FFFBF0] border border-[#F0D9A8] text-[#8D6E3A] py-2.5 rounded-xl font-bold hover:bg-[#FFF3E0] transition text-xs flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <Zap size={12} /> دخول تجريبي سريع (admin@lumiere.saas)
+          </button>
+        </form>
+
+        <div className="mt-4 text-center">
+          <button onClick={onBackHome} className="text-xs text-[#9A8A6B] hover:text-[#1A1A1E]">
+            ← العودة للصفحة الرئيسية
+          </button>
+        </div>
+
+        <div className="mt-3 text-center text-[11px] text-[#9A8A6B] bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-2">
+          <b>الحساب الافتراضي:</b><br />
+          admin@lumiere.saas / admin12345
+        </div>
       </div>
     </div>
   )

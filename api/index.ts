@@ -168,10 +168,10 @@ export default async function handler(req: any, res: any) {
       return reply(res, { ok: true, ts: Date.now() })
     }
 
-    // ─── Auth routes: validate body BEFORE connecting to the DB so a
-    //     malformed request doesn't pay the connection cost (and so we
-    //     don't crash with MONGODB_URI_NOT_CONFIGURED for a request that
-    //     would have failed validation anyway). ───────────────────────
+    // ─── Auth routes: validate body + token BEFORE connecting to the
+    //     DB so a malformed request doesn't pay the connection cost
+    //     (and so we don't crash with MONGODB_URI_NOT_CONFIGURED for a
+    //     request that would have failed validation anyway). ─────────
     if (segments[0] === 'auth') {
       // Cheap input validation for login/register that doesn't need DB
       if (segments[1] === 'login' && method === 'POST') {
@@ -186,7 +186,19 @@ export default async function handler(req: any, res: any) {
           return reply(res, { error: 'MISSING_REQUIRED_FIELDS' }, 400)
         }
       }
-      // GET /api/auth/me needs no body validation
+      // GET /api/auth/me — short-circuit when there's no token, so we
+      // don't waste a DB connection (and don't crash with
+      // MONGODB_URI_NOT_CONFIGURED) on a request that's going to fail
+      // with 401 anyway.
+      if (segments[1] === 'me' && method === 'GET') {
+        const authHeader =
+          req.headers?.['x-merchant-token'] ||
+          req.headers?.['authorization']?.replace(/^Bearer\s+/i, '')
+        if (!authHeader) {
+          return reply(res, { error: 'UNAUTHORIZED' }, 401)
+        }
+      }
+      // Login + register + authenticated /me all need the DB
       await connectDB()
       await ensureSeeded()
       return reply(res, ...(await authRoute(segments, method, req)))
