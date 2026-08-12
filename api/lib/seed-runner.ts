@@ -39,21 +39,11 @@ export async function ensureSeeded(): Promise<void> {
 
 async function doSeed(): Promise<void> {
   // ─── Products ──────────────────────────────────────────────────────
+  // يدخل المنتجات الافتراضية فقط إذا كانت القاعدة فارغة تماماً أول مرة
   const productCount = await ProductModel.estimatedDocumentCount()
   if (productCount === 0) {
     await ProductModel.insertMany(seedProducts as any, { ordered: false }).catch(() => {})
     console.log(`[seed] inserted ${seedProducts.length} products`)
-  } else {
-    // Sync any missing seed products (e.g. when admin deleted then we
-    // add a new one in code) without touching existing rows.
-    const existingIds = new Set(
-      (await ProductModel.find({}, { _id: 1 }).lean()).map((p: any) => p._id)
-    )
-    const missing = seedProducts.filter(p => !existingIds.has(p._id))
-    if (missing.length) {
-      await ProductModel.insertMany(missing as any, { ordered: false }).catch(() => {})
-      console.log(`[seed] synced ${missing.length} missing products`)
-    }
   }
 
   // ─── Wilayas ───────────────────────────────────────────────────────
@@ -64,7 +54,6 @@ async function doSeed(): Promise<void> {
   }
 
   // ─── Domains ───────────────────────────────────────────────────────
-  // Always refresh preset domains so schema additions propagate.
   for (const preset of presetDomains) {
     await DomainModel.updateOne(
       { id: preset.id },
