@@ -90,8 +90,11 @@ export async function setActiveDomain(id: string): Promise<StoreDomain | null> {
     await syncSettings()
     await syncDomains()
     return getDomainById(id) || null
-  } catch {
-    return null
+  } catch (err: any) {
+    // Re-throw so the caller (handleActivateDomain in Admin.tsx) can
+    // show a toast with the actual error instead of silently failing.
+    console.error('[setActiveDomain] failed:', err)
+    throw err
   }
 }
 

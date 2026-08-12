@@ -124,10 +124,25 @@ export default function Admin() {
   }
 
   const handleActivateDomain = async (id:string)=>{
-    const d = await setActiveDomain(id)
-    if(d){
-      refreshAll()
-      showToast(`تم التحويل إلى مجال ${d.nameAr} — المتجر تحدّث فوراً ✨`)
+    try {
+      const d = await setActiveDomain(id)
+      if(d){
+        refreshAll()
+        showToast(`تم التحويل إلى مجال ${d.nameAr} — المتجر تحدّث فوراً ✨`)
+      } else {
+        showToast('لم يتم العثور على المجال')
+      }
+    } catch (err: any) {
+      const msg = err?.body?.error || err?.message || 'UNKNOWN'
+      if (msg === 'UNAUTHORIZED') {
+        showToast('يجب تسجيل الدخول أولاً لتفعيل المجال')
+      } else if (msg === 'NOT_FOUND') {
+        showToast('المجال غير موجود في قاعدة البيانات')
+      } else if (msg === 'Failed to fetch' || msg === 'NETWORK_ERROR') {
+        showToast('تعذّر الاتصال بالخادم — تأكد من اتصال الإنترنت')
+      } else {
+        showToast(`فشل تفعيل المجال: ${msg}`)
+      }
     }
   }
 
@@ -910,64 +925,38 @@ export default function Admin() {
                 </div>
               </div>
 
-              {/* ─── Theme Colors Editor ─────────────────────────────── */}
+              {/* ─── Theme Colors Editor (preset-only, no technical color pickers) ─── */}
               <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
-                <h3 className="font-extrabold flex items-center gap-2"><PaletteIcon size={16} className="text-[#A02A5B]" /> ألوان الثيم (تخصيص هوية المتجر)</h3>
-                <p className="text-xs text-[#9A8A6B] mt-1">غيّر ألوان متجرك لتتناسب مع علامتك التجارية. تنطبق فوراً على كل الصفحات.</p>
+                <h3 className="font-extrabold flex items-center gap-2"><PaletteIcon size={16} className="text-[#A02A5B]" /> ثيم المتجر (اختر حزمة ألوان)</h3>
+                <p className="text-xs text-[#9A8A6B] mt-1">اختر حزمة ألوان جاهزة لتتناسب مع علامتك التجارية. الألوان مختارة بعناية من قبل مصممين محترفين.</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
                   {[
-                    { key: 'primaryColor', label: 'اللون الأساسي (ذهبي)' },
-                    { key: 'secondaryColor', label: 'اللون الثانوي (داكن)' },
-                    { key: 'bgColor', label: 'خلفية الصفحة' },
-                    { key: 'cardBgColor', label: 'خلفية البطاقات' },
-                    { key: 'textColor', label: 'لون النص' },
-                    { key: 'accentColor', label: 'لون التمييز (وردي)' },
-                  ].map(c => (
-                    <div key={c.key}>
-                      <label className="text-xs font-bold text-[#7A6F5A]">{c.label}</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input
-                          type="color"
-                          value={(storeForm as any)[c.key] || '#C9A96A'}
-                          onChange={e => setStoreForm({ ...storeForm, [c.key]: e.target.value } as any)}
-                          className="w-10 h-10 rounded-lg border border-[#EDE6D8] p-0 cursor-pointer"
-                        />
-                        <input
-                          value={(storeForm as any)[c.key] || ''}
-                          onChange={e => setStoreForm({ ...storeForm, [c.key]: e.target.value } as any)}
-                          className="flex-1 border border-[#EDE6D8] rounded-lg px-2 py-1.5 text-xs font-mono"
-                          dir="ltr"
-                          placeholder="#C9A96A"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {/* Preset themes */}
-                <div className="mt-4">
-                  <label className="text-xs font-bold text-[#7A6F5A]">ثيمات جاهزة</label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {[
-                      { name: 'ذهبي كلاسيكي', colors: { primaryColor: '#C9A96A', secondaryColor: '#1A1A1E', bgColor: '#FFFCF8', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#A02A5B' } },
-                      { name: 'أزرق تقني', colors: { primaryColor: '#2563EB', secondaryColor: '#0F172A', bgColor: '#F8FAFC', cardBgColor: '#FFFFFF', textColor: '#1E293B', accentColor: '#7C3AED' } },
-                      { name: 'أخضر طبيعي', colors: { primaryColor: '#16A34A', secondaryColor: '#14532D', bgColor: '#F0FDF4', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#CA8A04' } },
-                      { name: 'وردي راقي', colors: { primaryColor: '#EC4899', secondaryColor: '#831843', bgColor: '#FDF2F8', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#9333EA' } },
-                      { name: 'برتقالي حيوي', colors: { primaryColor: '#EA580C', secondaryColor: '#1C1917', bgColor: '#FFFBEB', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#DC2626' } },
-                    ].map(preset => (
+                    { name: 'ذهبي كلاسيكي', desc: 'فاخر وأنيق', colors: { primaryColor: '#C9A96A', secondaryColor: '#1A1A1E', bgColor: '#FFFCF8', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#A02A5B' } },
+                    { name: 'أزرق تقني', desc: 'عصري وثقة', colors: { primaryColor: '#2563EB', secondaryColor: '#0F172A', bgColor: '#F8FAFC', cardBgColor: '#FFFFFF', textColor: '#1E293B', accentColor: '#7C3AED' } },
+                    { name: 'أخضر طبيعي', desc: 'حيوي وصحي', colors: { primaryColor: '#16A34A', secondaryColor: '#14532D', bgColor: '#F0FDF4', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#CA8A04' } },
+                    { name: 'وردي راقي', desc: 'ناعم ومميز', colors: { primaryColor: '#EC4899', secondaryColor: '#831843', bgColor: '#FDF2F8', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#9333EA' } },
+                    { name: 'برتقالي حيوي', desc: 'نشيط وجذاب', colors: { primaryColor: '#EA580C', secondaryColor: '#1C1917', bgColor: '#FFFBEB', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#DC2626' } },
+                    { name: 'أسود مينيمال', desc: 'بسيط وحديث', colors: { primaryColor: '#525252', secondaryColor: '#171717', bgColor: '#FAFAFA', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#3B82F6' } },
+                  ].map(preset => {
+                    const isActive = (storeForm as any).primaryColor === preset.colors.primaryColor
+                    return (
                       <button
                         key={preset.name}
                         onClick={() => setStoreForm({ ...storeForm, ...preset.colors } as any)}
-                        className="flex items-center gap-2 bg-[#FFFCF8] border border-[#EDE6D8] rounded-full px-3 py-1.5 text-xs font-bold hover:border-[#C9A96A] transition"
+                        className={`text-right rounded-2xl p-4 border-2 transition ${isActive ? 'border-[#A02A5B] shadow-lg' : 'border-[#EDE6D8] hover:border-[#C9A96A]'}`}
                       >
-                        <span className="flex gap-0.5">
-                          <span className="w-3 h-3 rounded-full" style={{background: preset.colors.primaryColor}}></span>
-                          <span className="w-3 h-3 rounded-full" style={{background: preset.colors.secondaryColor}}></span>
-                          <span className="w-3 h-3 rounded-full" style={{background: preset.colors.accentColor}}></span>
-                        </span>
-                        {preset.name}
+                        <div className="flex gap-1 mb-2">
+                          <span className="w-8 h-8 rounded-lg" style={{background: preset.colors.primaryColor}}></span>
+                          <span className="w-8 h-8 rounded-lg" style={{background: preset.colors.secondaryColor}}></span>
+                          <span className="w-8 h-8 rounded-lg" style={{background: preset.colors.accentColor}}></span>
+                          <span className="w-8 h-8 rounded-lg border border-[#EDE6D8]" style={{background: preset.colors.bgColor}}></span>
+                        </div>
+                        <div className="font-bold text-sm text-[#1A1A1E]">{preset.name}</div>
+                        <div className="text-[11px] text-[#9A8A6B]">{preset.desc}</div>
+                        {isActive && <div className="text-[10px] text-[#A02A5B] font-bold mt-1 flex items-center gap-1"><Check size={10}/> مُختار</div>}
                       </button>
-                    ))}
-                  </div>
+                    )
+                  })}
                 </div>
               </div>
 
