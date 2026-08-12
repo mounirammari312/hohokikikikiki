@@ -382,7 +382,9 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
     await TenantStoreModel.create({
       _id: storeId,
       slug: finalSlug,
-      customDomain: null,
+      // NOTE: customDomain is intentionally omitted so the field is missing
+      // from the document (not null). This works with the sparse unique
+      // index to prevent E11000 duplicate key errors on store creation.
       ownerId: userId,
       name: storeName,
       nameAr: storeNameAr || storeName,
@@ -450,7 +452,7 @@ async function storesRoute(segments: string[], method: string, req: any, query: 
     const storeId = genId('store')
     const now = new Date().toISOString()
     await TenantStoreModel.create({
-      _id: storeId, slug: finalSlug, customDomain: null, ownerId: user._id,
+      _id: storeId, slug: finalSlug, ownerId: user._id,
       name, nameAr: nameAr || name, status: 'active', plan: 'free_trial',
       planExpiresAt: null, createdAt: now, updatedAt: now,
     })
@@ -473,7 +475,21 @@ async function storesRoute(segments: string[], method: string, req: any, query: 
       // Enforce unique custom domain
       const clash = await TenantStoreModel.findOne({ customDomain: String(body.customDomain).toLowerCase(), _id: { $ne: id } }).lean()
       if (clash) return [{ error: 'CUSTOM_DOMAIN_TAKEN' }, 409]
-      patch.customDomain = body.customDomain ? String(body.customDomain).toLowerCase() : null
+      // Use $unset via undefined so the field is removed from the document
+      // (not set to null). Combined with the sparse unique index, this
+      // prevents E11000 errors when multiple stores have no custom domain.
+      if (body.customDomain) {
+        patch.customDomain = String(body.customDomain).toLowerCase()
+      } else {
+        // $unset the field — use null in the $set + a separate $unset
+        // (Mongoose handles this when the value is undefined and the
+        // schema default is undefined, but to be explicit we use $unset)
+        return [{ store: await TenantStoreModel.findByIdAndUpdate(
+          id,
+          { $set: { updatedAt: new Date().toISOString() }, $unset: { customDomain: '' } },
+          { new: true }
+        ).lean() }, 200]
+      }
     }
     const next = await TenantStoreModel.findByIdAndUpdate(id, { $set: patch }, { new: true }).lean()
     if (!next) return [{ error: 'NOT_FOUND' }, 404]

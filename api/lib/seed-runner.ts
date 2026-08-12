@@ -46,13 +46,29 @@ export async function ensureSeeded(): Promise<void> {
 }
 
 async function doPlatformSeed(): Promise<void> {
+  // ─── Drop the legacy non-sparse customDomain index ────────────────
+  // Older deployments created a unique index on `customDomain` WITHOUT
+  // the `sparse: true` option. That index treats multiple `null` values
+  // as duplicates, so creating a second store without a custom domain
+  // fails with E11000. Dropping it lets Mongoose rebuild it with the
+  // sparse option from the updated schema. The .catch(() => {}) makes
+  // this a no-op if the index doesn't exist (e.g. fresh install).
+  try {
+    await (TenantStoreModel as any).collection.dropIndex('customDomain_1')
+    console.log('[seed] dropped legacy customDomain_1 index (will be rebuilt as sparse)')
+  } catch (_err) {
+    // Index doesn't exist or collection not yet created — safe to ignore.
+  }
+
   // ─── Default demo TenantStore ──────────────────────────────────────
   const existingStore = await TenantStoreModel.findById(DEFAULT_STORE_ID).lean()
   if (!existingStore) {
     await TenantStoreModel.create({
       _id: DEFAULT_STORE_ID,
       slug: DEFAULT_STORE_SLUG,
-      customDomain: null,
+      // NOTE: customDomain intentionally omitted — see models.ts comment.
+      // Setting it to null would trigger E11000 on the unique index when
+      // other stores without custom domains are created.
       ownerId: 'su_admin',
       name: 'LUMIÈRE Demo',
       nameAr: 'لوميير تجريبي',

@@ -25,7 +25,12 @@ const { Mixed } = mongoose.Schema.Types
 const TenantStoreSchema = new mongoose.Schema({
   _id: STRING_ID,
   slug: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-  customDomain: { type: String, default: null, unique: true, sparse: true, lowercase: true, trim: true, index: true },
+  // IMPORTANT: `default: undefined` (not `null`) so that when a store is
+  // created without a custom domain, the field is missing from the document
+  // entirely. Combined with `sparse: true`, this means MongoDB skips
+  // indexing those documents — preventing the E11000 duplicate key error
+  // that occurs when multiple stores all have `customDomain: null`.
+  customDomain: { type: String, default: undefined, unique: true, sparse: true, lowercase: true, trim: true, index: true },
   ownerId: { type: String, required: true, index: true },
   name: { type: String, required: true },
   nameAr: { type: String, default: '' },
