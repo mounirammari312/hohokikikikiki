@@ -689,10 +689,29 @@ export default function Admin() {
                       <td className="p-3"><span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${statusMap[o.status].color}`}>{statusMap[o.status].label}</span></td>
                       <td className="p-3">
                         <div className="flex flex-wrap gap-1">
-                          <select value={o.status} onChange={e => handleStatusChange(o._id, e.target.value as OrderStatus)} className="border border-[#EDE6D8] rounded-full px-2 py-1 text-xs font-bold bg-white">
-                            <option value="new">جديد</option><option value="confirmed">مؤكد</option><option value="shipping">قيد الشحن</option><option value="delivered">تم التسليم</option><option value="cancelled">ملغي</option>
+                          <select 
+                            value={o.status} 
+                            onChange={e => handleStatusChange(o.orderNumber || o._id, e.target.value as OrderStatus)} 
+                            className="border border-[#EDE6D8] rounded-full px-2 py-1 text-xs font-bold bg-white"
+                          >
+                            <option value="new">جديد</option>
+                            <option value="confirmed">مؤكد</option>
+                            <option value="shipping">قيد الشحن</option>
+                            <option value="delivered">تم التسليم</option>
+                            <option value="cancelled">ملغي</option>
                           </select>
-                          <button onClick={async () => { if (confirm('حذف الطلب؟')) { const n = await deleteOrder(o._id); setOrders([...n]); showToast('تم حذف الطلب') } }} className="w-7 h-7 rounded-full bg-red-50 text-red-600 grid place-items-center border border-red-200 hover:bg-red-500 hover:text-white transition"><Trash2 size={12} /></button>
+                          <button 
+                            onClick={async () => { 
+                              if (confirm('حذف الطلب؟')) { 
+                                const n = await deleteOrder(o.orderNumber || o._id); 
+                                setOrders([...n]); 
+                                showToast('تم حذف الطلب') 
+                              } 
+                            }} 
+                            className="w-7 h-7 rounded-full bg-red-50 text-red-600 grid place-items-center border border-red-200 hover:bg-red-500 hover:text-white transition"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
                       </td>
                     </tr>
