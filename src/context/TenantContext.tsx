@@ -56,14 +56,25 @@ interface TenantCtx {
 
 const Ctx = createContext<TenantCtx>(null as any)
 
-const TOKEN_KEY = 'lumiere_saas_token'
+// We keep the token under TWO localStorage keys for backwards-compat:
+//   - 'lumiere_token'         (canonical key — used by the client's
+//                              `Authorization: Bearer <token>` header)
+//   - 'lumiere_saas_token'    (legacy key — read by older code paths
+//                              that still use `x-merchant-token`)
+// Both are written together in login() and cleared together in logout().
+const TOKEN_KEY = 'lumiere_token'
+const TOKEN_KEY_LEGACY = 'lumiere_saas_token'
 const USER_KEY = 'lumiere_saas_user'
 const ACTIVE_STORE_KEY = 'lumiere_saas_active_store'
 const ACTIVE_SLUG_KEY = 'lumiere_saas_active_slug'
 
-/** Read the stored session token (or null). */
+/** Read the stored session token (or null).
+ *  Checks the canonical key first, then falls back to the legacy key
+ *  so existing sessions (logged in with the old code) keep working. */
 export function getToken(): string | null {
-  try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
+  try {
+    return localStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY_LEGACY)
+  } catch { return null }
 }
 
 /** Read the cached merchant user (or null). */
@@ -218,8 +229,15 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       throw new Error(body.error || 'LOGIN_FAILED')
     }
     const { user, token, storeIds } = await res.json()
-    localStorage.setItem(TOKEN_KEY, token)
-    localStorage.setItem(USER_KEY, JSON.stringify(user))
+    // Save the token under BOTH keys so all client code paths can find it.
+    // `lumiere_token` is the canonical key used by client.ts when building
+    // the `Authorization: Bearer <token>` header. `lumiere_saas_token`
+    // is the legacy key kept for backwards-compat.
+    try {
+      localStorage.setItem(TOKEN_KEY, token)
+      localStorage.setItem(TOKEN_KEY_LEGACY, token)
+      localStorage.setItem(USER_KEY, JSON.stringify(user))
+    } catch {}
     setUser(user)
     // If the merchant has stores, attach the first one as the active
     // storeId so subsequent dashboard calls are scoped correctly.
@@ -230,8 +248,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }, [storeId])
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+    try {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(TOKEN_KEY_LEGACY)
+      localStorage.removeItem(USER_KEY)
+    } catch {}
     setUser(null)
   }, [])
 
@@ -240,20 +261,34 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     if (!token) { setUser(null); return }
     try {
       const res = await fetch('/api/auth/me', {
-        headers: { 'x-merchant-token': token },
+        // Send the token as `Authorization: Bearer <token>` (the standard
+        // format). The server's `extractToken()` also accepts
+        // `x-merchant-token` for backwards-compat, but Bearer is the
+        // canonical way going forward.
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-merchant-token': token,  // legacy fallback
+        },
         // Use an explicit timeout via AbortController so a hung API
         // never blocks the loading state forever.
         signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) { logout(); return }
-      const { user } = await res.json()
-      localStorage.setItem(USER_KEY, JSON.stringify(user))
+      const data = await res.json()
+      const user = data.user
+      // Cache + set the user. If the server returned storeIds, cache
+      // the first one as the active store too.
+      try { localStorage.setItem(USER_KEY, JSON.stringify(user)) } catch {}
       setUser(user)
+      if (data.storeIds && data.storeIds.length && !storeId) {
+        setStoreId(data.storeIds[0])
+        try { localStorage.setItem(ACTIVE_STORE_KEY, data.storeIds[0]) } catch {}
+      }
     } catch {
       // network error / timeout — keep cached user (if any) so the
       // dashboard can still try to render with stale data.
     }
-  }, [logout])
+  }, [logout, storeId])
 
   // Refresh user on mount + when token changes
   useEffect(() => {

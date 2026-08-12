@@ -82,10 +82,15 @@ export default function PlatformLanding() {
     setLoading(true)
     try {
       const res = await authRegister(form)
-      // Cache the token + user — TenantContext picks it up
-      localStorage.setItem('lumiere_saas_token', res.token)
-      localStorage.setItem('lumiere_saas_user', JSON.stringify(res.user))
-      localStorage.setItem('lumiere_saas_active_store', res.storeId)
+      // Cache the token + user — TenantContext picks it up.
+      // Write the token under BOTH keys (canonical `lumiere_token` +
+      // legacy `lumiere_saas_token`) so all client code paths can find it.
+      try {
+        localStorage.setItem('lumiere_token', res.token)
+        localStorage.setItem('lumiere_saas_token', res.token)
+        localStorage.setItem('lumiere_saas_user', JSON.stringify(res.user))
+        localStorage.setItem('lumiere_saas_active_store', res.storeId)
+      } catch {}
       // Compute the slug (matches what the server used to create the store)
       const slug = form.slug || form.storeName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
       // Cache the slug too so the client's API layer can attach it as

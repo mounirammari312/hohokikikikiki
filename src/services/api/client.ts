@@ -94,8 +94,16 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
   // where subdomains aren't usable — server resolves slug → storeId)
   const slug = getActiveStoreSlug()
   if (slug) h['x-store-slug'] = slug
+  // ─── Auth token ──────────────────────────────────────────────────
+  // Send the token in BOTH headers so the server (which accepts either)
+  // can read it regardless of which `extractToken()` branch runs first.
+  // The canonical header is `Authorization: Bearer <token>`; we also
+  // send `x-merchant-token` for backwards-compat with older code paths.
   const token = getToken()
-  if (token) h['x-merchant-token'] = token
+  if (token) {
+    h['Authorization'] = `Bearer ${token}`
+    h['x-merchant-token'] = token
+  }
   return h
 }
 

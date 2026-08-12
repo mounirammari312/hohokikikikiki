@@ -73,7 +73,11 @@ export default function SuperAdmin() {
         return
       }
       // If there's no token, there's nothing to validate — show the login form.
-      const token = typeof window !== 'undefined' ? localStorage.getItem('lumiere_saas_token') : null
+      // Check both the canonical key (`lumiere_token`) and the legacy key
+      // (`lumiere_saas_token`) so existing sessions keep working.
+      const token = typeof window !== 'undefined'
+        ? (localStorage.getItem('lumiere_token') || localStorage.getItem('lumiere_saas_token'))
+        : null
       if (!token) {
         if (!cancelled) setAuthChecked(true)
         return

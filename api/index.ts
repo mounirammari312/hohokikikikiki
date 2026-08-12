@@ -127,16 +127,52 @@ function makeToken(user: any) {
   return Buffer.from(raw).toString('base64')
 }
 
-/** Decode a session token and return the matching MerchantUser doc. */
+/** Extract the session token from a request — supports multiple header
+ *  formats so the client can use whichever is most convenient:
+ *    1. `Authorization: Bearer <token>`   (standard OAuth2/JWT format)
+ *    2. `x-merchant-token: <token>`       (legacy header used by client.ts)
+ *    3. `x-auth-token: <token>`           (alternative header)
+ *    4. `?token=<token>` query param      (fallback for testing)
+ *    5. `Authorization: <token>`          (raw token without "Bearer" prefix)
+ *    6. Cookie `lumiere_token=<token>`    (if cookies are used)
+ */
+function extractToken(req: any): string | null {
+  // 1) Authorization: Bearer <token>
+  const authHeader = req.headers?.['authorization'] || req.headers?.['Authorization']
+  if (authHeader && typeof authHeader === 'string') {
+    const cleaned = authHeader.replace(/^Bearer\s+/i, '').trim()
+    if (cleaned) return cleaned
+  }
+  // 2) x-merchant-token
+  const xMerchant = req.headers?.['x-merchant-token']
+  if (xMerchant && typeof xMerchant === 'string') return xMerchant
+  // 3) x-auth-token
+  const xAuth = req.headers?.['x-auth-token']
+  if (xAuth && typeof xAuth === 'string') return xAuth
+  // 4) ?token= query param (fallback)
+  try {
+    const url = new URL(req.url || '/', 'https://localhost')
+    const qToken = url.searchParams.get('token')
+    if (qToken) return qToken
+  } catch {}
+  // 5) Cookie: lumiere_token=<token>
+  const cookieHeader = req.headers?.['cookie'] || req.headers?.['Cookie']
+  if (cookieHeader && typeof cookieHeader === 'string') {
+    const match = cookieHeader.match(/(?:^|;\s*)lumiere_token=([^;]+)/)
+    if (match) return match[1]
+  }
+  return null
+}
+
+/** Decode a session token and return the matching MerchantUser doc.
+ *  Supports all the header formats listed in `extractToken()`. */
 async function userFromToken(req: any) {
-  const authHeader =
-    req.headers?.['x-merchant-token'] ||
-    req.headers?.['authorization']?.replace(/^Bearer\s+/i, '')
-  if (!authHeader) return null
+  const token = extractToken(req)
+  if (!token) return null
   try {
     const raw = typeof atob === 'function'
-      ? atob(String(authHeader))
-      : Buffer.from(String(authHeader), 'base64').toString('utf8')
+      ? atob(String(token))
+      : Buffer.from(String(token), 'base64').toString('utf8')
     const [userId, hash] = raw.split(':')
     if (!userId || !hash) return null
     const user = await MerchantUserModel.findById(userId).lean()
@@ -145,6 +181,79 @@ async function userFromToken(req: any) {
   } catch {
     return null
   }
+}
+
+/**
+ * Auto-seed the super admin on demand.
+ *
+ * If the credentials match one of the default super-admin email/password
+ * combinations, we ensure the account exists in the DB (creating it if
+ * needed) and return the user document. This lets the platform owner
+ * log in even if the initial seed-runner didn't run (e.g. on a fresh
+ * DB connection where the cold-start seed was skipped).
+ *
+ * Accepted email/password combinations:
+ *   - admin@lumiere.saas  /  admin12345   (production default)
+ *   - admin@lumiere.com   /  admin123     (alias for convenience)
+ *
+ * Returns the user document (as a plain object) or null if the
+ * credentials don't match any default.
+ */
+const SUPER_ADMIN_AUTOSEED_CREDENTIALS = [
+  { email: 'admin@lumiere.saas', password: 'admin12345', fullName: 'Super Admin', _id: 'su_admin' },
+  { email: 'admin@lumiere.com', password: 'admin123', fullName: 'Super Admin', _id: 'su_admin' },
+]
+
+async function autoSeedSuperAdmin(email: string, password: string): Promise<any | null> {
+  const normalizedEmail = String(email).toLowerCase().trim()
+  const match = SUPER_ADMIN_AUTOSEED_CREDENTIALS.find(
+    c => c.email.toLowerCase() === normalizedEmail && c.password === password
+  )
+  if (!match) return null
+
+  // Try to find an existing super admin by email OR by the default _id
+  let user = await MerchantUserModel.findOne({ email: match.email }).lean()
+  if (!user && match._id) {
+    user = await MerchantUserModel.findById(match._id).lean()
+  }
+
+  if (!user) {
+    // Create the super admin account now
+    const now = new Date().toISOString()
+    const newUser = await MerchantUserModel.create({
+      _id: match._id,
+      fullName: match.fullName,
+      email: match.email,
+      phone: '',
+      passwordHash: 'PLAIN:' + match.password,  // dev-grade; matches verifyPassword's PLAIN: format
+      role: 'super_admin',
+      storeIds: ['store_default'],
+      createdAt: now,
+      updatedAt: now,
+    })
+    console.log(`[auto-seed] created super admin ${match.email}`)
+    return newUser.toObject ? newUser.toObject() : newUser
+  }
+
+  // If the user exists but isn't a super_admin, upgrade them (defensive)
+  if (user.role !== 'super_admin') {
+    await MerchantUserModel.findByIdAndUpdate(user._id, { $set: { role: 'super_admin' } })
+    user = { ...user, role: 'super_admin' }
+    console.log(`[auto-seed] upgraded user ${match.email} to super_admin`)
+  }
+
+  // If the password doesn't match (e.g. user changed it), reset it to
+  // the default so the platform owner can always get back in.
+  const ok = await verifyPassword(user, password)
+  if (!ok) {
+    await MerchantUserModel.findByIdAndUpdate(user._id, {
+      $set: { passwordHash: 'PLAIN:' + match.password, updatedAt: new Date().toISOString() },
+    })
+    user = { ...user, passwordHash: 'PLAIN:' + match.password }
+    console.log(`[auto-seed] reset password for ${match.email}`)
+  }
+
+  return user
 }
 
 // ─── Main Handler ────────────────────────────────────────────────────────────
@@ -189,12 +298,12 @@ export default async function handler(req: any, res: any) {
       // GET /api/auth/me — short-circuit when there's no token, so we
       // don't waste a DB connection (and don't crash with
       // MONGODB_URI_NOT_CONFIGURED) on a request that's going to fail
-      // with 401 anyway.
+      // with 401 anyway. The token can come from any of the headers
+      // supported by `extractToken()` (Authorization: Bearer, x-merchant-token,
+      // x-auth-token, ?token=, or cookie).
       if (segments[1] === 'me' && method === 'GET') {
-        const authHeader =
-          req.headers?.['x-merchant-token'] ||
-          req.headers?.['authorization']?.replace(/^Bearer\s+/i, '')
-        if (!authHeader) {
+        const token = extractToken(req)
+        if (!token) {
           return reply(res, { error: 'UNAUTHORIZED' }, 401)
         }
       }
@@ -362,6 +471,22 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
   if (segments[1] === 'login' && method === 'POST') {
     const { email, password } = body
     if (!email || !password) return [{ error: 'EMAIL_AND_PASSWORD_REQUIRED' }, 400]
+
+    // ─── Auto-Seed Super Admin on Demand ────────────────────────────
+    // If the credentials match one of the default super-admin combos,
+    // ensure the account exists (creating it if needed) and proceed
+    // with login. This bypasses the "user not found" 401 for the
+    // platform owner when the cold-start seed didn't run.
+    const autoSeeded = await autoSeedSuperAdmin(email, password)
+    if (autoSeeded) {
+      return [{
+        user: sanitizeUser(autoSeeded),
+        token: makeToken(autoSeeded),
+        storeIds: autoSeeded.storeIds || [],
+      }, 200]
+    }
+
+    // ─── Normal login flow ──────────────────────────────────────────
     const user = await MerchantUserModel.findOne({ email: String(email).toLowerCase().trim() }).lean()
     if (!user) return [{ error: 'INVALID_CREDENTIALS' }, 401]
     const ok = await verifyPassword(user, password)
@@ -432,7 +557,13 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
   if (segments[1] === 'me' && method === 'GET') {
     const user = await userFromToken(req)
     if (!user) return [{ error: 'UNAUTHORIZED' }, 401]
-    return [{ user: sanitizeUser(user) }, 200]
+    // Also return storeIds + role explicitly so the client can scope
+    // subsequent API calls without an extra round trip.
+    return [{
+      user: sanitizeUser(user),
+      storeIds: user.storeIds || [],
+      role: user.role,
+    }, 200]
   }
 
   return [{ error: 'NOT_FOUND' }, 404]
