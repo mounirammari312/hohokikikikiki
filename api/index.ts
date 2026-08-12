@@ -295,26 +295,34 @@ async function getOrder(orderNumber: string) {
   return { data: { order: doc } }
 }
 
+
+
 async function updateOrderStatus(orderNumber: string, req: any) {
   const { status } = await getReqBody(req)
   if (!status || !VALID_ORDER_STATUSES.includes(status)) {
     return { data: { error: 'INVALID_STATUS' }, status: 400 }
   }
+  // التعديل: البحث برقم الطلب أو الـ _id لمنع الفشل
   const next = await OrderModel.findOneAndUpdate(
-    { orderNumber },
+    { $or: [{ orderNumber }, { _id: orderNumber }] },
     { $set: { status, updatedAt: new Date().toISOString() } },
     { new: true }
   ).lean()
+  
   if (!next) return { data: { error: 'NOT_FOUND' }, status: 404 }
   const docs = await OrderModel.find({}, null, { sort: { createdAt: -1 } }).lean()
   return { data: { orders: docs, updated: next } }
 }
 
 async function deleteOrder(orderNumber: string) {
-  await OrderModel.findOneAndDelete({ orderNumber })
+  // التعديل: البحث برقم الطلب أو الـ _id
+  await OrderModel.findOneAndDelete({ $or: [{ orderNumber }, { _id: orderNumber }] })
   const docs = await OrderModel.find({}, null, { sort: { createdAt: -1 } }).lean()
   return { data: { orders: docs } }
 }
+
+
+
 
 async function listWilayas() {
   const docs = await WilayaModel.find({}, null, { sort: { code: 1 } }).lean()
