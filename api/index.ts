@@ -173,7 +173,10 @@ async function userFromToken(req: any) {
     const raw = typeof atob === 'function'
       ? atob(String(token))
       : Buffer.from(String(token), 'base64').toString('utf8')
-    const [userId, hash] = raw.split(':')
+    const colonIdx = raw.indexOf(':')
+    if (colonIdx === -1) return null
+    const userId = raw.slice(0, colonIdx)
+    const hash = raw.slice(colonIdx + 1)
     if (!userId || !hash) return null
     const user = await MerchantUserModel.findById(userId).lean()
     if (!user || user.passwordHash !== hash) return null
