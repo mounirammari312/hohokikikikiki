@@ -47,6 +47,8 @@ export default function Admin() {
   const [showProdModal, setShowProdModal] = useState(false)
   const [editingProd, setEditingProd] = useState<Product | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  // إضافة حالة التحميل لمنع الفشل الصامت
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // domain modal
   const [showDomainModal, setShowDomainModal] = useState(false)
@@ -242,34 +244,47 @@ export default function Admin() {
     const e: Record<string, string> = {}
     if (!prodForm.nameAr.trim()) e.nameAr = 'الاسم العربي مطلوب'
     if (!prodForm.name.trim()) e.name = 'الاسم الفرنسي مطلوب'
-    if (!prodForm.price || Number(prodForm.price) <= 0) e.price = 'السعر مطلوب'
+    if (!prodForm.price || Number(prodForm.price) <= 0) e.price = 'السعر مطلوب ويجب أن يكون أكبر من 0'
     if (!prodForm.category) e.category = 'الفئة مطلوبة'
     if (!prodForm.images.filter(Boolean).length) e.images = 'رابط صورة واحد على الأقل مطلوب'
-    // check required attributes
-    currentDomainForForm.attributeSchema.forEach(attr=>{
-      if(attr.required && !String((prodForm.attributes as any)?.[attr.key] || '').trim()){
-        e['attr_'+attr.key] = `${attr.labelAr} مطلوب`
+    // فحص الحقول المخصصة للمجال
+    currentDomainForForm.attributeSchema.forEach(attr => {
+      if (attr.required && !String((prodForm.attributes as any)?.[attr.key] || '').trim()) {
+        e['attr_' + attr.key] = `${attr.labelAr} مطلوب`
       }
     })
     setProdErrors(e)
-    return Object.keys(e).length === 0
+    const isValid = Object.keys(e).length === 0
+    if (!isValid) {
+      showToast('⚠️ يرجى ملء الخانات الإجبارية المحددة باللون الأحمر')
+    }
+    return isValid
   }
   const handleSaveProduct = async () => {
     if (!validateProd()) return
+    setIsSubmitting(true)
     try {
       const cleanImages = prodForm.images.filter(Boolean)
       const payload: any = { ...prodForm, images: cleanImages, price: Number(prodForm.price), compareAtPrice: prodForm.compareAtPrice ? Number(prodForm.compareAtPrice) : undefined, stock: Number(prodForm.stock), rating: Number(prodForm.rating), reviewsCount: Number(prodForm.reviewsCount), attributes: prodForm.attributes || {}, variants: prodForm.variants || [] }
-      // ensure domainId remains
-      if(!payload.domainId) payload.domainId = currentDomainForForm.id
+      if (!payload.domainId) payload.domainId = currentDomainForForm.id
       if (editingProd) {
-        const updated = await updateProduct(editingProd._id, payload); setProducts([...updated]); showToast('تم تحديث المنتج بنجاح — الإعدادات الخاصة بالمجال محفوظة')
+        const updated = await updateProduct(editingProd._id, payload)
+        setProducts([...updated])
+        showToast('تم تحديث المنتج بنجاح ✨')
       } else {
-        await addProduct(payload as any); setProducts([...getProducts()]); showToast('تم نشر المنتج في المتجر ✨')
+        await addProduct(payload as any)
+        setProducts([...getProducts()])
+        showToast('تم نشر المنتج في المتجر بنجاح ✨')
       }
       setShowProdModal(false)
     } catch (err: any) {
-      if (err.message === 'IMAGES_REQUIRED') setProdErrors({ images: 'أضيفي رابط صورة صحيح' })
-      else showToast('خطأ في حفظ المنتج')
+      console.error('Save product error:', err)
+      if (err.message === 'IMAGES_REQUIRED') {
+        setProdErrors({ images: 'أضيفي رابط صورة صحيح' })
+      }
+      showToast('❌ حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى')
+    } finally {
+      setIsSubmitting(false)
     }
   }
   const handleDeleteProduct = async (id: string) => {
@@ -971,6 +986,14 @@ export default function Admin() {
               <button onClick={() => setShowProdModal(false)} className="w-8 h-8 rounded-full bg-[#FFFCF8] border border-[#EDE6D8] grid place-items-center hover:bg-white"><X size={16} /></button>
             </div>
 
+            {/* شريط الأخطاء الملاحظ */}
+            {Object.keys(prodErrors).length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2 text-xs text-red-700 font-bold">
+                <AlertCircle size={16} className="shrink-0 text-red-600" />
+                <span>توجد خطأ أو خانات إجبارية مفقودة ({Object.keys(prodErrors).length}): يرجى مراجعة الخانات المميزة باللون الأحمر.</span>
+              </div>
+            )}
+
             <div className="overflow-auto p-5 space-y-4 flex-1">
               <div className="flex flex-wrap gap-2">
                 <label className={`px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5 cursor-pointer ${prodForm.isNew ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white text-[#9A8A6B] border-[#EDE6D8]'}`}>
@@ -1162,10 +1185,28 @@ export default function Admin() {
             </div>
 
             <div className="sticky bottom-0 bg-white border-t border-[#EDE6D8] p-4 flex gap-2">
-              <button onClick={handleSaveProduct} className={`flex-1 text-white rounded-full py-3 font-extrabold flex items-center justify-center gap-2 shadow-lg ${editingProd ? 'bg-[#1A1A1E] hover:bg-black' : 'bg-[#A02A5B] hover:bg-[#7A1F44] shadow-[#A02A5B]/20'}`}>
-                {editingProd ? <><Save size={16} /> حفظ التعديلات</> : <><Plus size={16} /> نشر المنتج في المتجر</>}
+              <button
+                onClick={handleSaveProduct}
+                disabled={isSubmitting}
+                className={`flex-1 text-white rounded-full py-3 font-extrabold flex items-center justify-center gap-2 shadow-lg transition ${
+                  isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : editingProd
+                      ? 'bg-[#1A1A1E] hover:bg-black'
+                      : 'bg-[#A02A5B] hover:bg-[#7A1F44] shadow-[#A02A5B]/20'
+                }`}
+              >
+                {isSubmitting ? (
+                  <><RefreshCw size={16} className="animate-spin" /> جاري حفظ البيانات...</>
+                ) : editingProd ? (
+                  <><Save size={16} /> حفظ التعديلات</>
+                ) : (
+                  <><Plus size={16} /> نشر المنتج في المتجر</>
+                )}
               </button>
-              <button onClick={() => setShowProdModal(false)} className="px-6 border border-[#EDE6D8] rounded-full py-3 font-bold bg-white hover:bg-[#FFFCF8]">إلغاء</button>
+              <button onClick={() => setShowProdModal(false)} disabled={isSubmitting} className="px-6 border border-[#EDE6D8] rounded-full py-3 font-bold bg-white hover:bg-[#FFFCF8]">
+                إلغاء
+              </button>
             </div>
           </div>
         </div>
