@@ -3,6 +3,8 @@ import { getOrders, updateOrderStatus, deleteOrder, exportOrdersCsv } from '../s
 import { getWilayas, updateWilayaRate, addWilaya } from '../services/api/wilayas'
 import { getProducts, addProduct, updateProduct, deleteProduct, duplicateProduct, toggleProductFlag } from '../services/api/products'
 import { getSettings, saveSettings } from '../services/api/settings'
+import { updateStoreApi } from '../services/api/client'
+import { useTenant } from '../context/TenantContext'
 import { getDomains, getActiveDomain, setActiveDomain, createCustomDomain, updateDomain, deleteDomain, duplicateDomain } from '../services/api/domains'
 import type { Order, OrderStatus, WilayaRate, Product, StoreDomain, DomainCategory, AttributeDef, Variant } from '../services/api/types'
 import { formatDZD } from '../lib/utils'
@@ -29,6 +31,7 @@ const domainIcons: Record<string, any> = {
 }
 
 export default function Admin() {
+  const { storeId } = useTenant()
   const [orders, setOrders] = useState<Order[]>(() => getOrders())
   const [wilayas, setWilayas] = useState<WilayaRate[]>(() => getWilayas())
   const [products, setProducts] = useState<Product[]>(() => getProducts())
@@ -63,6 +66,7 @@ export default function Admin() {
   })
 
   const [storeForm, setStoreForm] = useState(() => getSettings())
+  const [customDomainInput, setCustomDomainInput] = useState('')
 
   // helpers
   const allCategories = useMemo(()=>{
@@ -299,13 +303,15 @@ export default function Admin() {
 
   const addVariantRow = ()=>{
     const v: Variant = { id: 'var_'+Date.now().toString(36), stock: 10, priceAdjustment: 0 }
-    if(currentDomainForForm.variantConfig.hasColor){
-      const preset = currentDomainForForm.variantConfig.colorPresets[0]
+    // Always try to pre-fill color + size from the domain's preset config,
+    // but don't skip them if the domain doesn't have presets — the merchant
+    // can still add variants manually for ANY product regardless of category.
+    if(currentDomainForForm?.variantConfig?.hasColor){
+      const preset = currentDomainForForm.variantConfig.colorPresets?.[0]
       if(preset){ v.color = preset.name; v.colorAr = preset.nameAr; v.colorHex = preset.hex }
-      else { v.color='—'; v.colorAr='—'; v.colorHex='#CCCCCC' }
     }
-    if(currentDomainForForm.variantConfig.hasSize){
-      v.size = currentDomainForForm.variantConfig.sizeOptions[0] || 'M'
+    if(currentDomainForForm?.variantConfig?.hasSize){
+      v.size = currentDomainForForm.variantConfig.sizeOptions?.[0] || 'M'
     }
     setProdForm(f=> ({...f, variants: [...(f.variants||[]), v]}))
   }
@@ -368,7 +374,7 @@ export default function Admin() {
               <span className="text-xs font-bold bg-[#A02A5B] text-white px-2.5 py-1 rounded-full tracking-widest">PRO 2026</span>
             </h1>
             <p className="text-xs text-[#9A8A6B] mt-1 flex flex-wrap items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> متصل • LocalStorage يحاكي Mongoose
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> حساب تاجر معتمد • منصة LUMIÈRE SaaS
               <span className="w-1 h-1 rounded-full bg-[#EDE6D8]"></span> {products.length} منتج • {orders.length} طلب • {domains.length} مجال
               <span className="hidden md:inline-flex items-center gap-1.5 bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] px-2 py-0.5 rounded-full text-[11px] font-bold">♥ ÉDITION ROSE {storeForm.enableRoseEdition ? 'مفعّلة' : 'متوقفة'}</span>
             </p>
@@ -402,7 +408,7 @@ export default function Admin() {
           <div className="relative flex flex-col gap-2 w-full md:w-auto">
             <div className="flex gap-2">
               <a href={`/?store=${currentSlug}`} target="_blank" className="flex-1 md:flex-initial bg-white text-[#1A1A1E] px-4 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#FFFCF8]"><Eye size={14}/> معاينة المتجر</a>
-              <button onClick={()=> setTab('domains')} className="flex-1 md:flex-initial bg-[#C9A96A] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#B8945A]"><Wand2 size={14}/> تغيير المجال</button>
+              <button onClick={()=> setTab('domains')} className="flex-1 md:flex-initial bg-[#C9A96A] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#B8945A]"><Globe size={14}/> النطاق المخصص</button>
             </div>
             <span className="text-[11px] text-white/40 text-center">التبديل يحدث فوراً — إعدادات المنتج تتبدل حسب المجال</span>
           </div>
@@ -439,7 +445,7 @@ export default function Admin() {
 
         <div className="mt-6 bg-white border border-[#EDE6D8] rounded-[20px] p-1.5 flex flex-wrap gap-1.5 w-fit max-w-full overflow-x-auto">
           {[
-            { k: 'domains', l: 'المجالات', i: Globe, count: domains.length, desc: 'مجوهرات/ملابس..' },
+            { k: 'domains', l: 'النطاق المخصص', i: Globe, count: null, desc: 'custom domain' },
             { k: 'products', l: 'المنتجات', i: Package, count: products.length, desc: 'إضافة وتعديل' },
             { k: 'orders', l: 'الطلبات', i: ShoppingBag, count: orders.length, desc: 'دورة الحياة' },
             { k: 'wilayas', l: 'الشحن', i: MapPinned, count: wilayas.length, desc: '58 ولاية' },
@@ -458,83 +464,119 @@ export default function Admin() {
 
         {tab==='domains' && (
           <div className="mt-4 space-y-4">
-            <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <div>
-                <h3 className="font-extrabold flex items-center gap-2"><Globe size={16} className="text-[#C9A96A]"/> إدارة المجالات — غيّري تخصص المتجر بنقرة</h3>
-                <p className="text-xs text-[#9A8A6B] mt-1">كل مجال يملك فئاته وحقوله الخاصة ومتغيرات الألوان/المقاسات. التبديل يغيّر واجهة إضافة المنتج فوراً.</p>
+            {/* ─── Custom Domain Section ─────────────────────────────── */}
+            <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+              <h3 className="font-extrabold flex items-center gap-2"><Globe size={18} className="text-[#C9A96A]"/> النطاق المخصص (Custom Domain)</h3>
+              <p className="text-xs text-[#9A8A6B] mt-1 leading-5">اربط نطاقك الخاص (مثل mystore.dz) بمتجرك. سيحصل المتجر على عنوان مستقل مع شهادة SSL مجانية تلقائياً.</p>
+
+              <div className="mt-4 grid md:grid-cols-[1fr_auto] gap-3 items-end">
+                <div>
+                  <label className="text-xs font-bold text-[#7A6F5A]">عنوان النطاق</label>
+                  <input
+                    value={customDomainInput}
+                    onChange={e => setCustomDomainInput(e.target.value)}
+                    placeholder="mystore.dz"
+                    dir="ltr"
+                    className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] font-mono"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    const domain = customDomainInput.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
+                    if (!domain) { showToast('أدخل عنوان النطاق'); return }
+                    try {
+                      await updateStoreApi(storeId || '', { customDomain: domain } as any)
+                      setSettings(prev => ({ ...prev, storeName: prev.storeName }))
+                      showToast(`تم ربط النطاق ${domain} ✓ — قد يستغرق تفعيل DNS من 5 دقائق إلى 24 ساعة`)
+                    } catch (err: any) {
+                      showToast('فشل ربط النطاق: ' + (err?.message || 'خطأ'))
+                    }
+                  }}
+                  className="bg-[#1A1A1E] text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-black transition flex items-center gap-2 shrink-0"
+                >
+                  <Globe size={14} /> ربط النطاق
+                </button>
               </div>
-              <button onClick={openDomainCreate} className="bg-[#A02A5B] hover:bg-[#7A1F44] text-white px-5 py-2.5 rounded-full text-sm font-extrabold flex items-center gap-2 shadow shadow-[#A02A5B]/20"><Plus size={16}/> إنشاء مجال مخصص</button>
+
+              {settings.activeDomainId && (
+                <div className="mt-3 flex items-center gap-2 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span className="text-emerald-700 font-bold">النطاق الفرعي الحالي: {currentSlug}.lumiere.saas</span>
+                  <span className="text-[#9A8A6B]">— النطاق المخصص سيحل محله بعد تفعيل DNS</span>
+                </div>
+              )}
             </div>
 
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {domains.map(d=>{
-                const isActive = d.id===activeDomain.id
-                const Icon = domainIcons[d.id] || Store
-                const relatedCount = products.filter(p=> d.categories.some(c=> c.key===p.category)).length
-                return (
-                  <div key={d.id} className={`relative bg-white rounded-[22px] overflow-hidden border-2 flex flex-col ${isActive ? 'border-[#A02A5B] shadow-[0_10px_30px_rgba(160,42,91,0.15)]' : 'border-[#EDE6D8] hover:border-[#C9A96A]/40'}`}>
-                    {isActive && <span className="absolute top-3 left-3 z-10 bg-[#A02A5B] text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1"><Check size={12}/> نشط الآن</span>}
-                    {d.isPreset && <span className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur border border-[#EDE6D8] text-[#7A6F5A] text-[10px] font-bold px-2 py-1 rounded-full">جاهز</span>}
-                    {!d.isPreset && <span className="absolute top-3 right-3 z-10 bg-[#1A1A1E] text-white text-[10px] font-bold px-2 py-1 rounded-full">مخصص</span>}
-                    <div className="h-36 relative bg-[#FFF8EE] overflow-hidden">
-                      <img src={d.heroImage} alt={d.nameAr} className="w-full h-full object-cover"/>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"/>
-                      <div className="absolute bottom-3 right-3 left-3 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white grid place-items-center shrink-0 shadow"><Icon size={18} className="text-[#1A1A1E]"/></div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-extrabold text-white leading-tight line-clamp-1">{d.nameAr}</div>
-                          <div className="text-[11px] text-white/80 cormorant tracking-widest">{d.name}</div>
-                        </div>
-                        <span className="bg-white text-[#1A1A1E] text-xs font-bold px-2.5 py-1 rounded-full">{relatedCount} منتج</span>
-                      </div>
+            {/* ─── DNS Instructions ──────────────────────────────────── */}
+            <div className="bg-[#1A1A1E] text-white rounded-2xl p-5 relative overflow-hidden">
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#C9A96A]/10 rounded-full blur-2xl" />
+              <div className="relative">
+                <h4 className="font-bold flex items-center gap-2"><Layers size={16} className="text-[#C9A96A]"/> تعليمات إعداد DNS</h4>
+                <p className="text-xs text-white/60 mt-1">بعد ربط النطاق، أضف السجلات التالية في لوحة تحكم نطاقك (Namecheap / GoDaddy / Hostinger):</p>
+
+                <div className="mt-4 grid md:grid-cols-2 gap-4">
+                  {/* A Record */}
+                  <div className="bg-white/[0.06] border border-white/10 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="bg-[#C9A96A] text-[#1A1A1E] text-[10px] font-extrabold px-2 py-0.5 rounded-full">A Record</span>
+                      <span className="text-xs text-white/70">يوجه النطاق الجذري (mystore.dz)</span>
                     </div>
-                    <div className="p-4 flex-1 flex flex-col">
-                      <p className="text-xs leading-5 text-[#7A6F5A] line-clamp-2 min-h-[40px]">{d.descriptionAr}</p>
-                      <div className="flex flex-wrap gap-1.5 mt-3">
-                        {d.categories.map(c=> <span key={c.key} className={`text-[11px] px-2 py-1 rounded-full border font-bold ${isActive ? 'bg-[#FDF2F6] border-[#F6C0D4] text-[#A02A5B]' : 'bg-[#FFFBF0] border-[#F0D9A8] text-[#8D6E3A]'}`}>{c.labelAr}</span>)}
-                      </div>
-                      <div className="mt-3 bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-3">
-                        <div className="text-[10px] font-bold text-[#9A8A6B] tracking-widest flex items-center gap-1.5"><Layers size={10}/> الحقول: {d.attributeSchema.map(a=> a.labelAr).join(' • ') || '—'}</div>
-                        <div className="text-[11px] mt-1 flex flex-wrap gap-1.5">
-                          {d.variantConfig.hasColor && <span className="bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] px-2 py-0.5 rounded-full flex items-center gap-1"><PaletteIcon size={10}/> ألوان</span>}
-                          {d.variantConfig.hasSize && <span className="bg-white border border-[#EDE6D8] px-2 py-0.5 rounded-full flex items-center gap-1"><Ruler size={10}/> مقاسات: {d.variantConfig.sizeOptions.join(', ')}</span>}
-                          {!d.variantConfig.hasColor && !d.variantConfig.hasSize && <span className="text-[#9A8A6B]">بدون متغيرات</span>}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 mt-4">
-                        {isActive ? (
-                          <span className="bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1"><Check size={12}/> المجال النشط</span>
-                        ) : (
-                          <button onClick={()=> handleActivateDomain(d.id)} className="bg-[#1A1A1E] text-white rounded-full py-2 text-xs font-extrabold flex items-center justify-center gap-1 hover:bg-black"><RefreshCw size={12}/> تفعيل المجال</button>
-                        )}
-                        <button onClick={()=> openDomainEdit(d)} className="bg-white border border-[#EDE6D8] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#FFFCF8]"><Pencil size={12}/> تعديل</button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-1.5 mt-2">
-                        <button onClick={async ()=>{ const c=await duplicateDomain(d.id); if(c){ refreshAll(); showToast('تم نسخ المجال') } }} className="bg-white border border-[#EDE6D8] rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1"><Copy size={11}/> نسخ</button>
-                        <a href={`/?store=${currentSlug}`} target="_blank" className="bg-white border border-[#EDE6D8] rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-[#1A1A1E] hover:text-white"><Eye size={11}/> معاينة</a>
-                        {!d.isPreset ? (
-                          <button onClick={async ()=>{ if(!confirm(`حذف مجال ${d.nameAr}؟`))return; try{ await deleteDomain(d.id); refreshAll(); showToast('تم حذف المجال')}catch(e:any){ showToast('لا يمكن حذف مجال جاهز')} }} className="bg-red-50 border border-red-200 text-red-600 rounded-full py-1.5 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-red-500 hover:text-white"><Trash2 size={11}/> حذف</button>
-                        ) : (
-                          <span className="bg-[#F5EFE6] border border-[#EDE6D8] text-[#9A8A6B] rounded-full py-1.5 text-[11px] font-bold text-center">جاهز</span>
-                        )}
-                      </div>
+                    <div className="font-mono text-xs space-y-1 text-white/80">
+                      <div>Type: <span className="text-[#C9A96A]">A</span></div>
+                      <div>Name: <span className="text-[#C9A96A]">@</span></div>
+                      <div>Value: <span className="text-[#C9A96A]">76.76.21.21</span></div>
                     </div>
+                    <p className="text-[10px] text-white/40 mt-2">عنوان IP الخاص بـ Vercel</p>
                   </div>
-                )
-              })}
-            </div>
 
-            <div className={`rounded-2xl p-4 border flex gap-3 items-start ${settings.enableRoseEdition ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-[#FFFBF0] border-[#F5E6C8]'}`}>
-              <div className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${settings.enableRoseEdition ? 'bg-[#A02A5B] text-white' : 'bg-[#C9A96A] text-white'}`}><Wand2 size={16}/></div>
-              <div className="text-sm leading-6">
-                <span className="font-extrabold">كيف تتغير إعدادات المنتج؟</span>
-                <span className="text-[#7A6F5A]"> عند تحويل المجال إلى <b>ملابس</b>، ستجدين في إضافة المنتج حقول القماش/القصة/الطول + جدول متغيرات الألوان والمقاسات (XS–XXL و 36–42). وعند العودة إلى <b>مجوهرات</b>، تعود حقول الطلاء/الحجر/الوزن + مقاسات الخواتم (5–9) وألوان الذهب. كل مجال يحفظ إعداداته الخاصة — حتى المجالات المخصصة يمكنك تعريف حقولها بنفسك.</span>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="bg-white border border-[#EDE6D8] px-3 py-1 rounded-full text-xs font-bold">مجوهرات: خامة + طلاء + حجر + ألوان الذهب + مقاس الخاتم</span>
-                  <span className="bg-[#A02A5B] text-white px-3 py-1 rounded-full text-xs font-bold">ملابس: قماش + مقاس XL/M + لون + طول</span>
-                  <span className="bg-white border border-[#EDE6D8] px-3 py-1 rounded-full text-xs font-bold">بيوتي: حجم + نوع بشرة + عطر + لون مكياج</span>
+                  {/* CNAME Record */}
+                  <div className="bg-white/[0.06] border border-white/10 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="bg-[#A02A5B] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">CNAME</span>
+                      <span className="text-xs text-white/70">يوجه النطاق الفرعي (www)</span>
+                    </div>
+                    <div className="font-mono text-xs space-y-1 text-white/80">
+                      <div>Type: <span className="text-[#A02A5B]">CNAME</span></div>
+                      <div>Name: <span className="text-[#A02A5B]">www</span></div>
+                      <div>Value: <span className="text-[#A02A5B]">cname.vercel-dns.com</span></div>
+                    </div>
+                    <p className="text-[10px] text-white/40 mt-2">سجل CNAME لـ Vercel</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 bg-white/[0.04] border border-white/10 rounded-xl p-3 text-xs text-white/60 leading-5">
+                  <b className="text-[#C9A96A]">خطوات:</b>
+                  <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                    <li>سجّلي الدخول إلى لوحة تحكم نطاقك</li>
+                    <li>ابحثي عن قسم DNS / Zone Management</li>
+                    <li>أضيفي سجلي A و CNAME كما هو موضح أعلاه</li>
+                    <li>انتظري من 5 دقائق إلى 24 ساعة حتى ينتشر الـ DNS</li>
+                    <li>سيتم تفعيل شهادة SSL تلقائياً بمجرد عمل النطاق</li>
+                  </ol>
                 </div>
               </div>
+            </div>
+
+            {/* ─── Active Domain Selector (compact) ───────────────────── */}
+            <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4">
+              <h4 className="font-bold text-sm flex items-center gap-2 mb-3"><Wand2 size={14} className="text-[#C9A96A]"/> تخصص المتجر النشط</h4>
+              <div className="flex flex-wrap gap-2">
+                {domains.map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => handleActivateDomain(d.id)}
+                    className={`px-3 py-2 rounded-full text-xs font-bold border transition flex items-center gap-1.5 ${
+                      d.id === activeDomain.id
+                        ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]'
+                        : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:border-[#C9A96A]'
+                    }`}
+                  >
+                    {d.id === activeDomain.id && <Check size={10} />}
+                    {d.nameAr}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-[#9A8A6B] mt-2">تبديل التخصص يغيّر فئات المنتجات وحقول الإضافة حسب نوع المتجر (مجوهرات / أزياء / جمال).</p>
             </div>
           </div>
         )}
@@ -1307,48 +1349,36 @@ export default function Admin() {
                 </div>
               </div>
 
-              {/* VARIANTS — DOMAIN-AWARE */}
-              <div className={`${currentDomainForForm.variantConfig.hasColor || currentDomainForForm.variantConfig.hasSize ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-[#EDE6D8]'} border rounded-2xl p-4`}>
+              {/* VARIANTS — Always available for ANY product regardless of domain */}
+              <div className="bg-[#FDF2F6] border border-[#F6C0D4] rounded-2xl p-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold flex items-center gap-1.5"><PaletteIcon size={14} className={currentDomainForForm.variantConfig.hasColor || currentDomainForForm.variantConfig.hasSize ? 'text-[#A02A5B]' : 'text-[#9A8A6B]'} /> متغيرات المنتج — {currentDomainForForm.variantConfig.hasColor ? 'ألوان' : ''}{currentDomainForForm.variantConfig.hasColor && currentDomainForForm.variantConfig.hasSize ? ' + ' : ''}{currentDomainForForm.variantConfig.hasSize ? 'مقاسات' : ''} {currentDomainForForm.variantConfig.hasSize ? `(${currentDomainForForm.variantConfig.sizeOptions.join(' • ')})` : ''}</label>
+                  <label className="text-xs font-bold flex items-center gap-1.5"><PaletteIcon size={14} className="text-[#A02A5B]" /> متغيرات المنتج (ألوان + مقاسات)</label>
                   <span className="text-[11px] bg-white border border-[#EDE6D8] px-2 py-1 rounded-full">{(prodForm.variants||[]).length} متغير {prodForm.variants?.length ? `• المخزون الإجمالي ${prodForm.variants.reduce((a,b)=> a+(Number(b.stock)||0),0)}` : ''}</span>
                 </div>
-                {!currentDomainForForm.variantConfig.hasColor && !currentDomainForForm.variantConfig.hasSize ? (
-                  <p className="text-xs text-[#9A8A6B] mt-2 text-center py-3 bg-white rounded-xl border border-dashed">هذا المجال بدون متغيرات افتراضياً — يمكنك إضافة متغيرات يدوياً أو فعّليها من إعدادات المجال.</p>
-                ) : (
-                  <>
-                    <div className="grid md:grid-cols-[1fr_1fr_auto] gap-2 mt-3 bg-white border border-[#F6C0D4] rounded-xl p-3">
-                      <div><label className="text-[11px] font-bold flex items-center gap-1"><Ruler size={11}/> مقاسات للجيل الجماعي (فاصلة)</label><input value={bulkSizes} onChange={e=> setBulkSizes(e.target.value)} placeholder={currentDomainForForm.variantConfig.sizeOptions.join(', ')} className="mt-1 w-full border border-[#EDE6D8] rounded-full px-3 py-1.5 text-xs" /></div>
-                      <div><label className="text-[11px] font-bold flex items-center gap-1"><Droplet size={11} className="text-[#A02A5B]"/> ألوان للجيل الجماعي (فاصلة)</label><input value={bulkColors} onChange={e=> setBulkColors(e.target.value)} placeholder={currentDomainForForm.variantConfig.colorPresets.map(c=> c.nameAr).join(', ')} className="mt-1 w-full border border-[#EDE6D8] rounded-full px-3 py-1.5 text-xs" /></div>
-                      <button onClick={bulkGenerate} className="self-end bg-[#A02A5B] text-white px-4 py-2 rounded-full text-xs font-bold hover:bg-[#7A1F44] h-fit">توليد جماعي</button>
+                <div className="grid md:grid-cols-[1fr_1fr_auto] gap-2 mt-3 bg-white border border-[#F6C0D4] rounded-xl p-3">
+                  <div><label className="text-[11px] font-bold flex items-center gap-1"><Ruler size={11}/> مقاسات للجيل الجماعي (فاصلة)</label><input value={bulkSizes} onChange={e=> setBulkSizes(e.target.value)} placeholder="S, M, L, XL" className="mt-1 w-full border border-[#EDE6D8] rounded-full px-3 py-1.5 text-xs" /></div>
+                  <div><label className="text-[11px] font-bold flex items-center gap-1"><Droplet size={11} className="text-[#A02A5B]"/> ألوان للجيل الجماعي (فاصلة)</label><input value={bulkColors} onChange={e=> setBulkColors(e.target.value)} placeholder="أسود, بيج, أحمر" className="mt-1 w-full border border-[#EDE6D8] rounded-full px-3 py-1.5 text-xs" /></div>
+                  <button onClick={bulkGenerate} className="self-end bg-[#A02A5B] text-white px-4 py-2 rounded-full text-xs font-bold hover:bg-[#7A1F44] h-fit">توليد جماعي</button>
+                </div>
+                <div className="grid gap-2 mt-3">
+                  {(prodForm.variants||[]).map((v, idx)=> (
+                    <div key={v.id} className="grid grid-cols-12 gap-1.5 items-center bg-white border border-[#F6C0D4] rounded-xl px-2 py-2">
+                      <input type="color" value={v.colorHex || '#CCCCCC'} onChange={e=> updateVariant(idx, { colorHex: e.target.value })} className="col-span-1 h-8 rounded-full p-0 border-0"/>
+                      <input value={v.colorAr || v.color || ''} onChange={e=> updateVariant(idx, { colorAr: e.target.value, color: e.target.value })} placeholder="اللون" className="col-span-3 border border-[#EDE6D8] rounded-full px-2 py-1.5 text-xs"/>
+                      <select value={v.size || ''} onChange={e=> updateVariant(idx, { size: e.target.value })} className="col-span-3 border border-[#EDE6D8] rounded-full px-2 py-1.5 text-xs bg-white">
+                        <option value="">— مقاس —</option>
+                        {(currentDomainForForm?.variantConfig?.sizeOptions || ['S','M','L','XL','One Size']).map((s: string)=> <option key={s} value={s}>{s}</option>)}
+                        <option value="custom">مخصص...</option>
+                      </select>
+                      <input type="number" value={v.stock} onChange={e=> updateVariant(idx, { stock: parseInt(e.target.value)||0 })} className="col-span-2 border border-[#EDE6D8] rounded-full px-2 py-1.5 text-xs text-center" placeholder="المخزون"/>
+                      <input type="number" value={v.priceAdjustment||0} onChange={e=> updateVariant(idx, { priceAdjustment: parseInt(e.target.value)||0 })} className="col-span-2 border border-[#EDE6D8] rounded-full px-2 py-1.5 text-xs text-center" placeholder="+سعر"/>
+                      <button onClick={()=> removeVariant(idx)} className="col-span-1 w-7 h-7 rounded-full bg-red-50 text-red-600 border border-red-200 grid place-items-center justify-self-end"><X size={12}/></button>
+                      {v.size==='custom' && <input placeholder="مقاس مخصص" onBlur={e=> updateVariant(idx, { size: e.target.value })} className="col-span-12 border border-dashed border-[#F6C0D4] rounded-full px-3 py-1.5 text-xs mt-1" />}
                     </div>
-                    <div className="grid gap-2 mt-3">
-                      {(prodForm.variants||[]).map((v, idx)=> (
-                        <div key={v.id} className="grid grid-cols-12 gap-1.5 items-center bg-white border border-[#F6C0D4] rounded-xl px-2 py-2">
-                          {currentDomainForForm.variantConfig.hasColor ? (
-                            <>
-                              <input type="color" value={v.colorHex || '#CCCCCC'} onChange={e=> updateVariant(idx, { colorHex: e.target.value })} className="col-span-1 h-8 rounded-full p-0 border-0"/>
-                              <input value={v.colorAr || v.color || ''} onChange={e=> updateVariant(idx, { colorAr: e.target.value, color: e.target.value })} placeholder="اللون" className="col-span-3 border border-[#EDE6D8] rounded-full px-2 py-1.5 text-xs"/>
-                            </>
-                          ) : <span className="col-span-4 text-[11px] text-[#9A8A6B]">بدون لون</span>}
-                          {currentDomainForForm.variantConfig.hasSize ? (
-                            <select value={v.size || ''} onChange={e=> updateVariant(idx, { size: e.target.value })} className="col-span-3 border border-[#EDE6D8] rounded-full px-2 py-1.5 text-xs bg-white">
-                              <option value="">— مقاس —</option>
-                              {currentDomainForForm.variantConfig.sizeOptions.map(s=> <option key={s} value={s}>{s}</option>)}
-                              <option value="custom">مخصص...</option>
-                            </select>
-                          ) : <span className="col-span-3 text-[11px] text-[#9A8A6B]">بدون مقاس</span>}
-                          <input type="number" value={v.stock} onChange={e=> updateVariant(idx, { stock: parseInt(e.target.value)||0 })} className="col-span-2 border border-[#EDE6D8] rounded-full px-2 py-1.5 text-xs text-center" placeholder="المخزون"/>
-                          <input type="number" value={v.priceAdjustment||0} onChange={e=> updateVariant(idx, { priceAdjustment: parseInt(e.target.value)||0 })} className="col-span-2 border border-[#EDE6D8] rounded-full px-2 py-1.5 text-xs text-center" placeholder="+سعر"/>
-                          <button onClick={()=> removeVariant(idx)} className="col-span-1 w-7 h-7 rounded-full bg-red-50 text-red-600 border border-red-200 grid place-items-center justify-self-end"><X size={12}/></button>
-                          {v.size==='custom' && <input placeholder="مقاس مخصص" onBlur={e=> updateVariant(idx, { size: e.target.value })} className="col-span-12 border border-dashed border-[#F6C0D4] rounded-full px-3 py-1.5 text-xs mt-1" />}
-                        </div>
-                      ))}
-                      {(prodForm.variants||[]).length===0 && <p className="text-xs text-[#9A8A6B] text-center py-2">لا توجد متغيرات — أضف متغيراً أو استخدم التوليد الجماعي. مثال ملابس: أدخل المقاسات <b>S, M, L, XL</b> والألوان <b>أسود, بيج</b></p>}
-                      <button onClick={addVariantRow} className="bg-white border border-[#F6C0D4] text-[#A02A5B] px-3 py-1.5 rounded-full text-xs font-bold w-fit flex items-center gap-1"><Plus size={12}/> إضافة متغير</button>
-                    </div>
-                  </>
-                )}
+                  ))}
+                  {(prodForm.variants||[]).length===0 && <p className="text-xs text-[#9A8A6B] text-center py-2">لا توجد متغيرات — أضف متغيراً أو استخدم التوليد الجماعي. مثال: أدخل المقاسات <b>S, M, L, XL</b> والألوان <b>أسود, بيج</b></p>}
+                  <button onClick={addVariantRow} className="bg-white border border-[#F6C0D4] text-[#A02A5B] px-3 py-1.5 rounded-full text-xs font-bold w-fit flex items-center gap-1"><Plus size={12}/> إضافة متغير</button>
+                </div>
               </div>
 
               <div className="bg-[#FFFBF0] border border-[#F5E6C8] rounded-2xl p-4">
