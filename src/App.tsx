@@ -151,7 +151,7 @@ function AppRoutes() {
   const tenantMode = !isPlatformHost || (hasStoreParam || (!!(storeId || storeSlug) && !isRoot))
 
   return (
-    <BrowserRouter>
+    <>
       <ScrollToTop />
       <div className="min-h-screen bg-[#FFFCF8] flex flex-col">
         <Routes>
@@ -181,7 +181,7 @@ function AppRoutes() {
           )}
         </Routes>
       </div>
-    </BrowserRouter>
+    </>
   )
 }
 
@@ -195,7 +195,9 @@ export default function App() {
     <TenantProvider>
       <CartProvider>
         <WishlistProvider>
-          <AppRoutes />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
         </WishlistProvider>
       </CartProvider>
     </TenantProvider>
