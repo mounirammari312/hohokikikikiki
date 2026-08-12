@@ -24,7 +24,7 @@ export default function Header(){
   }, [storeId, storeSlug])
   return (
     <header className="sticky top-0 z-50 bg-[#FFFCF8]/90 glass border-b border-[#EDE6D8]">
-      <div className="bg-[#1A1A1E] text-[#C9A96A] text-[12px] py-2 text-center tracking-widest manrope flex items-center justify-center gap-2 px-3">
+      <div className="text-[12px] py-2 text-center tracking-widest manrope flex items-center justify-center gap-2 px-3" style={{background: store.secondaryColor || '#1A1A1E', color: store.primaryColor || '#C9A96A'}}>
         <span className="hidden md:inline-flex items-center gap-2 text-center leading-tight">{store.announcement} {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B] shadow-[0_0_8px_rgba(160,42,91,0.6)] shrink-0"></span>}</span>
         <span className="md:hidden leading-snug tracking-normal text-[11px] line-clamp-2">{store.announcement}</span>
         <span className="hidden lg:flex items-center gap-2 shrink-0 ms-2 ps-2 border-s border-white/10 text-white/60 text-[11px]">خدمة العملاء: {store.phone} <span className="w-1 h-1 rounded-full bg-white/30"></span> {store.enableRoseEdition ? 'لمسة وردية • ÉDITION ROSE' : store.storeName}</span>

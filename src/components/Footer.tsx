@@ -12,7 +12,7 @@ export default function Footer(){
     void syncSettings().then(() => setStore(getSettings()))
   }, [storeId, storeSlug])
   return (
-    <footer className="bg-[#1A1A1E] text-[#E8E0CC] mt-16">
+    <footer className="text-[#E8E0CC] mt-16" style={{background: store.secondaryColor || "#1A1A1E"}}>
       <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-10">
         <div className="grid md:grid-cols-4 gap-8">
           <div>

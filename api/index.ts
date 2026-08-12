@@ -1071,7 +1071,30 @@ async function deleteDomain(ctx: RouteCtx) {
 async function activateDomain(ctx: RouteCtx) {
   const { id } = await getReqBody(ctx.req)
   if (!id) return { data: { error: 'ID_REQUIRED' }, status: 400 }
-  const domain = await DomainModel.findOne({ storeId: ctx.storeId, id }).lean()
+  // First try finding the domain in the current store
+  let domain = await DomainModel.findOne({ storeId: ctx.storeId, id }).lean()
+  if (!domain) {
+    // If not found in current store, check if it's a preset domain
+    // from store_default (the demo store). Preset domains (jewelry,
+    // fashion, beauty) are seeded only into store_default — so for
+    // any other store we need to copy the domain into the current
+    // store before activating it.
+    const preset = await DomainModel.findOne({ storeId: DEFAULT_STORE_ID, id }).lean() as any
+    if (preset) {
+      // Copy the preset domain into the current store
+      const copy = {
+        ...preset,
+        _id: `${ctx.storeId}__${preset.id}`,
+        storeId: ctx.storeId,
+      }
+      await DomainModel.updateOne(
+        { storeId: ctx.storeId, id: preset.id },
+        { $set: copy },
+        { upsert: true }
+      ).catch(() => {})
+      domain = await DomainModel.findOne({ storeId: ctx.storeId, id }).lean()
+    }
+  }
   if (!domain) return { data: { error: 'NOT_FOUND' }, status: 404 }
   const settings = await SettingsModel.findByIdAndUpdate(
     settingsDocId(ctx.storeId),
