@@ -3,17 +3,15 @@
  * `resolveTenant()` middleware.
  *
  * On app mount (and on every `hostname` change), we figure out which
- * TenantStore the current page belongs to by inspecting
- * `window.location.hostname`:
+ * TenantStore the current page belongs to by inspecting:
  *
- *   1. Bare platform domain (e.g. `lumiere.saas`)   → no tenant, show SaaS landing
- *   2. Subdomain `slug.lumiere.saas`                 → tenant = slug
- *   3. Custom domain `mystore.com`                   → tenant = customDomain
- *   4. `localhost` / `.vercel.app` preview           → use ?storeId=xxx OR fallback to demo
+ *   1. ?store=<slug> query param   (used on vercel.app + localhost
+ *                                    where subdomains aren't available)
+ *   2. ?storeId=<id> query param   (used by dashboard + super-admin)
+ *   3. Subdomain `slug.lumiere.saas` (production with wildcard DNS)
+ *   4. Custom domain `mystore.com`  (production with custom domains)
  *
- * Once resolved, the storeId is exposed via `useTenant()` and is
- * automatically injected into every API call by `client.ts` (via the
- * `x-store-id` header).
+ * If none match, we treat the page as the bare platform host (SaaS landing).
  *
  * The session token (for merchant auth) lives in localStorage and is
  * also attached as `x-merchant-token` on every API call.
@@ -36,9 +34,11 @@ const PLATFORM_HOSTS = new Set([
 ])
 
 interface TenantCtx {
-  /** Resolved storeId for the current hostname (or DEFAULT_STORE_ID). */
+  /** Resolved storeId for the current hostname (or null on platform host). */
   storeId: string | null
-  /** The resolved TenantStore document (fetched from /api/auth/me-style endpoint). */
+  /** Resolved slug (when available — useful for display + URL building). */
+  storeSlug: string | null
+  /** The resolved TenantStore document (fetched from /api/stores). */
   store: TenantStore | null
   /** True when the user is on the bare platform domain (no tenant context). */
   isPlatformHost: boolean
@@ -58,6 +58,8 @@ const Ctx = createContext<TenantCtx>(null as any)
 
 const TOKEN_KEY = 'lumiere_saas_token'
 const USER_KEY = 'lumiere_saas_user'
+const ACTIVE_STORE_KEY = 'lumiere_saas_active_store'
+const ACTIVE_SLUG_KEY = 'lumiere_saas_active_slug'
 
 /** Read the stored session token (or null). */
 export function getToken(): string | null {
@@ -75,6 +77,12 @@ function getCachedUser(): MerchantUser | null {
 /**
  * Extract the would-be tenant slug from the current hostname.
  * Returns null when on the platform apex (no tenant).
+ *
+ * Examples:
+ *   demo.lumiere.saas → 'demo'
+ *   mystore.com       → null (custom domain — handled separately)
+ *   lumiere.saas      → null (platform apex)
+ *   localhost         → null (no subdomain)
  */
 function detectTenantSlugFromHost(): string | null {
   if (typeof window === 'undefined') return null
@@ -86,54 +94,102 @@ function detectTenantSlugFromHost(): string | null {
   return null
 }
 
-/** Is the current host the platform itself (no tenant)? */
+/**
+ * Is the current host the platform itself (no tenant via subdomain)?
+ *
+ * Note: on vercel.app / localhost we ALWAYS return true here because
+ * subdomains aren't usable — the tenant (if any) is provided via the
+ * `?store=<slug>` query param, which is resolved separately by
+ * `resolveTenant()` below.
+ */
 export function isPlatformHostNow(): boolean {
   if (typeof window === 'undefined') return true
   const host = window.location.hostname.toLowerCase()
   return PLATFORM_HOSTS.has(host) || host.endsWith('.vercel.app')
 }
 
+/**
+ * Detect if the current URL has a tenant context via `?store=slug`
+ * (used on vercel.app / localhost). Returns the slug or null.
+ */
+function detectTenantSlugFromQuery(): string | null {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const s = params.get('store')
+  return s ? s.toLowerCase().trim() : null
+}
+
+/** Detect explicit storeId from `?storeId=` query param. */
+function detectStoreIdFromQuery(): string | null {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const s = params.get('storeId')
+  return s ? s.trim() : null
+}
+
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [storeId, setStoreId] = useState<string | null>(null)
+  const [storeSlug, setStoreSlug] = useState<string | null>(null)
   const [store, setStore] = useState<TenantStore | null>(null)
   const [isPlatformHost, setIsPlatformHost] = useState(true)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<MerchantUser | null>(() => getCachedUser())
 
-  // Resolve the tenant by calling /api/stores or by reading ?storeId
+  // Resolve the tenant based on the current URL/hostname.
+  // Resolution order (mirrors the server's resolveTenant in api/lib/tenant.ts):
+  //   1. ?storeId= explicit query → use directly
+  //   2. ?store=slug query → cache slug, server resolves it via x-store-slug header
+  //   3. subdomain slug.lumiere.saas → cache slug
+  //   4. cached active slug from localStorage (from previous registration)
+  //   5. nothing → platform host (SaaS landing)
   const resolveTenant = useCallback(async () => {
     const platformHost = isPlatformHostNow()
     setIsPlatformHost(platformHost)
 
-    // If we're on the platform apex, there's no tenant to resolve.
-    if (platformHost) {
-      // But a logged-in merchant may still be here (e.g. on /super-admin)
-      // — keep the user state but leave storeId null so the SaaS landing shows.
-      setStoreId(null)
-      setStore(null)
-      setLoading(false)
-      return
-    }
+    // Check all tenant sources
+    const explicitStoreId = detectStoreIdFromQuery()
+    const slugFromQuery = detectTenantSlugFromQuery()
+    const slugFromHost = detectTenantSlugFromHost()
+    let cachedSlug: string | null = null
+    let cachedStoreId: string | null = null
+    try {
+      cachedSlug = localStorage.getItem(ACTIVE_SLUG_KEY)
+      cachedStoreId = localStorage.getItem(ACTIVE_STORE_KEY)
+    } catch {}
 
-    // On a tenant host: try to resolve via the API. The API does the
-    // same hostname detection we do, so just hitting /api/settings
-    // will return the settings for the right store. We can also pass
-    // an explicit storeId via ?storeId= for testing.
-    const urlParams = new URLSearchParams(window.location.search)
-    const explicitStoreId = urlParams.get('storeId')
-    if (explicitStoreId) {
-      setStoreId(explicitStoreId)
+    // Pick the first non-null source
+    const resolvedStoreId = explicitStoreId || cachedStoreId
+    const resolvedSlug = slugFromQuery || slugFromHost || cachedSlug
+
+    if (resolvedStoreId) {
+      setStoreId(resolvedStoreId)
+      setStoreSlug(resolvedSlug)
+      setIsPlatformHost(false)  // we have a tenant context
+    } else if (resolvedSlug) {
+      // We have a slug but no explicit storeId — let the server resolve
+      // the slug → storeId via the x-store-slug header (client.ts handles this).
+      // The storeId state stays null here, but client.ts attaches the slug
+      // header so API calls are still scoped correctly.
+      setStoreId(null)
+      setStoreSlug(resolvedSlug)
+      setIsPlatformHost(false)
+    } else if (platformHost) {
+      // Bare platform apex, no tenant — show SaaS landing
+      setStoreId(null)
+      setStoreSlug(null)
+      setStore(null)
+    } else {
+      // Subdomain host but we couldn't extract a slug — treat as platform
+      setStoreId(null)
+      setStoreSlug(null)
     }
-    // Don't wait — let the components fetch their own data with the
-    // x-store-id header attached by client.ts. The header is computed
-    // from storeId state below.
     setLoading(false)
   }, [])
 
   useEffect(() => {
     void resolveTenant()
     // Re-resolve if the user navigates to a different hostname (e.g.
-    // switches between subdomains).
+    // switches between subdomains) OR changes the query params.
     const onPop = () => void resolveTenant()
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -158,6 +214,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     // storeId so subsequent dashboard calls are scoped correctly.
     if (storeIds && storeIds.length && !storeId) {
       setStoreId(storeIds[0])
+      try { localStorage.setItem(ACTIVE_STORE_KEY, storeIds[0]) } catch {}
     }
   }, [storeId])
 
@@ -190,7 +247,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider value={{
-      storeId, store, isPlatformHost, loading,
+      storeId, storeSlug, store, isPlatformHost, loading,
       user, login, logout, refreshUser,
     }}>
       {children}
@@ -212,5 +269,6 @@ export function setActiveStoreId(id: string) {
   const url = new URL(window.location.href)
   url.searchParams.set('storeId', id)
   window.history.replaceState(null, '', url.toString())
+  try { localStorage.setItem(ACTIVE_STORE_KEY, id) } catch {}
   window.dispatchEvent(new PopStateEvent('popstate'))
 }

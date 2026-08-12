@@ -49,14 +49,17 @@ import { syncDomains } from './services/api/domains'
  */
 
 function TenantStorefront() {
-  const { isPlatformHost } = useTenant()
-  // On the platform host with no tenant context, redirect to the SaaS landing.
-  // The storefront routes below are only mounted on tenant subdomains OR
-  // when ?storeId= is set (lets super-admin preview a specific store).
+  const { isPlatformHost, storeId, storeSlug } = useTenant()
+
+  // On the platform host, only render the storefront when there's an
+  // explicit tenant context via ?storeId= OR ?store=slug (or a cached
+  // slug from a previous registration). Otherwise → show the SaaS landing.
   const urlParams = new URLSearchParams(window.location.search)
   const hasExplicitStoreId = !!urlParams.get('storeId')
+  const hasExplicitSlug = !!urlParams.get('store')
+  const hasTenantContext = !!storeId || !!storeSlug || hasExplicitStoreId || hasExplicitSlug
 
-  if (isPlatformHost && !hasExplicitStoreId) {
+  if (isPlatformHost && !hasTenantContext) {
     return <PlatformLanding />
   }
 
@@ -88,7 +91,7 @@ function TenantStorefront() {
 }
 
 function MerchantDashboard() {
-  const { user, loading } = useTenant()
+  const { user, loading, storeId, storeSlug } = useTenant()
   const location = useLocation()
   const isLogin = location.pathname.endsWith('/login')
 
@@ -97,7 +100,19 @@ function MerchantDashboard() {
   if (!user || isLogin) return <MerchantLogin />
 
   // Authenticated merchant → show the existing Admin page (tenant-scoped
-  // via the x-store-id header injected by client.ts).
+  // via the x-store-id / x-store-slug headers injected by client.ts).
+  // We require a tenant context (storeId or storeSlug) — otherwise the
+  // dashboard wouldn't know which store to manage.
+  const urlParams = new URLSearchParams(window.location.search)
+  const hasExplicitStoreId = !!urlParams.get('storeId')
+  const hasExplicitSlug = !!urlParams.get('store')
+  const hasTenantContext = !!storeId || !!storeSlug || hasExplicitStoreId || hasExplicitSlug
+  if (!hasTenantContext) {
+    // No tenant context — send the merchant to the SaaS landing so they
+    // can pick/create a store.
+    return <PlatformLanding />
+  }
+
   return (
     <>
       <Header />
@@ -110,34 +125,48 @@ function MerchantDashboard() {
 }
 
 function AppRoutes() {
-  const { isPlatformHost } = useTenant()
+  const { isPlatformHost, storeId, storeSlug } = useTenant()
+
+  // On the platform host, we still allow tenant-scoped routes when
+  // ?storeId= or ?store= is present (e.g. on vercel.app previews).
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+  const hasTenantOnPlatform =
+    !!urlParams?.get('storeId') ||
+    !!urlParams?.get('store') ||
+    !!storeId ||
+    !!storeSlug
+
+  // Treat the app as "tenant mode" when EITHER we're on a tenant
+  // subdomain OR we're on the platform host but with an explicit tenant
+  // context via query params / cached state.
+  const tenantMode = !isPlatformHost || hasTenantOnPlatform
 
   return (
     <BrowserRouter>
       <ScrollToTop />
       <div className="min-h-screen bg-[#FFFCF8] flex flex-col">
         <Routes>
-          {/* ─── Platform apex routes ─────────────────────────────────── */}
-          {isPlatformHost && (
+          {/* ─── Platform apex routes (no tenant context) ─────────────── */}
+          {!tenantMode && (
             <>
               <Route path="/" element={<PlatformLanding />} />
               <Route path="/super-admin/login" element={<SuperAdmin />} />
               <Route path="/super-admin" element={<SuperAdmin />} />
-              {/* On the platform apex, /admin → redirect to landing
-                  (merchant dashboard is only accessible on tenant subdomains). */}
+              {/* On the platform apex without tenant context, /admin → landing */}
               <Route path="/admin" element={<PlatformLanding />} />
               <Route path="/admin/*" element={<PlatformLanding />} />
-              {/* Fall through to tenant storefront if ?storeId= is set
-                  (lets a super-admin preview a specific store). */}
-              <Route path="/*" element={<TenantStorefront />} />
+              {/* Fall-through also shows the landing (catch-all) */}
+              <Route path="/*" element={<PlatformLanding />} />
             </>
           )}
 
-          {/* ─── Tenant subdomain routes ──────────────────────────────── */}
-          {!isPlatformHost && (
+          {/* ─── Tenant routes (subdomain OR platform host with ?store=) ── */}
+          {tenantMode && (
             <>
               <Route path="/admin/login" element={<MerchantDashboard />} />
               <Route path="/admin" element={<MerchantDashboard />} />
+              <Route path="/super-admin" element={<SuperAdmin />} />
+              <Route path="/super-admin/login" element={<SuperAdmin />} />
               <Route path="/*" element={<TenantStorefront />} />
             </>
           )}

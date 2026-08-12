@@ -45,16 +45,40 @@ function lsSet(key: string, data: unknown) {
 
 function getActiveStoreId(): string | undefined {
   if (!isBrowser()) return undefined
-  // 1) ?storeId= query param (used by dashboard + dev)
   const urlParams = new URLSearchParams(window.location.search)
-  const q = urlParams.get('storeId')
-  if (q) return q
-  // 2) Cached active store from previous dashboard login
+  // 1) ?storeId= explicit query (used by dashboard + super-admin preview)
+  const explicitId = urlParams.get('storeId')
+  if (explicitId) return explicitId
+  // 2) ?store=<slug> query (used in vercel.app / localhost environments
+  //    where subdomains aren't available). Resolved to a storeId via
+  //    the server's tenant middleware (the slug is looked up in DB).
+  //    We pass it as `x-store-slug` and the server converts it.
+  //    However — the server expects either an explicit storeId OR a
+  //    hostname-based slug. So for ?store=slug, we let the server
+  //    resolve via the x-store-slug header (handled in tenant.ts).
+  //    Here we just leave it undefined and let the server do the work.
+  // 3) Cached active store from previous dashboard login
   try {
     const cached = localStorage.getItem('lumiere_saas_active_store')
     if (cached) return cached
   } catch {}
-  // 3) Fall back to undefined — the server will resolve via hostname
+  // 4) Fall back to undefined — the server will resolve via hostname
+  //    OR via x-store-slug header (set below).
+  return undefined
+}
+
+/** Get the ?store= slug from the URL (if any). Used as a fallback for
+ *  environments where subdomains aren't available (vercel.app, localhost). */
+function getActiveStoreSlug(): string | undefined {
+  if (!isBrowser()) return undefined
+  const urlParams = new URLSearchParams(window.location.search)
+  const slug = urlParams.get('store')
+  if (slug) return slug
+  // Also try the cached slug from a previous registration
+  try {
+    const cached = localStorage.getItem('lumiere_saas_active_slug')
+    if (cached) return cached
+  } catch {}
   return undefined
 }
 
@@ -63,8 +87,13 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
     'Content-Type': 'application/json',
     ...(extra || {}),
   }
+  // Attach the explicit storeId if available (highest priority on server)
   const sid = getActiveStoreId()
   if (sid) h['x-store-id'] = sid
+  // Attach the slug if available (fallback for vercel.app / localhost
+  // where subdomains aren't usable — server resolves slug → storeId)
+  const slug = getActiveStoreSlug()
+  if (slug) h['x-store-slug'] = slug
   const token = getToken()
   if (token) h['x-merchant-token'] = token
   return h

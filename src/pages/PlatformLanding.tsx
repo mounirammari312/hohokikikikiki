@@ -86,10 +86,36 @@ export default function PlatformLanding() {
       localStorage.setItem('lumiere_saas_token', res.token)
       localStorage.setItem('lumiere_saas_user', JSON.stringify(res.user))
       localStorage.setItem('lumiere_saas_active_store', res.storeId)
-      // Redirect to the new store's subdomain
+      // Compute the slug (matches what the server used to create the store)
       const slug = form.slug || form.storeName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-      const target = `https://${slug}.${PLATFORM_APEX}/admin?storeId=${res.storeId}`
-      window.location.href = target
+      // Cache the slug too so the client's API layer can attach it as
+      // `x-store-slug` for environments where subdomains aren't usable.
+      localStorage.setItem('lumiere_saas_active_slug', slug)
+
+      // ─── Build the store URL dynamically based on environment ───────
+      // On Vercel's free plan (vercel.app) and on localhost, wildcard
+      // subdomains aren't available — so we use a query-param approach
+      // (`?store=<slug>`) that works on the SAME hostname the merchant
+      // is already on. On a real production domain with wildcard DNS,
+      // we use the proper subdomain `<slug>.<apex>`.
+      const hostname = window.location.hostname.replace(/^www\./, '')
+      const isVercelFree =
+        hostname.includes('vercel.app') ||
+        hostname.includes('localhost') ||
+        hostname === '127.0.0.1'
+      const storeUrl = isVercelFree
+        ? `${window.location.origin}/?store=${encodeURIComponent(slug)}`
+        : `${window.location.protocol}//${slug}.${hostname}`
+
+      // Navigate to the new store's admin (same-origin so the session
+      // token in localStorage carries over — no re-login needed).
+      // We add both ?store= (for tenant resolution) and ?storeId=
+      // (for the explicit dashboard scope) so the dashboard is
+      // immediately scoped to the right store.
+      const adminUrl = isVercelFree
+        ? `${window.location.origin}/admin?store=${encodeURIComponent(slug)}&storeId=${res.storeId}`
+        : `${storeUrl}/admin?storeId=${res.storeId}`
+      window.location.href = adminUrl
     } catch (err: any) {
       setError(err?.body?.error || err?.message || 'فشل التسجيل')
     } finally {
@@ -175,7 +201,7 @@ export default function PlatformLanding() {
                   <div className="w-9 h-9 rounded-xl bg-[#1A1A1E] grid place-items-center text-[#C9A96A] font-bold text-sm">L</div>
                   <div>
                     <div className="font-bold text-sm text-[#1A1A1E]">لوحة تحكم LUMIÈRE</div>
-                    <div className="text-[10px] text-[#9A8A6B]">demo.lumiere.saas/admin</div>
+                    <div className="text-[10px] text-[#9A8A6B]">{typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : 'lumiere.saas'}/?store=demo</div>
                   </div>
                 </div>
                 <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-full">● نشط</span>
@@ -336,9 +362,25 @@ export default function PlatformLanding() {
                 <input value={form.storeName} onChange={e => setForm({...form, storeName: e.target.value})} placeholder="اسم المتجر (فرنسي/إنجليزي) *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
                 <input value={form.storeNameAr} onChange={e => setForm({...form, storeNameAr: e.target.value})} placeholder="اسم المتجر (عربي)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] mt-2" />
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-[#9A8A6B]">https://</span>
-                  <input value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} placeholder="my-store" className="flex-1 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
-                  <span className="text-xs text-[#9A8A6B]">.{PLATFORM_APEX}</span>
+                  {(() => {
+                    const hostname = typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : PLATFORM_APEX
+                    const isVercelFree = hostname.includes('vercel.app') || hostname.includes('localhost') || hostname === '127.0.0.1'
+                    if (isVercelFree) {
+                      return (
+                        <>
+                          <span className="text-xs text-[#9A8A6B] truncate">{hostname}/?store=</span>
+                          <input value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} placeholder="my-store" className="flex-1 min-w-0 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+                        </>
+                      )
+                    }
+                    return (
+                      <>
+                        <span className="text-xs text-[#9A8A6B]">https://</span>
+                        <input value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} placeholder="my-store" className="flex-1 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+                        <span className="text-xs text-[#9A8A6B]">.{hostname}</span>
+                      </>
+                    )
+                  })()}
                 </div>
               </div>
               {error && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}

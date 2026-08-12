@@ -5,13 +5,17 @@
  * For every API request we figure out WHICH store the request belongs to
  * by inspecting, in order:
  *
- *   1. `x-store-id` HTTP header  (most explicit — used by the dashboard
- *                                 when the merchant is logged in)
- *   2. `?storeId=xxx` query param (fallback for testing / direct links)
- *   3. `Host` header               — either a subdomain
- *                                     `slug.platform.com` OR a custom
- *                                     domain `mystore.com` mapped via
- *                                     TenantStore.customDomain
+ *   1. `x-store-id` HTTP header   (most explicit — used by the dashboard
+ *                                   when the merchant is logged in)
+ *   2. `?storeId=xxx` query param  (fallback for testing / direct links)
+ *   3. `x-store-slug` HTTP header  (used by client on vercel.app / localhost
+ *                                   where subdomains aren't available)
+ *   4. `?store=slug` query param   (same as #3 but in the URL — useful for
+ *                                   shareable preview links)
+ *   5. `Host` header                — either a subdomain
+ *                                      `slug.platform.com` OR a custom
+ *                                      domain `mystore.com` mapped via
+ *                                      TenantStore.customDomain
  *
  * If none match, we fall back to the default demo store
  * (`store_default` / slug `demo`) so the storefront always renders
@@ -20,6 +24,14 @@
  * The resolved `{ storeId, store, isPlatformHost }` object is then
  * passed into every CRUD handler so all queries can be scoped with
  * `{ storeId }`.
+ *
+ * ENVIRONMENT AWARENESS
+ * ─────────────────────
+ * On Vercel's free plan (and on localhost), wildcard subdomains aren't
+ * available — every preview gets a `*.vercel.app` URL. In those
+ * environments the client appends `?store=<slug>` to the URL and the
+ * server resolves the slug → storeId via steps 3/4 above. On a real
+ * production domain with wildcard DNS, step 5 (subdomain) handles it.
  */
 
 import { TenantStoreModel } from './models.js'
@@ -70,22 +82,46 @@ export async function resolveTenant(req: any): Promise<ResolvedTenant> {
   const url = new URL(req.url || '/', `https://${host || 'localhost'}`)
   const query = url.searchParams
 
-  // 1) Explicit header wins (used by dashboard / super-admin)
+  // 1) Explicit storeId header wins (used by dashboard / super-admin)
   const headerStoreId = req.headers?.['x-store-id']
   if (headerStoreId && typeof headerStoreId === 'string') {
     const store = await TenantStoreModel.findById(headerStoreId).lean().catch(() => null)
     if (store) return { storeId: store._id, store, isPlatformHost: false }
   }
 
-  // 2) Query param fallback (useful for preview links + tests)
+  // 2) ?storeId= query param fallback (useful for preview links + tests)
   const queryStoreId = query.get('storeId')
   if (queryStoreId) {
     const store = await TenantStoreModel.findById(queryStoreId).lean().catch(() => null)
     if (store) return { storeId: store._id, store, isPlatformHost: false }
   }
 
-  // 3) Host-based resolution
-  // 3a) Subdomain of the platform apex → slug.platform.com
+  // 3) x-store-slug header — used by the client on vercel.app / localhost
+  //    where subdomains aren't available. The client sends the slug here
+  //    and we look it up.
+  const headerStoreSlug = req.headers?.['x-store-slug']
+  if (headerStoreSlug && typeof headerStoreSlug === 'string') {
+    const slug = String(headerStoreSlug).toLowerCase().trim()
+    if (slug) {
+      const store = await TenantStoreModel.findOne({ slug }).lean().catch(() => null)
+      if (store) return { storeId: store._id, store, isPlatformHost: false }
+    }
+  }
+
+  // 4) ?store=slug query param — same as #3 but in the URL. Useful for
+  //    shareable preview links like
+  //    https://lumiere-saas.vercel.app/?store=my-shop
+  const queryStoreSlug = query.get('store')
+  if (queryStoreSlug) {
+    const slug = String(queryStoreSlug).toLowerCase().trim()
+    if (slug) {
+      const store = await TenantStoreModel.findOne({ slug }).lean().catch(() => null)
+      if (store) return { storeId: store._id, store, isPlatformHost: false }
+    }
+  }
+
+  // 5) Host-based resolution
+  // 5a) Subdomain of the platform apex → slug.platform.com
   if (host.endsWith('.' + PLATFORM_APEX)) {
     const slug = host.slice(0, -1 * (PLATFORM_APEX.length + 1))
     if (slug && slug !== 'www') {
@@ -94,13 +130,13 @@ export async function resolveTenant(req: any): Promise<ResolvedTenant> {
     }
   }
 
-  // 3b) Custom domain (mystore.com) — must be a non-platform host
+  // 5b) Custom domain (mystore.com) — must be a non-platform host
   if (host && !PLATFORM_HOSTS.has(host) && !host.endsWith('.' + PLATFORM_APEX) && !host.endsWith('.vercel.app')) {
     const store = await TenantStoreModel.findOne({ customDomain: host }).lean().catch(() => null)
     if (store) return { storeId: store._id, store, isPlatformHost: false }
   }
 
-  // 4) Fallback to default demo store
+  // 6) Fallback to default demo store
   const isPlatformHost = PLATFORM_HOSTS.has(host) || host === '' || host.endsWith('.vercel.app')
   const fallback = await TenantStoreModel.findById(DEFAULT_STORE_ID).lean().catch(() => null)
   return {
