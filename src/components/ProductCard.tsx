@@ -43,10 +43,10 @@ export default function ProductCard({p}:{p:Product}){
         <img src={p.images[0]} alt={p.nameAr} className="w-full h-full object-cover group-hover:scale-[1.06] transition duration-700" loading="lazy"/>
         <div className="absolute top-3 right-3 flex flex-col gap-2">
           {p.isNew && <span className="bg-[#1A1A1E] text-white text-[10px] tracking-widest px-2.5 py-1 rounded-full">جديد</span>}
-          {discount>0 && <span className="bg-[#C9A96A] text-white text-[11px] font-bold px-2.5 py-1 rounded-full">-{discount}%</span>}
+          {discount>0 && <span className="bg-[var(--color-primary)] text-white text-[11px] font-bold px-2.5 py-1 rounded-full">-{discount}%</span>}
         </div>
         <div className="absolute top-3 left-3 flex flex-col gap-2">
-          <button type="button" onClick={handleWish} className={`w-8 h-8 rounded-full shadow grid place-items-center transition ${wished ? 'bg-[#A02A5B] text-white' : 'bg-white text-[#1A1A1E] hover:bg-[#FDF2F6] hover:text-[#A02A5B]'}`} aria-label="wishlist">
+          <button type="button" onClick={handleWish} className={`w-8 h-8 rounded-full shadow grid place-items-center transition ${wished ? 'bg-[var(--color-accent)] text-white' : 'bg-white text-[#1A1A1E] hover:bg-[#FDF2F6] hover:text-[var(--color-accent)]'}`} aria-label="wishlist">
             <Heart size={14} className={wished ? 'fill-white' : ''}/>
           </button>
           <Link to={`/product/${p._id}${storeQuery}`} onClick={e=> e.stopPropagation()} className="w-8 h-8 rounded-full bg-white/90 shadow grid place-items-center hover:bg-white transition hidden md:grid"><Eye size={14}/></Link>
@@ -70,8 +70,8 @@ export default function ProductCard({p}:{p:Product}){
       <div className="p-3 md:p-4">
         {/* Rating + material badge: stack on mobile so the rating number
             isn't squeezed/truncated by the material badge. */}
-        <div className="flex items-center gap-1 text-[#C9A96A] text-xs min-w-0">
-          <Star size={12} fill="#C9A96A" className="shrink-0"/>
+        <div className="flex items-center gap-1 text-[var(--color-primary)] text-xs min-w-0">
+          <Star size={12} fill="var(--color-primary)" className="shrink-0"/>
           <span className="font-bold shrink-0">{p.rating.toFixed(1)}</span>
           <span className="text-[#9A8A6B] shrink-0">({p.reviewsCount})</span>
           {p.materialAr && <span className="ms-auto text-[10px] md:text-[11px] px-2 py-0.5 rounded-full border truncate max-w-[90px] md:max-w-[110px] bg-[#FFF3E0] text-[#8D6E3A] border-[#F0D9A8]">{p.materialAr}</span>}
@@ -89,7 +89,7 @@ export default function ProductCard({p}:{p:Product}){
         </div>
         {p.tierPricing[0] && (
           <div className="mt-2 text-[10px] md:text-[11px] font-bold rounded-full px-2.5 py-1 inline-flex items-center gap-1.5 border text-[#8D6E3A] bg-[#FFFBF0] border-[#F5E6C8]">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[#C9A96A]"></span>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-primary)]"></span>
             <span>وفّري حتى {p.tierPricing[p.tierPricing.length-1].discountPercent}% عند شراء {p.tierPricing[p.tierPricing.length-1].minQty} قطع</span>
           </div>
         )}

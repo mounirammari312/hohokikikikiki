@@ -58,9 +58,9 @@ export default function Header(){
             <Heart size={16} className={`transition ${wishCount>0 ? 'fill-[#A02A5B] text-[#A02A5B]' : 'text-[#1A1A1E] group-hover:text-[#A02A5B]'}`}/>
             {wishCount>0 && <span className="absolute -top-1 -right-1 bg-[#A02A5B] text-white text-[10px] font-bold w-4 h-4 rounded-full grid place-items-center">{wishCount}</span>}
           </Link>
-          <Link to={`/cart${storeQuery}`} className="relative w-10 h-10 rounded-full bg-[#1A1A1E] flex items-center justify-center hover:bg-black transition">
+          <Link to={`/cart${storeQuery}`} className="relative w-10 h-10 rounded-full bg-[var(--color-secondary)] flex items-center justify-center hover:bg-black transition">
             <ShoppingBag size={18} className="text-white"/>
-            {totalQty>0 && <span className="absolute -top-1 -right-1 bg-[#C9A96A] text-white text-[11px] font-bold w-5 h-5 rounded-full grid place-items-center border-2 border-white">{totalQty}</span>}
+            {totalQty>0 && <span className="absolute -top-1 -right-1 bg-[var(--color-primary)] text-white text-[11px] font-bold w-5 h-5 rounded-full grid place-items-center border-2 border-white">{totalQty}</span>}
           </Link>
           <div className="hidden md:flex items-center gap-2 text-xs text-[#7A6F5A] border-s border-[#EDE6D8] ms-2 ps-3">
             <span className="w-6 h-6 rounded-full bg-[#EDE6D8] grid place-items-center">🇩🇿</span>

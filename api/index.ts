@@ -91,6 +91,29 @@ const VALID_ORDER_STATUSES = ['new', 'confirmed', 'shipping', 'delivered', 'canc
 const VALID_STORE_PLANS = ['free_trial', 'starter', 'pro', 'vip']
 const VALID_STORE_STATUSES = ['active', 'suspended', 'expired']
 
+// ─── Simple in-memory rate limiter (per IP, sliding 60s window) ──────────────
+// Used for /api/auth/login (5 attempts/min) and /api/orders POST (10 orders/min)
+// to mitigate credential brute-force and COD-form spam. This is intentionally
+// lightweight — for a multi-instance deployment you'd swap this for Redis,
+// but on Vercel Hobby a single warm instance handles most traffic anyway.
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+function rateLimit(ip: string, max: number, windowMs: number): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs })
+    return true
+  }
+  if (entry.count >= max) return false
+  entry.count++
+  return true
+}
+function getClientIP(req: any): string {
+  return req.headers?.['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.headers?.['x-real-ip']
+    || 'unknown'
+}
+
 // ─── Vercel Node.js Compatibility Helpers ────────────────────────────────────
 
 async function getReqBody(req: any) {
@@ -306,6 +329,12 @@ export default async function handler(req: any, res: any) {
     if (segments[0] === 'auth') {
       // Cheap input validation for login/register that doesn't need DB
       if (segments[1] === 'login' && method === 'POST') {
+        // Rate-limit login attempts per IP (5/min) to mitigate
+        // credential brute-force. We check before parsing the body
+        // so a flood of empty requests is cheap to reject.
+        if (!rateLimit(getClientIP(req), 5, 60000)) {
+          return reply(res, { error: 'RATE_LIMITED', message: 'محاولات كثيرة — حاول بعد دقيقة' }, 429)
+        }
         const body = await getReqBody(req)
         if (!body.email || !body.password) {
           return reply(res, { error: 'EMAIL_AND_PASSWORD_REQUIRED' }, 400)
@@ -757,7 +786,7 @@ async function superAdminRoute(segments: string[], method: string, req: any, que
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function listProducts(ctx: RouteCtx) {
-  const docs = await ProductModel.find({ storeId: ctx.storeId }, null, { sort: { createdAt: -1 } }).lean()
+  const docs = await ProductModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
   return { data: { products: docs } }
 }
 
@@ -766,17 +795,20 @@ async function createProduct(ctx: RouteCtx) {
   body._id = body._id || genId('prod')
   body.storeId = ctx.storeId  // force tenant
   if (!body.createdAt) body.createdAt = new Date().toISOString()
+  // New products are not soft-deleted — set explicitly so the field
+  // exists even when the caller omits it.
+  if (body.deletedAt === undefined) body.deletedAt = null
   if (Array.isArray(body.variants) && body.variants.length) {
     const vs = body.variants.reduce((a, b) => a + (Number(b.stock) || 0), 0)
     if (vs > 0) body.stock = vs
   }
   await ProductModel.create(body)
-  const docs = await ProductModel.find({ storeId: ctx.storeId }, null, { sort: { createdAt: -1 } }).lean()
+  const docs = await ProductModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
   return { data: { products: docs, created: body } }
 }
 
 async function getProduct(ctx: RouteCtx, id: string) {
-  const doc = await ProductModel.findOne({ _id: id, storeId: ctx.storeId }).lean()
+  const doc = await ProductModel.findOne({ _id: id, storeId: ctx.storeId, deletedAt: null }).lean()
   if (!doc) return { data: { error: 'NOT_FOUND' }, status: 404 }
   return { data: { product: doc } }
 }
@@ -796,25 +828,36 @@ async function updateProduct(ctx: RouteCtx, id: string) {
   }
   // Tenant guard: never let a caller move a product to another store
   delete patch.storeId
+  // Never let a caller un-soft-delete a product via the update endpoint.
+  delete patch.deletedAt
   const next = await ProductModel.findOneAndUpdate(
-    { _id: id, storeId: ctx.storeId },
+    { _id: id, storeId: ctx.storeId, deletedAt: null },
     { $set: { ...patch, _id: id } },
     { new: true, upsert: false }
   ).lean()
   if (!next) return { data: { error: 'NOT_FOUND' }, status: 404 }
-  const docs = await ProductModel.find({ storeId: ctx.storeId }, null, { sort: { createdAt: -1 } }).lean()
+  const docs = await ProductModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
   return { data: { products: docs, updated: next } }
 }
 
 async function deleteProduct(ctx: RouteCtx, id: string) {
-  await ProductModel.deleteOne({ _id: id, storeId: ctx.storeId })
-  const docs = await ProductModel.find({ storeId: ctx.storeId }, null, { sort: { createdAt: -1 } }).lean()
+  // Soft-delete: mark the product as deleted by stamping `deletedAt`.
+  // The list/get queries filter on `deletedAt: null` so the product
+  // disappears from the storefront + dashboard, but historical order
+  // documents still reference the original product snapshot.
+  await ProductModel.updateOne(
+    { _id: id, storeId: ctx.storeId },
+    { $set: { deletedAt: new Date().toISOString() } }
+  )
+  const docs = await ProductModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
   return { data: { products: docs } }
 }
 
 async function productAction(ctx: RouteCtx, id: string) {
   const { action } = await getReqBody(ctx.req)
-  const orig = await ProductModel.findOne({ _id: id, storeId: ctx.storeId }).lean()
+  // Only act on non-deleted products. A soft-deleted product should be
+  // invisible to the merchant, so duplicating or toggling it should 404.
+  const orig = await ProductModel.findOne({ _id: id, storeId: ctx.storeId, deletedAt: null }).lean()
   if (!orig) return { data: { error: 'NOT_FOUND' }, status: 404 }
 
   if (action === 'duplicate') {
@@ -822,7 +865,11 @@ async function productAction(ctx: RouteCtx, id: string) {
       ...orig,
       _id: genId('prod'),
       storeId: ctx.storeId,
-      sku: orig.sku + '-COPY',
+      // Use a random 4-char suffix so duplicating the same product twice
+      // doesn't collide on the (storeId, sku) unique index. The previous
+      // `-COPY` suffix caused E11000 errors when a merchant duplicated
+      // the same product more than once.
+      sku: orig.sku + '-COPY-' + Math.random().toString(36).slice(2, 6),
       name: orig.name + ' Copy',
       nameAr: orig.nameAr + ' - نسخة',
       createdAt: new Date().toISOString(),
@@ -833,12 +880,12 @@ async function productAction(ctx: RouteCtx, id: string) {
     await ProductModel.create(copy)
   } else if (action === 'toggleFeatured' || action === 'toggleNew') {
     const flag = action === 'toggleFeatured' ? 'isFeatured' : 'isNew'
-    await ProductModel.updateOne({ _id: id, storeId: ctx.storeId }, { $set: { [flag]: !orig[flag] } })
+    await ProductModel.updateOne({ _id: id, storeId: ctx.storeId, deletedAt: null }, { $set: { [flag]: !orig[flag] } })
   } else {
     return { data: { error: 'UNKNOWN_ACTION' }, status: 400 }
   }
 
-  const docs = await ProductModel.find({ storeId: ctx.storeId }, null, { sort: { createdAt: -1 } }).lean()
+  const docs = await ProductModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
   return { data: { products: docs } }
 }
 
@@ -847,11 +894,18 @@ async function productAction(ctx: RouteCtx, id: string) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function listOrders(ctx: RouteCtx) {
-  const docs = await OrderModel.find({ storeId: ctx.storeId }, null, { sort: { createdAt: -1 } }).lean()
+  const docs = await OrderModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
   return { data: { orders: docs } }
 }
 
 async function createOrder(ctx: RouteCtx) {
+  // Rate-limit order creation per IP (10 orders/min) to mitigate
+  // spam / scripted abuse of the COD form. We check before doing any
+  // DB work so a flood of rejected requests is cheap.
+  if (!rateLimit(getClientIP(ctx.req), 10, 60000)) {
+    return { data: { error: 'RATE_LIMITED', message: 'طلبات كثيرة — حاول بعد دقيقة' }, status: 429 }
+  }
+
   const data = await getReqBody(ctx.req)
   // Wilaya name fallback (scoped to tenant's overrides)
   if (!data.wilayaNameAr) {
@@ -863,9 +917,11 @@ async function createOrder(ctx: RouteCtx) {
     if (w) data.wilaya = w.code
   }
 
-  // Duplicate detection (tenant-scoped)
+  // Duplicate detection (tenant-scoped, only active — non-soft-deleted —
+  // orders count, otherwise a cancelled/deleted order would block the
+  // customer from re-ordering the same items).
   const sig = `${data.phone}-${(data.items || []).map(i => i.productId + ':' + i.qty).join(',')}`
-  const recent = await OrderModel.findOne({ storeId: ctx.storeId, phone: data.phone })
+  const recent = await OrderModel.findOne({ storeId: ctx.storeId, phone: data.phone, deletedAt: null })
     .sort({ createdAt: -1 }).lean()
   if (recent) {
     const recentSig = `${recent.phone}-${(recent.items || []).map(i => i.productId + ':' + i.qty).join(',')}`
@@ -901,6 +957,7 @@ async function createOrder(ctx: RouteCtx) {
     total: Number(data.total) || 0,
     status: 'new',
     notes: data.notes || '',
+    deletedAt: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
@@ -909,8 +966,8 @@ async function createOrder(ctx: RouteCtx) {
 }
 
 async function getOrder(ctx: RouteCtx, orderNumber: string) {
-  let doc = await OrderModel.findOne({ storeId: ctx.storeId, orderNumber }).lean()
-  if (!doc) doc = await OrderModel.findOne({ storeId: ctx.storeId, _id: orderNumber }).lean()
+  let doc = await OrderModel.findOne({ storeId: ctx.storeId, orderNumber, deletedAt: null }).lean()
+  if (!doc) doc = await OrderModel.findOne({ storeId: ctx.storeId, _id: orderNumber, deletedAt: null }).lean()
   if (!doc) return { data: { error: 'NOT_FOUND' }, status: 404 }
   return { data: { order: doc } }
 }
@@ -921,18 +978,23 @@ async function updateOrderStatus(ctx: RouteCtx, orderNumber: string) {
     return { data: { error: 'INVALID_STATUS' }, status: 400 }
   }
   const next = await OrderModel.findOneAndUpdate(
-    { storeId: ctx.storeId, $or: [{ orderNumber }, { _id: orderNumber }] },
+    { storeId: ctx.storeId, deletedAt: null, $or: [{ orderNumber }, { _id: orderNumber }] },
     { $set: { status, updatedAt: new Date().toISOString() } },
     { new: true }
   ).lean()
   if (!next) return { data: { error: 'NOT_FOUND' }, status: 404 }
-  const docs = await OrderModel.find({ storeId: ctx.storeId }, null, { sort: { createdAt: -1 } }).lean()
+  const docs = await OrderModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
   return { data: { orders: docs, updated: next } }
 }
 
 async function deleteOrder(ctx: RouteCtx, orderNumber: string) {
-  await OrderModel.deleteOne({ storeId: ctx.storeId, $or: [{ orderNumber }, { _id: orderNumber }] })
-  const docs = await OrderModel.find({ storeId: ctx.storeId }, null, { sort: { createdAt: -1 } }).lean()
+  // Soft-delete: keep the order document for audit / analytics, but
+  // hide it from the merchant's dashboard list.
+  await OrderModel.updateOne(
+    { storeId: ctx.storeId, $or: [{ orderNumber }, { _id: orderNumber }] },
+    { $set: { deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } }
+  )
+  const docs = await OrderModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
   return { data: { orders: docs } }
 }
 

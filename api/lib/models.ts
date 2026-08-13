@@ -79,9 +79,20 @@ const ProductSchema = new mongoose.Schema({
   tierPricing: { type: [Mixed], default: [] },
   createdAt: { type: String, default: () => new Date().toISOString() },
   domainId: { type: String, default: null },
+  // Soft-delete timestamp (null when the product is active). All list/get
+  // queries filter on `deletedAt: null` so soft-deleted products disappear
+  // from the storefront + dashboard without losing historical order data.
+  deletedAt: { type: String, default: null },
 }, { _id: false, versionKey: false, strict: false })
 ProductSchema.index({ storeId: 1, createdAt: -1 })
 ProductSchema.index({ storeId: 1, category: 1 })
+// Compound unique index on (storeId, sku) — prevents two products in the
+// same store from sharing an SKU. Combined with the duplicate-handler in
+// productAction (which now appends a random suffix), this enforces SKU
+// uniqueness at the DB level. NOTE: this is a NON-sparse index, so
+// products with `sku: ''` are also subject to the unique constraint —
+// the Admin form generates an SKU on save to avoid collisions.
+ProductSchema.index({ storeId: 1, sku: 1 }, { unique: true })
 
 // ─── Wilaya (per-store override of the 58 Algerian wilayas) ─────────────────
 const WilayaSchema = new mongoose.Schema({
@@ -123,6 +134,10 @@ const OrderSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
   createdAt: { type: String, default: () => new Date().toISOString() },
   updatedAt: { type: String, default: () => new Date().toISOString() },
+  // Soft-delete timestamp (null when the order is active). Soft-deleting
+  // orders preserves the audit trail while hiding the order from the
+  // merchant's dashboard list.
+  deletedAt: { type: String, default: null },
 }, { _id: false, versionKey: false, strict: false })
 OrderSchema.index({ storeId: 1, createdAt: -1 })
 OrderSchema.index({ storeId: 1, orderNumber: 1 }, { unique: true })

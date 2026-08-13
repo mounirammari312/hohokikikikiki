@@ -38,16 +38,37 @@ export default function Cart(){
     e.preventDefault()
     if(!form.name.trim() || !validateDZPhone(form.phone) || !form.commune.trim() || !form.address.trim()){ setErr('يرجى ملء كل الحقول بشكل صحيح (الهاتف: 0550123456)'); return}
     try{
-      const orderItems = items.map(i=>{ 
+      // ─── Client-side duplicate order detection ───────────────────────
+      // Before hitting the API, check localStorage for a recent order
+      // with the SAME items+quantities from THIS store. The server has
+      // its own duplicate check (30-min window) that returns 409 — but
+      // surfacing the warning HERE lets the customer confirm or cancel
+      // without waiting for a network round-trip. The signature uses
+      // `productId:qty` for each cart line; variants are intentionally
+      // excluded so re-ordering the same product in a different color
+      // still triggers the warning.
+      const lastOrderKey = `lumiere_last_order__${new URLSearchParams(window.location.search).get('store') || 'default'}`
+      let lastOrder: { sig?: string; ts?: number } | null = null
+      try { lastOrder = JSON.parse(localStorage.getItem(lastOrderKey) || 'null') } catch { lastOrder = null }
+      const currentSig = items.map(i => i.product._id + ':' + i.qty).join(',')
+      if (lastOrder && lastOrder.sig === currentSig && lastOrder.ts && Date.now() - lastOrder.ts < 30 * 60 * 1000) {
+        if (!confirm('لديك طلب مشابه منذ أقل من 30 دقيقة. هل تريد تأكيده مرة أخرى؟')) return
+      }
+
+      const orderItems = items.map(i=>{
         const unit = i.product.price + (i.variant?.priceAdjustment||0)
-        const {total:t}=calcItemTotal(unit,i.qty,i.product.tierPricing); 
+        const {total:t}=calcItemTotal(unit,i.qty,i.product.tierPricing);
         return {productId:i.product._id, nameAr: i.product.nameAr + (i.variantLabel? ` — ${i.variantLabel}`:''), image: i.variant?.image || i.product.images[0], qty:i.qty, unitPrice: unit, total:t, variantLabel: i.variantLabel, variantId: i.variantId}
       })
       const order = await createOrder({ customerName:form.name, phone:form.phone, wilaya: wilaya!.code, wilayaNameAr: wilaya!.nameAr, commune: form.commune, address: form.address, deliveryType, items: orderItems as any, subtotal, discount, shippingCost: shipping, total: grand } as any)
+      // Persist the order signature so the next checkout attempt from
+      // the same cart warns the customer (matches the server-side window).
+      try { localStorage.setItem(lastOrderKey, JSON.stringify({ sig: currentSig, ts: Date.now() })) } catch {}
       Tracking.purchase(order.orderNumber, grand, orderItems)
       nav(`/thank-you/${order.orderNumber}`)
     }catch(err:any){
       if(err.message==='DUPLICATE_ORDER') setErr('طلب مكرر، لدينا طلبك بالفعل وسيتم الاتصال بك')
+      else if(err?.body?.error === 'RATE_LIMITED' || err?.message === 'RATE_LIMITED') setErr('لقد أرسلتِ عدة طلبات متتالية — يرجى المحاولة بعد دقيقة')
       else setErr('خطأ غير متوقع')
     }
   }

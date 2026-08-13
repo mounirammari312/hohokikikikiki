@@ -56,16 +56,28 @@ export async function connectDB(): Promise<typeof mongoose> {
 
   mongoose.set('strictQuery', true)
 
-  await mongoose.connect(MONGODB_URI, {
-    // Atlas-friendly defaults — these options reduce connection churn
-    // in serverless environments.
+  // Connection options — Atlas-friendly defaults that reduce connection
+  // churn in serverless environments.
+  const opts = {
     bufferCommands: false,
     maxPoolSize: 10,
     minPoolSize: 1,
     serverSelectionTimeoutMS: 8000,
     socketTimeoutMS: 12000,
     connectTimeoutMS: 8000,
-  })
+  }
+
+  // One-shot retry: serverless cold starts occasionally fail the first
+  // connect attempt with a transient ETIMEDOUT / ECONNRESET from the
+  // Atlas load balancer. Waiting 500ms and retrying once recovers most
+  // of those without adding noticeable latency to the happy path.
+  try {
+    await mongoose.connect(MONGODB_URI, opts)
+  } catch (err) {
+    console.warn('[mongo] first connect failed, retrying in 500ms:', err instanceof Error ? err.message : err)
+    await new Promise(r => setTimeout(r, 500))
+    await mongoose.connect(MONGODB_URI, opts)
+  }
 
   cached = mongoose.connection
   globalThis.__mongoConn = cached

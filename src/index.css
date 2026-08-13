@@ -25,7 +25,21 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 .glass { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); background: rgba(255,255,255,0.72); }
 
 /* Rose — لمسة وردية غامقة راقية 2026 — تُستخدم باعتدال فقط */
-:root { --rose: #A02A5B; --rose-dark:#7A1F44; --rose-light:#FFF0F5; --rose-border:#F6C0D4; --rose-soft:#FDF2F6; }
+:root {
+  --rose: #A02A5B; --rose-dark:#7A1F44; --rose-light:#FFF0F5; --rose-border:#F6C0D4; --rose-soft:#FDF2F6;
+  /* ─── Tenant theme colors ─────────────────────────────────────────
+     These are written by TenantContext whenever the active store's
+     settings change. Components that DON'T have access to the store
+     object (e.g. ProductCard, which is rendered deep in the tree)
+     can read these CSS variables instead of being passed the colors
+     as props. Defaults match defaultSettings in src/services/api/seed.ts. */
+  --color-primary: #C9A96A;
+  --color-secondary: #1A1A1E;
+  --color-bg: #FFFCF8;
+  --color-card: #FFFFFF;
+  --color-text: #1A1A1E;
+  --color-accent: #A02A5B;
+}
 .rose-gradient { background: linear-gradient(135deg, #A02A5B 0%, #7A1F44 100%); }
 .rose-dot { background: radial-gradient(circle at 30% 30%, #C13B6F, #A02A5B); }
 

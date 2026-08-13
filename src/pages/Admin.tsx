@@ -39,6 +39,18 @@ export default function Admin() {
   const [domains, setDomains] = useState<StoreDomain[]>(() => getDomains())
   const [activeDomain, setActiveDomainState] = useState<StoreDomain>(() => getActiveDomain())
   const [tab, setTab] = useState<'domains' | 'products' | 'orders' | 'wilayas' | 'store' | 'tracking' | 'delivery'>('domains')
+  // ─── Onboarding wizard ─────────────────────────────────────────────
+  // When a merchant registers, PlatformLanding redirects to /admin?onboarding=1.
+  // We detect that here and show a 3-step wizard (niche → store info → theme)
+  // so the merchant can configure the essentials before diving into the
+  // full dashboard. The wizard calls `saveSettings` + `setActiveDomain`
+  // as the merchant makes choices, then clears the URL flag.
+  const [onboarding, setOnboarding] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return new URLSearchParams(window.location.search).get('onboarding') === '1'
+    } catch { return false }
+  })
   const currentSlug = (() => {
     try {
       return localStorage.getItem('lumiere_saas_active_slug') || 'demo'
@@ -1576,6 +1588,150 @@ export default function Admin() {
           </div>
         </div>
       )}
+
+      {/* ─── Onboarding wizard overlay ──────────────────────────────────
+          Shown after registration (URL has ?onboarding=1). The wizard
+          walks the merchant through picking a niche (preset domain),
+          filling in store info, and choosing a theme — then saves the
+          settings and dismisses itself. Skipping also dismisses. */}
+      {onboarding && (
+        <OnboardingWizard
+          storeForm={storeForm}
+          setStoreForm={setStoreForm}
+          domains={domains}
+          setActiveDomain={handleActivateDomain}
+          onComplete={async () => {
+            try {
+              await saveSettings(storeForm as any)
+              setSettings({ ...storeForm } as any)
+              showToast('تم إعداد متجرك بنجاح! 🎉')
+            } catch {
+              // Even if the save fails (e.g. network error), dismiss
+              // the wizard so the merchant isn't trapped — they can
+              // re-save from the Store tab later.
+              showToast('تم تخطّي المعالج — يمكنك تعديل الإعدادات لاحقاً')
+            }
+            setOnboarding(false)
+            try {
+              const url = new URL(window.location.href)
+              url.searchParams.delete('onboarding')
+              window.history.replaceState(null, '', url.toString())
+            } catch {}
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Onboarding Wizard — 3-step setup shown after registration
+// ═══════════════════════════════════════════════════════════════════════════
+
+const onboardingThemePresets = [
+  { name: 'ذهبي كلاسيكي', colors: { primaryColor: '#C9A96A', secondaryColor: '#1A1A1E', bgColor: '#FFFCF8', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#A02A5B' } },
+  { name: 'أزرق تقني', colors: { primaryColor: '#2563EB', secondaryColor: '#0F172A', bgColor: '#F8FAFC', cardBgColor: '#FFFFFF', textColor: '#1E293B', accentColor: '#7C3AED' } },
+  { name: 'أخضر طبيعي', colors: { primaryColor: '#16A34A', secondaryColor: '#14532D', bgColor: '#F0FDF4', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#CA8A04' } },
+  { name: 'وردي راقي', colors: { primaryColor: '#EC4899', secondaryColor: '#831843', bgColor: '#FDF2F8', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#9333EA' } },
+  { name: 'برتقالي حيوي', colors: { primaryColor: '#EA580C', secondaryColor: '#1C1917', bgColor: '#FFFBEB', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#DC2626' } },
+  { name: 'أسود مينيمال', colors: { primaryColor: '#525252', secondaryColor: '#171717', bgColor: '#FAFAFA', cardBgColor: '#FFFFFF', textColor: '#1A1A1E', accentColor: '#3B82F6' } },
+]
+
+function OnboardingWizard({
+  storeForm, setStoreForm, onComplete, domains, setActiveDomain,
+}: {
+  storeForm: any
+  setStoreForm: (updater: any) => void
+  onComplete: () => void | Promise<void>
+  domains: StoreDomain[]
+  setActiveDomain: (id: string) => Promise<void>
+}) {
+  const [step, setStep] = useState(0)
+
+  // Step 0: Pick niche (activates the matching preset domain)
+  // Step 1: Store name + phone + announcement
+  // Step 2: Pick theme (6 preset palettes)
+  // "تخطّي" / "حفظ وبدء البيع" calls onComplete which saves settings +
+  // clears the URL flag.
+  return (
+    <div className="fixed inset-0 z-[200] bg-[#1A1A1E]/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-[24px] w-full max-w-lg shadow-2xl border border-[#EDE6D8] overflow-hidden my-8">
+        {/* Progress bar + skip */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#EDE6D8]">
+          <h3 className="font-extrabold text-lg text-[#1A1A1E]">إعداد المتجر ({step + 1}/3)</h3>
+          <button onClick={onComplete} className="text-xs text-[#9A8A6B] hover:text-[#1A1A1E] transition">تخطّي</button>
+        </div>
+
+        <div className="p-6">
+          {step === 0 && (
+            <div>
+              <p className="text-sm font-bold mb-4 text-[#1A1A1E]">ما نوع متجرك؟ اختر التخصص:</p>
+              <div className="grid grid-cols-2 gap-3">
+                {domains.map((d: any) => (
+                  <button
+                    key={d.id}
+                    onClick={() => {
+                      // Optimistically update the form so the button
+                      // highlights immediately; setActiveDomain also
+                      // persists the choice server-side (which syncs
+                      // storeName/hero/etc. as a side effect).
+                      setStoreForm({ ...storeForm, activeDomainId: d.id })
+                      void setActiveDomain(d.id)
+                    }}
+                    className={`p-4 rounded-2xl border-2 text-right transition ${storeForm.activeDomainId === d.id ? 'border-[#A02A5B] bg-[#FDF2F6]' : 'border-[#EDE6D8] hover:border-[#C9A96A]'}`}
+                  >
+                    <div className="font-bold text-sm text-[#1A1A1E]">{d.nameAr}</div>
+                    <div className="text-[11px] text-[#9A8A6B] mt-0.5">{d.categories?.length || 0} فئات</div>
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setStep(1)} className="w-full mt-4 bg-[#1A1A1E] text-white py-3 rounded-xl font-bold hover:bg-black transition">التالي ←</button>
+            </div>
+          )}
+
+          {step === 1 && (
+            <div>
+              <p className="text-sm font-bold mb-4 text-[#1A1A1E]">معلومات المتجر:</p>
+              <div className="space-y-3">
+                <input value={storeForm.storeName || ''} onChange={e => setStoreForm({ ...storeForm, storeName: e.target.value })} placeholder="اسم المتجر" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+                <input value={storeForm.storeNameAr || ''} onChange={e => setStoreForm({ ...storeForm, storeNameAr: e.target.value })} placeholder="الاسم بالعربية" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+                <input value={storeForm.phone || ''} onChange={e => setStoreForm({ ...storeForm, phone: e.target.value })} placeholder="رقم الهاتف" dir="ltr" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+                <input value={storeForm.announcement || ''} onChange={e => setStoreForm({ ...storeForm, announcement: e.target.value })} placeholder="نص الشريط الإعلاني" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setStep(0)} className="px-4 py-3 border border-[#EDE6D8] rounded-xl font-bold text-sm hover:bg-[#FFFCF8] transition">← السابق</button>
+                <button onClick={() => setStep(2)} className="flex-1 bg-[#1A1A1E] text-white py-3 rounded-xl font-bold hover:bg-black transition">التالي ←</button>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <p className="text-sm font-bold mb-4 text-[#1A1A1E]">اختر ألوان متجرك:</p>
+              <div className="grid grid-cols-2 gap-3">
+                {onboardingThemePresets.map(preset => (
+                  <button
+                    key={preset.name}
+                    onClick={() => setStoreForm({ ...storeForm, ...preset.colors })}
+                    className={`p-3 rounded-2xl border-2 text-right transition ${(storeForm as any).primaryColor === preset.colors.primaryColor ? 'border-[#A02A5B] bg-[#FDF2F6]' : 'border-[#EDE6D8] hover:border-[#C9A96A]'}`}
+                  >
+                    <div className="flex gap-1 mb-2">
+                      <span className="w-6 h-6 rounded" style={{ background: preset.colors.primaryColor }}></span>
+                      <span className="w-6 h-6 rounded" style={{ background: preset.colors.secondaryColor }}></span>
+                      <span className="w-6 h-6 rounded" style={{ background: preset.colors.accentColor }}></span>
+                    </div>
+                    <div className="font-bold text-xs text-[#1A1A1E]">{preset.name}</div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setStep(1)} className="px-4 py-3 border border-[#EDE6D8] rounded-xl font-bold text-sm hover:bg-[#FFFCF8] transition">← السابق</button>
+                <button onClick={onComplete} className="flex-1 bg-[#A02A5B] text-white py-3 rounded-xl font-bold hover:bg-[#7A1F44] transition">حفظ وبدء البيع 🚀</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

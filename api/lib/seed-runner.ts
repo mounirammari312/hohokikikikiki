@@ -61,6 +61,18 @@ async function doPlatformSeed(): Promise<void> {
     // Index doesn't exist or collection not yet created — safe to ignore.
   }
 
+  // ─── Drop the legacy non-unique (storeId, sku) index ──────────────
+  // Older deployments had a non-unique `storeId_1_sku_1` index (or none
+  // at all). The new schema declares it as `unique: true`, but MongoDB
+  // won't rebuild an existing index automatically — so we drop it here
+  // and let Mongoose recreate it with the unique flag on the next write.
+  try {
+    await (ProductModel as any).collection.dropIndex('storeId_1_sku_1')
+    console.log('[seed] dropped legacy storeId_1_sku_1 index (will be rebuilt as unique)')
+  } catch (_err) {
+    // Index doesn't exist (fresh install) — safe to ignore.
+  }
+
   // ─── Default demo TenantStore ──────────────────────────────────────
   const existingStore = await TenantStoreModel.findById(DEFAULT_STORE_ID).lean()
   if (!existingStore) {
@@ -109,14 +121,65 @@ async function doPlatformSeed(): Promise<void> {
  * Populate a fresh store with default catalog (products, wilayas,
  * domains, settings). Called when a new TenantStore is created.
  * Idempotent — safe to call on a store that already has data.
+ *
+ * IMPORTANT: New stores get a small GENERIC starter pack (3 sample
+ * products with neutral copy + Unsplash images) instead of the
+ * 18-product jewelry catalog. The merchant is expected to delete these
+ * and add their own products. The full jewelry catalog (`seedProducts`)
+ * is still used for the demo store (`store_default`) — but only when
+ * the demo store is first created (which already happened in any
+ * existing deployment, so this is a no-op for production).
  */
 export async function seedStoreData(storeId: string): Promise<void> {
+  // ─── Generic starter pack ──────────────────────────────────────────
+  // 3 neutral sample products. The merchant will replace these with
+  // their real catalog. Using a fixed `_id` namespace (`prod_starter_*`)
+  // and `STARTER-*` SKUs keeps them easy to identify + delete.
+  const genericStarterProducts = [
+    {
+      _id: 'prod_starter_1', sku: 'STARTER-001',
+      name: 'Sample Product 1', nameAr: 'منتج تجريبي 1',
+      description: 'Edit this product or delete it and add your own.',
+      descriptionAr: 'عدّل هذا المنتج أو احذفه وأضف منتجاتك الخاصة.',
+      price: 1000, compareAtPrice: 1500,
+      images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80'],
+      category: 'general', material: 'Sample', materialAr: 'تجريبي',
+      rating: 4.8, reviewsCount: 0, stock: 50, isFeatured: true, isNew: true,
+      tierPricing: [{minQty:2,discountPercent:10,label:"Duo",labelAr:"عرض الثنائي"}],
+      createdAt: new Date().toISOString()
+    },
+    {
+      _id: 'prod_starter_2', sku: 'STARTER-002',
+      name: 'Sample Product 2', nameAr: 'منتج تجريبي 2',
+      description: 'Another sample — replace with your own products.',
+      descriptionAr: 'منتج تجريبي آخر — استبدله بمنتجاتك.',
+      price: 2500,
+      images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80'],
+      category: 'general', material: 'Sample', materialAr: 'تجريبي',
+      rating: 4.9, reviewsCount: 0, stock: 30, isFeatured: false, isNew: true,
+      tierPricing: [],
+      createdAt: new Date().toISOString()
+    },
+    {
+      _id: 'prod_starter_3', sku: 'STARTER-003',
+      name: 'Sample Product 3', nameAr: 'منتج تجريبي 3',
+      description: 'Third sample product for your new store.',
+      descriptionAr: 'ثالث منتج تجريبي لمتجرك الجديد.',
+      price: 5000, compareAtPrice: 6500,
+      images: ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80'],
+      category: 'general', material: 'Sample', materialAr: 'تجريبي',
+      rating: 4.7, reviewsCount: 0, stock: 20, isFeatured: true, isNew: false,
+      tierPricing: [{minQty:3,discountPercent:15,label:"Trio",labelAr:"عرض الثلاثي"}],
+      createdAt: new Date().toISOString()
+    },
+  ]
+
   // ─── Products ──────────────────────────────────────────────────────
   const productCount = await ProductModel.countDocuments({ storeId })
   if (productCount === 0) {
-    const stamped = seedProducts.map(p => ({ ...p, storeId }))
+    const stamped = genericStarterProducts.map(p => ({ ...p, storeId }))
     await ProductModel.insertMany(stamped, { ordered: false }).catch(() => {})
-    console.log(`[seed] inserted ${seedProducts.length} products for store ${storeId}`)
+    console.log(`[seed] inserted ${genericStarterProducts.length} generic starter products for store ${storeId}`)
   }
 
   // ─── Wilayas ───────────────────────────────────────────────────────

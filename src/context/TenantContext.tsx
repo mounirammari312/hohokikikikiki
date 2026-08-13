@@ -19,6 +19,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import type { TenantStore, MerchantUser } from '../services/api/types'
+import { getSettings } from '../services/api/settings'
 
 // Apex domain that identifies the platform itself. Subdomains of this
 // are treated as tenant slugs. Configure via VITE_PLATFORM_APEX env.
@@ -318,6 +319,25 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     const t = setTimeout(() => setLoading(false), 1500)
     return () => clearTimeout(t)
   }, [refreshUser])
+
+  // ─── Apply theme colors as CSS variables on <html> ────────────────
+  // Whenever the active store changes (or the settings cache updates),
+  // mirror the merchant's chosen palette into CSS custom properties so
+  // components that DON'T receive the `store` object (ProductCard,
+  // Header cart button, etc.) can still use the tenant's colors via
+  // `var(--color-primary)` etc. Defaults match `defaultSettings` and
+  // are also declared in src/index.css.
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const s: any = getSettings()
+    const root = document.documentElement
+    root.style.setProperty('--color-primary', s.primaryColor || '#C9A96A')
+    root.style.setProperty('--color-secondary', s.secondaryColor || '#1A1A1E')
+    root.style.setProperty('--color-bg', s.bgColor || '#FFFCF8')
+    root.style.setProperty('--color-card', s.cardBgColor || '#FFFFFF')
+    root.style.setProperty('--color-text', s.textColor || '#1A1A1E')
+    root.style.setProperty('--color-accent', s.accentColor || '#A02A5B')
+  }, [storeId, storeSlug, loading])
 
   return (
     <Ctx.Provider value={{

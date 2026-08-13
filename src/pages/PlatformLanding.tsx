@@ -118,10 +118,13 @@ export default function PlatformLanding() {
       // token in localStorage carries over — no re-login needed).
       // We add both ?store= (for tenant resolution) and ?storeId=
       // (for the explicit dashboard scope) so the dashboard is
-      // immediately scoped to the right store.
+      // immediately scoped to the right store. The `&onboarding=1`
+      // flag tells the Admin page to open the 3-step onboarding
+      // wizard so the merchant can pick a niche, set their store
+      // info, and choose a theme before seeing the full dashboard.
       const adminUrl = isVercelFree
-        ? `${window.location.origin}/admin?store=${encodeURIComponent(slug)}&storeId=${res.storeId}`
-        : `${storeUrl}/admin?storeId=${res.storeId}`
+        ? `${window.location.origin}/admin?store=${encodeURIComponent(slug)}&storeId=${res.storeId}&onboarding=1`
+        : `${storeUrl}/admin?storeId=${res.storeId}&onboarding=1`
       window.location.href = adminUrl
     } catch (err: any) {
       setError(err?.body?.error || err?.message || 'فشل التسجيل')
