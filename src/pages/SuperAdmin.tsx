@@ -26,7 +26,7 @@ import {
 import type { TenantStore, MerchantUser, StorePlan, StoreStatus } from '../services/api/types'
 import {
   Store, Users, ShoppingBag, TrendingUp, Crown, Check,
-  Pause, Play, LogOut, ExternalLink, RefreshCw, LogIn, AlertCircle, Loader2, Zap,
+  Pause, Play, LogOut, ExternalLink, RefreshCw, LogIn, AlertCircle, Loader2,
 } from 'lucide-react'
 
 const PLANS: StorePlan[] = ['free_trial', 'starter', 'pro', 'vip']
@@ -459,28 +459,6 @@ function SuperAdminLogin({
     }
   }
 
-  // Quick demo login — fills the form + submits with the default
-  // super admin credentials. Useful for mobile testing where typing
-  // a long email + password is tedious.
-  const handleQuickDemo = async () => {
-    setError('')
-    setLoading(true)
-    try {
-      await onLogin('admin@lumiere.saas', 'admin12345')
-    } catch (err: any) {
-      const msg = err?.message
-      if (msg === 'INVALID_CREDENTIALS') {
-        setError('حساب المدير العام غير موجود — تأكد من تهيئة قاعدة البيانات (MONGODB_URI)')
-      } else if (msg === 'LOGIN_FAILED' || msg === 'Failed to fetch') {
-        setError('تعذّر الاتصال بالخادم — تأكد من تشغيل الـ API وإعداد MONGODB_URI')
-      } else {
-        setError(msg || 'فشل الدخول التجريبي')
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="min-h-screen grid place-items-center bg-[#FFFCF8] px-4 py-12">
       <div className="w-full max-w-sm">
@@ -499,7 +477,7 @@ function SuperAdminLogin({
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="admin@lumiere.saas"
+              placeholder="admin@example.com"
               dir="ltr"
               className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#A02A5B]"
               required
@@ -535,20 +513,6 @@ function SuperAdminLogin({
             {loading ? 'جاري الدخول...' : 'دخول المدير العام'}
           </button>
 
-          {/* Quick demo login — uses the default super admin account
-              created by seed-runner.ts on first DB init. Only shown in
-              dev so production deployments don't leak demo credentials
-              in the UI. */}
-          {import.meta.env.DEV && (
-            <button
-              type="button"
-              onClick={handleQuickDemo}
-              disabled={loading}
-              className="w-full bg-[#FFFBF0] border border-[#F0D9A8] text-[#8D6E3A] py-2.5 rounded-xl font-bold hover:bg-[#FFF3E0] transition text-xs flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <Zap size={12} /> دخول تجريبي سريع (admin@lumiere.saas)
-            </button>
-          )}
         </form>
 
         <div className="mt-4 text-center">
@@ -557,15 +521,8 @@ function SuperAdminLogin({
           </button>
         </div>
 
-        <div className="mt-3 text-center text-[11px] text-[#9A8A6B] bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-2">
-          {import.meta.env.DEV ? (
-            <>
-              <b>الحساب الافتراضي:</b><br />
-              admin@lumiere.saas / admin12345
-            </>
-          ) : (
-            <span>للوصول إلى لوحة المدير العام، يرجى التواصل مع إدارة المنصة.</span>
-          )}
+        <div className="mt-3 text-center text-[11px] text-[#9A8A6B]">
+          للوصول إلى لوحة المدير العام، يرجى التواصل مع إدارة المنصة.
         </div>
       </div>
     </div>
