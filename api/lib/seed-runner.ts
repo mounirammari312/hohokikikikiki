@@ -9,6 +9,7 @@
  * default demo store + super admin account.
  */
 
+import bcrypt from 'bcryptjs'
 import {
   ProductModel, WilayaModel, SettingsModel, DomainModel,
   TenantStoreModel, MerchantUserModel,
@@ -86,16 +87,15 @@ async function doPlatformSeed(): Promise<void> {
   // ─── Super admin account ───────────────────────────────────────────
   const existingAdmin = await MerchantUserModel.findOne({ email: DEFAULT_SUPER_ADMIN_EMAIL }).lean()
   if (!existingAdmin) {
-    // NOTE: plain-text hash placeholder; the platform should swap this
-    // out for a real bcrypt hash before production. The auth handler
-    // accepts either a bcrypt-style hash OR a plaintext password marked
-    // with the `PLAIN:` prefix so the demo works out-of-the-box.
+    // Use a real bcrypt hash so the stored credentials are secure
+    // (the PLAIN: dev placeholder is no longer acceptable).
+    const hash = await bcrypt.hash(DEFAULT_SUPER_ADMIN_PASSWORD, 10)
     await MerchantUserModel.create({
       _id: 'su_admin',
       fullName: 'Super Admin',
       email: DEFAULT_SUPER_ADMIN_EMAIL,
       phone: '0550 12 34 56',
-      passwordHash: 'PLAIN:' + DEFAULT_SUPER_ADMIN_PASSWORD,
+      passwordHash: hash,
       role: 'super_admin',
       storeIds: [DEFAULT_STORE_ID],
       createdAt: new Date().toISOString(),

@@ -23,6 +23,14 @@ import { getToken } from '../../context/TenantContext'
 const memCache = new Map<string, { data: any; ts: number }>()
 const MEM_TTL = 30_000
 
+/** Build a per-tenant cache key so two stores hitting the same
+ *  API path (e.g. `/api/products`) don't share a cache entry.
+ *  We use the active store slug/id as a discriminator. */
+function getCacheKey(path: string): string {
+  const slug = getActiveStoreSlug() || getActiveStoreId() || 'default'
+  return `${path}__${slug}`
+}
+
 function isBrowser() {
   return typeof window !== 'undefined' && typeof localStorage !== 'undefined'
 }
@@ -143,12 +151,13 @@ async function cachedGet<T>(
   fallback: T,
   opts: { onRefetch?: (data: T) => void } = {}
 ): Promise<T> {
-  const mem = memCache.get(path)
+  const cacheKey = getCacheKey(path)
+  const mem = memCache.get(cacheKey)
   const now = Date.now()
   if (mem && now - mem.ts < MEM_TTL) {
     if (now - mem.ts > 10_000) {
       apiFetch<T>(path).then(fresh => {
-        memCache.set(path, { data: fresh, ts: Date.now() })
+        memCache.set(cacheKey, { data: fresh, ts: Date.now() })
         lsSet(lsKey, fresh)
         opts.onRefetch?.(fresh)
       }).catch(() => {})
@@ -157,13 +166,13 @@ async function cachedGet<T>(
   }
   try {
     const fresh = await apiFetch<T>(path)
-    memCache.set(path, { data: fresh, ts: Date.now() })
+    memCache.set(cacheKey, { data: fresh, ts: Date.now() })
     lsSet(lsKey, fresh)
     return fresh
   } catch {
     const cached = lsGet<T | null>(lsKey, null)
     if (cached) {
-      memCache.set(path, { data: cached, ts: now })
+      memCache.set(cacheKey, { data: cached, ts: now })
       return cached
     }
     if (mem?.data) return mem.data
@@ -171,7 +180,7 @@ async function cachedGet<T>(
   }
 }
 
-function invalidate(path: string) { memCache.delete(path) }
+function invalidate(path: string) { memCache.delete(getCacheKey(path)) }
 export function invalidateAll() { memCache.clear() }
 
 // ─── Public API: Products ───────────────────────────────────────────────────
@@ -373,7 +382,7 @@ export async function updateStoreApi(id: string, patch: Partial<TenantStore>): P
 // super-admin functions will still send the token.
 function authHeader(): Record<string, string> {
   if (!isBrowser()) return {}
-  const token = localStorage.getItem('lumiere_token') || localStorage.getItem('lumiere_saas_token')
+  const token = localStorage.getItem('lumiere_token')
   if (!token) return {}
   return {
     'Authorization': `Bearer ${token}`,

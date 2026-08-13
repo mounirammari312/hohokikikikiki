@@ -218,8 +218,15 @@ export default function ProductDetail(){
     if(e){ e.preventDefault(); e.stopPropagation() }
     if(!product) return
     const base = window.location.origin
-    const vPart = selectedVariant ? `?variant=${selectedVariant.id}` : ''
-    const url = `${base}/product/${product._id}${vPart}#order`
+    // Preserve the ?store= param so the shared link stays scoped to the
+    // current tenant (important on vercel.app / localhost). If a variant
+    // is selected, include both `?variant=` and `&store=`.
+    const storeSlug = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('store') : null
+    let queryParams = ''
+    if (selectedVariant && storeSlug) queryParams = `?variant=${selectedVariant.id}&store=${encodeURIComponent(storeSlug)}`
+    else if (selectedVariant) queryParams = `?variant=${selectedVariant.id}`
+    else if (storeSlug) queryParams = `?store=${encodeURIComponent(storeSlug)}`
+    const url = `${base}/product/${product._id}${queryParams}#order`
     setShareUrl(url)
     try{
       if(navigator.share && window.innerWidth < 768){

@@ -120,9 +120,14 @@ function genId(prefix: string) {
   return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
 }
 
-/** Generate a stateless session token (base64 of `userId:passwordHash`). */
+/** Generate a stateless session token (base64 of `userId:ts:passwordHash`).
+ *  The `ts` is the creation timestamp (base36) so we can enforce a
+ *  7-day expiry on the server without a session table. The hash is
+ *  included so changing the user's password invalidates all outstanding
+ *  tokens (since the stored hash will no longer match). */
 function makeToken(user: any) {
-  const raw = `${user._id}:${user.passwordHash}`
+  const ts = Date.now().toString(36)
+  const raw = `${user._id}:${ts}:${user.passwordHash}`
   if (typeof btoa === 'function') return btoa(raw)
   return Buffer.from(raw).toString('base64')
 }
@@ -167,13 +172,17 @@ function extractToken(req: any): string | null {
 /** Decode a session token and return the matching MerchantUser doc.
  *  Supports all the header formats listed in `extractToken()`.
  *
- *  IMPORTANT: we split on the FIRST `:` only — not on every `:`. This
- *  is critical because bcrypt password hashes contain `:` characters
- *  (e.g. `$2a$10$N9qo8uLOickgx2ZMRZoMy...:...`). The old code used
- *  `raw.split(':')` which would split the hash into multiple fragments
- *  and fail the `user.passwordHash !== hash` comparison → 401 even
- *  for a valid token. Using `indexOf(':')` + `slice()` keeps the hash
- *  intact. */
+ *  The token is `base64(userId:ts:hash)`. We split on the FIRST `:`
+ *  to get the userId, then on the NEXT `:` to get the timestamp — the
+ *  remainder is the passwordHash, which may itself contain `:`
+ *  characters (e.g. bcrypt hashes contain `$` but not `:`, but a
+ *  `PLAIN:...` placeholder does). The 7-day expiry is enforced here
+ *  so a leaked token stops working without a session table.
+ *
+ *  IMPORTANT: we split on the first two `:` only — not on every `:`.
+ *  This is critical because bcrypt password hashes contain `$`
+ *  characters but a `PLAIN:plaintext` placeholder would have a `:`
+ *  too. Using indexOf + slice keeps the hash intact. */
 async function userFromToken(req: any) {
   const token = extractToken(req)
   if (!token) return null
@@ -181,11 +190,19 @@ async function userFromToken(req: any) {
     const raw = typeof atob === 'function'
       ? atob(String(token))
       : Buffer.from(String(token), 'base64').toString('utf8')
-    const colonIdx = raw.indexOf(':')
-    if (colonIdx === -1) return null
-    const userId = raw.slice(0, colonIdx)
-    const hash = raw.slice(colonIdx + 1)
+    // Find the SECOND colon (userId:ts:hash) — the hash may contain colons.
+    const firstColon = raw.indexOf(':')
+    if (firstColon === -1) return null
+    const userId = raw.slice(0, firstColon)
+    const rest = raw.slice(firstColon + 1)
+    const secondColon = rest.indexOf(':')
+    if (secondColon === -1) return null
+    const ts = parseInt(rest.slice(0, secondColon), 36)
+    const hash = rest.slice(secondColon + 1)
     if (!userId || !hash) return null
+    // Check token age (7 days = 604800000 ms). A NaN `ts` (very old
+    // tokens without a timestamp) is treated as expired.
+    if (!Number.isFinite(ts) || Date.now() - ts > 7 * 24 * 60 * 60 * 1000) return null
     const user = await MerchantUserModel.findById(userId).lean()
     if (!user || user.passwordHash !== hash) return null
     return user
@@ -229,14 +246,17 @@ async function autoSeedSuperAdmin(email: string, password: string): Promise<any 
   }
 
   if (!user) {
-    // Create the super admin account now
+    // Create the super admin account now. Use bcrypt so the stored
+    // hash is real (not the PLAIN: dev placeholder).
     const now = new Date().toISOString()
+    const bcrypt = await import('bcryptjs')
+    const hash = await bcrypt.hash(match.password, 10)
     const newUser = await MerchantUserModel.create({
       _id: match._id,
       fullName: match.fullName,
       email: match.email,
       phone: '',
-      passwordHash: 'PLAIN:' + match.password,  // dev-grade; matches verifyPassword's PLAIN: format
+      passwordHash: hash,
       role: 'super_admin',
       storeIds: ['store_default'],
       createdAt: now,
@@ -246,22 +266,13 @@ async function autoSeedSuperAdmin(email: string, password: string): Promise<any 
     return newUser.toObject ? newUser.toObject() : newUser
   }
 
-  // If the user exists but isn't a super_admin, upgrade them (defensive)
+  // If the user exists but isn't a super_admin, upgrade them (defensive).
+  // We do NOT reset their password here — the platform owner can use the
+  // normal "forgot password" flow if they forgot it.
   if (user.role !== 'super_admin') {
     await MerchantUserModel.findByIdAndUpdate(user._id, { $set: { role: 'super_admin' } })
     user = { ...user, role: 'super_admin' }
     console.log(`[auto-seed] upgraded user ${match.email} to super_admin`)
-  }
-
-  // If the password doesn't match (e.g. user changed it), reset it to
-  // the default so the platform owner can always get back in.
-  const ok = await verifyPassword(user, password)
-  if (!ok) {
-    await MerchantUserModel.findByIdAndUpdate(user._id, {
-      $set: { passwordHash: 'PLAIN:' + match.password, updatedAt: new Date().toISOString() },
-    })
-    user = { ...user, passwordHash: 'PLAIN:' + match.password }
-    console.log(`[auto-seed] reset password for ${match.email}`)
   }
 
   return user
@@ -346,13 +357,17 @@ export default async function handler(req: any, res: any) {
         const user = await userFromToken(req)
         if (!user) return reply(res, { error: 'UNAUTHORIZED' }, 401)
         if (user.role !== 'super_admin') return reply(res, { error: 'FORBIDDEN — super_admin only' }, 403)
+        // Pass the resolved user to the route handler so it doesn't
+        // call userFromToken again (double DB hit).
+        return reply(res, ...(await superAdminRoute(segments, method, req, query, user)))
       }
       if (segments[0] === 'stores') {
         const user = await userFromToken(req)
         if (!user) return reply(res, { error: 'UNAUTHORIZED' }, 401)
+        return reply(res, ...(await storesRoute(segments, method, req, query, user)))
       }
-      if (segments[0] === 'stores') return reply(res, ...(await storesRoute(segments, method, req, query)))
-      return reply(res, ...(await superAdminRoute(segments, method, req, query)))
+      // Unreachable (segments[0] already matched above) but keeps TS happy.
+      return reply(res, { error: 'NOT_FOUND' }, 404)
     }
 
     // ─── Tenant-scoped routes (storefront + merchant dashboard) ──────
@@ -564,7 +579,7 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
       fullName,
       email: String(email).toLowerCase().trim(),
       phone: phone || '',
-      passwordHash: 'PLAIN:' + password, // dev-grade; swap for bcrypt in prod
+      passwordHash: await (await import('bcryptjs')).hash(password, 10),
       role: 'merchant',
       storeIds: [storeId],
       createdAt: now,
@@ -601,8 +616,11 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
 //  STORES ROUTES (merchant's own store management)
 // ═══════════════════════════════════════════════════════════════════════════
 
-async function storesRoute(segments: string[], method: string, req: any, query: URLSearchParams): Promise<[any, number]> {
-  const user = await userFromToken(req)
+async function storesRoute(segments: string[], method: string, req: any, query: URLSearchParams, preResolvedUser?: any): Promise<[any, number]> {
+  // Use the pre-resolved user when the main handler already looked
+  // it up (avoids a second DB hit); otherwise fall back to resolving
+  // it here for direct calls.
+  const user = preResolvedUser || await userFromToken(req)
   if (!user) return [{ error: 'UNAUTHORIZED' }, 401]
 
   // GET /api/stores — list stores the current user owns
@@ -674,8 +692,8 @@ async function storesRoute(segments: string[], method: string, req: any, query: 
 //  SUPER-ADMIN ROUTES
 // ═══════════════════════════════════════════════════════════════════════════
 
-async function superAdminRoute(segments: string[], method: string, req: any, query: URLSearchParams): Promise<[any, number]> {
-  const user = await userFromToken(req)
+async function superAdminRoute(segments: string[], method: string, req: any, query: URLSearchParams, preResolvedUser?: any): Promise<[any, number]> {
+  const user = preResolvedUser || await userFromToken(req)
   if (!user) return [{ error: 'UNAUTHORIZED' }, 401]
   if (user.role !== 'super_admin') return [{ error: 'FORBIDDEN — super_admin only' }, 403]
 
@@ -857,10 +875,12 @@ async function createOrder(ctx: RouteCtx) {
     }
   }
 
-  // Per-store order number sequence
-  const count = await OrderModel.countDocuments({ storeId: ctx.storeId })
+  // Per-store random order number (no longer sequential — prevents
+  // enumeration of other stores' order numbers and avoids collisions
+  // when orders are deleted).
   const prefix = (ctx.store?.slug || 'store').slice(0, 3).toUpperCase()
-  const orderNumber = prefix + '-' + (1000 + count + 1).toString()
+  const randomSuffix = Math.random().toString(36).slice(2, 8).toUpperCase()
+  const orderNumber = prefix + '-' + randomSuffix + Date.now().toString(36).slice(-4).toUpperCase()
 
   const order = {
     _id: genId('ord'),
@@ -957,7 +977,13 @@ async function updateWilaya(ctx: RouteCtx) {
 
 async function getSettings(ctx: RouteCtx) {
   let doc = await SettingsModel.findById(settingsDocId(ctx.storeId)).lean()
-  if (!doc) {
+  // Only auto-seed the settings doc when the request is from an
+  // authenticated merchant (dashboard). Public storefront reads
+  // (no ctx.user) should NOT trigger a write — otherwise a public
+  // bot hitting /api/settings on a fresh store would create an
+  // empty settings doc and spam the DB. The client falls back to
+  // defaultSettings when null is returned.
+  if (!doc && ctx.user) {
     await seedStoreData(ctx.storeId)
     doc = await SettingsModel.findById(settingsDocId(ctx.storeId)).lean()
   }

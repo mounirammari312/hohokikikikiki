@@ -56,12 +56,11 @@ interface TenantCtx {
 
 const Ctx = createContext<TenantCtx>(null as any)
 
-// We keep the token under TWO localStorage keys for backwards-compat:
-//   - 'lumiere_token'         (canonical key — used by the client's
-//                              `Authorization: Bearer <token>` header)
-//   - 'lumiere_saas_token'    (legacy key — read by older code paths
-//                              that still use `x-merchant-token`)
-// Both are written together in login() and cleared together in logout().
+// We keep the token under a SINGLE canonical localStorage key
+// (`lumiere_token`). The legacy `lumiere_saas_token` key is migrated
+// away once on app mount (see TenantProvider initializer below) and
+// then removed — keeping both keys in sync caused confusion when one
+// got cleared but not the other.
 const TOKEN_KEY = 'lumiere_token'
 const TOKEN_KEY_LEGACY = 'lumiere_saas_token'
 const USER_KEY = 'lumiere_saas_user'
@@ -69,11 +68,11 @@ const ACTIVE_STORE_KEY = 'lumiere_saas_active_store'
 const ACTIVE_SLUG_KEY = 'lumiere_saas_active_slug'
 
 /** Read the stored session token (or null).
- *  Checks the canonical key first, then falls back to the legacy key
- *  so existing sessions (logged in with the old code) keep working. */
+ *  Only the canonical key is checked — the legacy key is migrated
+ *  away once on mount (see TenantProvider) and not consulted here. */
 export function getToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY_LEGACY)
+    return localStorage.getItem(TOKEN_KEY)
   } catch { return null }
 }
 
@@ -145,6 +144,18 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [isPlatformHost, setIsPlatformHost] = useState(true)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<MerchantUser | null>(() => getCachedUser())
+
+  // One-time migration: copy the legacy `lumiere_saas_token` to the
+  // canonical `lumiere_token` key if the canonical key is empty. This
+  // keeps existing logged-in sessions working after the key cleanup.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(TOKEN_KEY) && localStorage.getItem(TOKEN_KEY_LEGACY)) {
+        localStorage.setItem(TOKEN_KEY, localStorage.getItem(TOKEN_KEY_LEGACY)!)
+        localStorage.removeItem(TOKEN_KEY_LEGACY)
+      }
+    } catch {}
+  }, [])
 
   // Resolve the tenant based on the current URL/hostname.
   // Resolution order (mirrors the server's resolveTenant in api/lib/tenant.ts):
@@ -233,13 +244,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       throw new Error(body.error || 'LOGIN_FAILED')
     }
     const { user, token, storeIds } = await res.json()
-    // Save the token under BOTH keys so all client code paths can find it.
-    // `lumiere_token` is the canonical key used by client.ts when building
-    // the `Authorization: Bearer <token>` header. `lumiere_saas_token`
-    // is the legacy key kept for backwards-compat.
+    // Save the token under the canonical key only. The legacy
+    // `lumiere_saas_token` key is no longer written (it was the source
+    // of stale-token bugs where one code path cleared it and another
+    // didn't).
     try {
       localStorage.setItem(TOKEN_KEY, token)
-      localStorage.setItem(TOKEN_KEY_LEGACY, token)
       localStorage.setItem(USER_KEY, JSON.stringify(user))
     } catch {}
     setUser(user)
@@ -254,6 +264,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     try {
       localStorage.removeItem(TOKEN_KEY)
+      // Also clear any leftover legacy key from older sessions.
       localStorage.removeItem(TOKEN_KEY_LEGACY)
       localStorage.removeItem(USER_KEY)
     } catch {}

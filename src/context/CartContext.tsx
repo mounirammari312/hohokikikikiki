@@ -19,6 +19,20 @@ interface CartCtx {
 
 const Ctx = createContext<CartCtx>(null as any)
 
+/** Per-store cart key. Caches the cart under
+ *  `lumiere_cart__<slug>` so carts don't leak across stores on
+ *  vercel.app / localhost (where multiple stores share the same
+ *  origin). Falls back to `'default'` when no store context is set. */
+function getCartKey() {
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const slug = params.get('store') || params.get('storeId') || 'default'
+    return `lumiere_cart__${slug}`
+  } catch {
+    return 'lumiere_cart__default'
+  }
+}
+
 function getVariantLabel(v?: Variant){
   if(!v) return undefined
   const parts=[]
@@ -29,9 +43,42 @@ function getVariantLabel(v?: Variant){
 
 export function CartProvider({children}:{children:React.ReactNode}){
   const [items, setItems] = useState<CartItem[]>(()=>{
-    try{ return JSON.parse(localStorage.getItem('lumiere_cart')||'[]') }catch{return []}
+    try {
+      const key = getCartKey()
+      const stored = localStorage.getItem(key)
+      if (stored) return JSON.parse(stored)
+      // Backwards-compat: fall back to the legacy global key so existing
+      // carts aren't lost on the first load after this change.
+      const legacy = localStorage.getItem('lumiere_cart')
+      return legacy ? JSON.parse(legacy) : []
+    } catch { return [] }
   })
-  useEffect(()=>{ localStorage.setItem('lumiere_cart', JSON.stringify(items)) },[items])
+
+  // Persist the cart to BOTH the per-store key (new) AND the legacy
+  // global key (so existing carts aren't lost for users who later
+  // visit a different store from the same browser).
+  useEffect(()=>{
+    try {
+      const key = getCartKey()
+      localStorage.setItem(key, JSON.stringify(items))
+      // Also write to the legacy key for backwards compat.
+      localStorage.setItem('lumiere_cart', JSON.stringify(items))
+    } catch {}
+  },[items])
+
+  // Reload the cart from the new per-store key whenever the URL's
+  // ?store= / ?storeId= param changes (e.g. when the user switches
+  // stores on the same origin).
+  useEffect(()=>{
+    const onPop = () => {
+      try {
+        const stored = localStorage.getItem(getCartKey())
+        setItems(stored ? JSON.parse(stored) : [])
+      } catch { setItems([]) }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   const addToCart=(p:Product, qty=1, variantId?: string)=>{
     const variant = variantId ? p.variants?.find(v=> v.id===variantId) : undefined

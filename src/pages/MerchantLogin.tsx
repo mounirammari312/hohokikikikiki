@@ -84,9 +84,11 @@ export default function MerchantLogin() {
         <div className="mt-4 text-center text-xs text-[#9A8A6B]">
           ليس لديك حساب؟ <a href="/" className="text-[#A02A5B] font-bold hover:underline">أنشئ متجرك الآن</a>
         </div>
-        <div className="mt-3 text-center text-[11px] text-[#9A8A6B] bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-2">
-          <b>للتجربة:</b> admin@lumiere.saas / admin12345
-        </div>
+        {import.meta.env.DEV && (
+          <div className="mt-3 text-center text-[11px] text-[#9A8A6B] bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-2">
+            <b>للتجربة:</b> admin@lumiere.saas / admin12345
+          </div>
+        )}
       </div>
     </div>
   )

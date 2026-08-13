@@ -84,12 +84,12 @@ export default function PlatformLanding() {
     setLoading(true)
     try {
       const res = await authRegister(form)
-      // Cache the token + user — TenantContext picks it up.
-      // Write the token under BOTH keys (canonical `lumiere_token` +
-      // legacy `lumiere_saas_token`) so all client code paths can find it.
+      // Cache the token + user — TenantContext picks it up. We only
+      // write the canonical `lumiere_token` key (the legacy
+      // `lumiere_saas_token` key has been retired to avoid stale-token
+      // bugs where one code path cleared it and another didn't).
       try {
         localStorage.setItem('lumiere_token', res.token)
-        localStorage.setItem('lumiere_saas_token', res.token)
         localStorage.setItem('lumiere_saas_user', JSON.stringify(res.user))
         localStorage.setItem('lumiere_saas_active_store', res.storeId)
       } catch {}
@@ -136,7 +136,19 @@ export default function PlatformLanding() {
     setLoading(true)
     try {
       await login(form.email, form.password)
-      nav('/super-admin')
+      // Branch on role: super_admin → /super-admin dashboard,
+      // merchant → their store (using the cached slug/storeId that
+      // login() wrote to localStorage).
+      const cachedUser = (() => { try { return JSON.parse(localStorage.getItem('lumiere_saas_user') || '{}') } catch { return {} } })()
+      if (cachedUser.role === 'super_admin') {
+        nav('/super-admin')
+      } else {
+        const slug = localStorage.getItem('lumiere_saas_active_slug')
+        const sid = localStorage.getItem('lumiere_saas_active_store')
+        if (slug) window.location.href = `/?store=${encodeURIComponent(slug)}`
+        else if (sid) window.location.href = `/?storeId=${encodeURIComponent(sid)}`
+        else nav('/')
+      }
     } catch (err: any) {
       setError(err?.message || 'فشل تسجيل الدخول')
     } finally {

@@ -499,8 +499,18 @@ export default function Admin() {
                   onClick={async () => {
                     const domain = customDomainInput.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
                     if (!domain) { showToast('أدخل عنوان النطاق'); return }
+                    // Try to get storeId from localStorage or URL. The
+                    // TenantContext sets storeId to null when the user
+                    // is browsing via ?store=<slug>, so the local `storeId`
+                    // prop is often null here — fall back to the cached
+                    // active store id (set on login) or the ?storeId= URL
+                    // param before giving up.
+                    const sid = (typeof window !== 'undefined'
+                      ? (localStorage.getItem('lumiere_saas_active_store') || new URLSearchParams(window.location.search).get('storeId'))
+                      : null) || storeId || ''
+                    if (!sid) { showToast('تعذّر تحديد معرّف المتجر — سجّل الدخول مجدّداً'); return }
                     try {
-                      await updateStoreApi(storeId || '', { customDomain: domain } as any)
+                      await updateStoreApi(sid, { customDomain: domain } as any)
                       setSettings(prev => ({ ...prev, storeName: prev.storeName }))
                       showToast(`تم ربط النطاق ${domain} ✓ — قد يستغرق تفعيل DNS من 5 دقائق إلى 24 ساعة`)
                     } catch (err: any) {

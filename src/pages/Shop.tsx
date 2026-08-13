@@ -16,14 +16,11 @@ export default function Shop(){
 
   useEffect(()=> setSearch(q),[q])
   useEffect(()=>{
-    const sync=()=>{
-      setProducts([...getProducts()])
-      setDomain(getActiveDomain())
-    }
-    window.addEventListener('focus', sync)
-    window.addEventListener('storage', sync)
-    const id=setInterval(sync, 1500)
-    return()=>{ window.removeEventListener('focus', sync); window.removeEventListener('storage', sync); clearInterval(id)}
+    // Sync once on mount — the service layer keeps its own cache fresh
+    // via background re-fetch, so we no longer need to poll every 1.5s
+    // (which caused redundant re-renders + battery drain on mobile).
+    setProducts([...getProducts()])
+    setDomain(getActiveDomain())
   },[])
 
   const domainCatKeys = domain.categories.map(c=>c.key)

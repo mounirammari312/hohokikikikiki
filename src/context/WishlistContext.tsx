@@ -12,14 +12,54 @@ interface WishlistCtx {
 
 const Ctx = createContext<WishlistCtx>(null as any)
 
+/** Per-store wishlist key. Caches the wishlist under
+ *  `lumiere_wishlist__<slug>` so wishlists don't leak across stores
+ *  on vercel.app / localhost. Falls back to `'default'` when no
+ *  store context is set. */
+function getWishlistKey() {
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const slug = params.get('store') || params.get('storeId') || 'default'
+    return `lumiere_wishlist__${slug}`
+  } catch {
+    return 'lumiere_wishlist__default'
+  }
+}
+
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<Product[]>(() => {
-    try { return JSON.parse(localStorage.getItem('lumiere_wishlist') || '[]') } catch { return [] }
+    try {
+      const key = getWishlistKey()
+      const stored = localStorage.getItem(key)
+      if (stored) return JSON.parse(stored)
+      // Backwards-compat: fall back to the legacy global key.
+      const legacy = localStorage.getItem('lumiere_wishlist')
+      return legacy ? JSON.parse(legacy) : []
+    } catch { return [] }
   })
 
-  useEffect(() => { localStorage.setItem('lumiere_wishlist', JSON.stringify(items)) }, [items])
+  // Persist to BOTH the per-store key (new) AND the legacy global key.
+  useEffect(() => {
+    try {
+      const key = getWishlistKey()
+      localStorage.setItem(key, JSON.stringify(items))
+      localStorage.setItem('lumiere_wishlist', JSON.stringify(items))
+    } catch {}
+  }, [items])
 
-  // sync across tabs
+  // Reload the wishlist when the store in the URL changes.
+  useEffect(() => {
+    const onPop = () => {
+      try {
+        const stored = localStorage.getItem(getWishlistKey())
+        setItems(stored ? JSON.parse(stored) : [])
+      } catch { setItems([]) }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  // sync across tabs (uses the legacy key so existing tabs keep working)
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'lumiere_wishlist' && e.newValue) {

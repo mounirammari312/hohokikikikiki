@@ -3,14 +3,21 @@ import { CheckCircle, Truck, Phone, Gift, ArrowLeft } from 'lucide-react'
 import { getOrder } from '../services/api/orders'
 import { formatDZD } from '../lib/utils'
 import { useEffect, useState } from 'react'
+import { getSettings } from '../services/api/settings'
 import type { Order } from '../services/api/types'
 
 export default function ThankYou(){
   const {orderNumber}=useParams()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
+  // Dynamic store info so the ThankYou page reflects the current
+  // tenant's branding (phone, storeName, whatsapp) instead of the
+  // hardcoded demo values.
+  const [store, setStore] = useState(() => getSettings())
 
   useEffect(()=>{
+    // Refresh settings from the API in case the cache wasn't populated yet.
+    setStore(getSettings())
     if(!orderNumber){ setLoading(false); return }
     getOrder(orderNumber).then(o => { setOrder(o || null); setLoading(false) }).catch(()=> setLoading(false))
   }, [orderNumber])
@@ -69,8 +76,8 @@ export default function ThankYou(){
               <div className="absolute -top-6 -left-6 w-20 h-20 bg-[#A02A5B]/10 rounded-full blur-xl"/>
               <div className="font-bold text-sm flex items-center gap-2">ماذا بعد؟ <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B]"></span></div>
               <ol className="mt-2 space-y-1.5 text-xs leading-6 text-white/80 list-decimal list-inside">
-                <li>مكالمة تأكيد من رقمنا 0550 12 34 56 — يرجى الرد</li>
-                <li>تجهيز الطلب وتغليفه في علبة LUMIÈRE المخملية</li>
+                <li>مكالمة تأكيد من رقمنا {store.phone} — يرجى الرد</li>
+                <li>تجهيز الطلب وتغليفه في علبة {store.storeName} المخملية</li>
                 <li>الشحن عبر Yalidine/Anderson — تتبع برسالة SMS</li>
                 <li>الدفع نقداً عند التسليم — بدون رسوم إضافية</li>
               </ol>
@@ -78,9 +85,9 @@ export default function ThankYou(){
 
             <div className="flex gap-3">
               <Link to="/shop" className="flex-1 bg-[#1A1A1E] text-white rounded-full py-3 text-center font-bold flex items-center justify-center gap-2 hover:bg-black transition"><ArrowLeft size={16}/> متابعة التسوق</Link>
-              <a href={`https://wa.me/213550123456?text=استفسار عن الطلب ${order.orderNumber}`} target="_blank" className="flex-1 bg-[#25D366] text-white rounded-full py-3 text-center font-bold hover:bg-[#1DA851] transition">واتساب</a>
+              <a href={`https://wa.me/${store.whatsapp}?text=${encodeURIComponent('استفسار عن الطلب ' + order.orderNumber)}`} target="_blank" className="flex-1 bg-[#25D366] text-white rounded-full py-3 text-center font-bold hover:bg-[#1DA851] transition">واتساب</a>
             </div>
-            <p className="text-center text-[11px] text-[#9A8A6B] flex items-center justify-center gap-1.5"><span className="w-1 h-1 rounded-full bg-[#A02A5B]"></span> هل لديك سؤال؟ اتصلي بنا 0550 12 34 56 • من 9ص إلى 8م</p>
+            <p className="text-center text-[11px] text-[#9A8A6B] flex items-center justify-center gap-1.5"><span className="w-1 h-1 rounded-full bg-[#A02A5B]"></span> هل لديك سؤال؟ اتصلي بنا {store.phone} • من 9ص إلى 8م</p>
           </div>
         </div>
       </div>

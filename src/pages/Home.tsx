@@ -39,15 +39,12 @@ export default function Home(){
     // route — ScrollToTop now handles general route restoration, but keep
     // this as a defensive measure.
     window.scrollTo({top:0, left:0, behavior:'auto'})
-    const sync=()=>{
-      setProducts([...getProducts()])
-      setStore(getSettings())
-      setDomain(getActiveDomain())
-    }
-    window.addEventListener('focus', sync)
-    window.addEventListener('storage', sync)
-    const id=setInterval(sync, 1500)
-    return()=>{ window.removeEventListener('focus', sync); window.removeEventListener('storage', sync); clearInterval(id)}
+    // Sync once on mount — the service layer keeps its own cache fresh
+    // via background re-fetch, so we no longer need to poll every 1.5s
+    // (which caused redundant re-renders + battery drain on mobile).
+    setProducts([...getProducts()])
+    setStore(getSettings())
+    setDomain(getActiveDomain())
   },[])
   return (
     <div className="min-h-screen" style={{background: store.bgColor || "#FFFCF8", color: store.textColor || "#1A1A1E"}}>

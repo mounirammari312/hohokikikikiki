@@ -20,12 +20,17 @@ export default function Cart(){
   const shipping = wilaya ? (deliveryType==='home'? wilaya.deliveryHome: wilaya.deliveryDesk):0
   const grand = total + shipping
 
+  // Preserve ?store= in all links so the cart stays scoped to the
+  // current tenant on vercel.app / localhost.
+  const storeParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('store') : null
+  const storeQuery = storeParam ? `?store=${encodeURIComponent(storeParam)}` : ''
+
   if(items.length===0) return (
     <div className="max-w-[1280px] mx-auto px-4 py-16 text-center bg-[#FFFCF8] min-h-[60vh]">
       <div className="w-20 h-20 rounded-full bg-white border border-[#F6C0D4]/40 grid place-items-center mx-auto shadow-sm relative"><ShoppingBag size={28} className="text-[#C9A96A]"/><span className="absolute translate-x-6 -translate-y-6 w-2 h-2 rounded-full bg-[#A02A5B]"></span></div>
       <h2 className="text-xl font-bold mt-4">سلة التسوق فارغة</h2>
       <p className="text-sm text-[#9A8A6B] mt-1">اكتشف كولكشن 2026 وأضف قطعك المفضلة</p>
-      <Link to="/shop" className="inline-block mt-4 bg-[#1A1A1E] text-white px-6 py-3 rounded-full font-bold hover:bg-black transition">تسوّق الآن</Link>
+      <Link to={`/shop${storeQuery}`} className="inline-block mt-4 bg-[#1A1A1E] text-white px-6 py-3 rounded-full font-bold hover:bg-black transition">تسوّق الآن</Link>
     </div>
   )
 
@@ -61,7 +66,7 @@ export default function Cart(){
                 <div key={product._id + '::' + (variantId||'')} className="bg-white border border-[#EDE6D8] rounded-2xl p-3 flex gap-3">
                   <img src={variant?.image || product.images[0]} className="w-20 h-20 rounded-xl object-cover"/>
                   <div className="flex-1 min-w-0">
-                    <Link to={`/product/${product._id}`} className="font-bold text-sm text-[#1A1A1E] hover:text-[#C9A96A] line-clamp-1">{product.nameAr}</Link>
+                    <Link to={`/product/${product._id}${storeQuery}`} className="font-bold text-sm text-[#1A1A1E] hover:text-[#C9A96A] line-clamp-1">{product.nameAr}</Link>
                     <div className="text-xs text-[#9A8A6B] truncate">{product.materialAr}</div>
                     {variantLabel && <div className="text-xs font-bold mt-1 flex items-center gap-1.5"><span className="bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] px-2 py-0.5 rounded-full flex items-center gap-1">{variant?.colorHex && <span className="w-3 h-3 rounded-full border border-black/10" style={{background:variant.colorHex}}></span>}{variantLabel}</span> {variant?.priceAdjustment ? <span className="text-[11px]">{variant.priceAdjustment>0? '+' : ''}{formatDZD(variant.priceAdjustment)}</span>:null}</div>}
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -79,7 +84,7 @@ export default function Cart(){
               )
             })}
           </div>
-          <Link to="/shop" className="inline-flex items-center gap-2 mt-4 text-sm font-bold border border-[#EDE6D8] bg-white px-4 py-2 rounded-full hover:bg-[#1A1A1E] hover:text-white transition"><ArrowLeft size={14}/> متابعة التسوق</Link>
+          <Link to={`/shop${storeQuery}`} className="inline-flex items-center gap-2 mt-4 text-sm font-bold border border-[#EDE6D8] bg-white px-4 py-2 rounded-full hover:bg-[#1A1A1E] hover:text-white transition"><ArrowLeft size={14}/> متابعة التسوق</Link>
         </div>
 
         <div className="space-y-4">

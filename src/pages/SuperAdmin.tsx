@@ -73,10 +73,10 @@ export default function SuperAdmin() {
         return
       }
       // If there's no token, there's nothing to validate — show the login form.
-      // Check both the canonical key (`lumiere_token`) and the legacy key
-      // (`lumiere_saas_token`) so existing sessions keep working.
+      // Only check the canonical key (`lumiere_token`); the legacy key has
+      // been retired (migrated once on app mount by TenantProvider).
       const token = typeof window !== 'undefined'
-        ? (localStorage.getItem('lumiere_token') || localStorage.getItem('lumiere_saas_token'))
+        ? localStorage.getItem('lumiere_token')
         : null
       if (!token) {
         if (!cancelled) setAuthChecked(true)
@@ -536,15 +536,19 @@ function SuperAdminLogin({
           </button>
 
           {/* Quick demo login — uses the default super admin account
-              created by seed-runner.ts on first DB init. */}
-          <button
-            type="button"
-            onClick={handleQuickDemo}
-            disabled={loading}
-            className="w-full bg-[#FFFBF0] border border-[#F0D9A8] text-[#8D6E3A] py-2.5 rounded-xl font-bold hover:bg-[#FFF3E0] transition text-xs flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            <Zap size={12} /> دخول تجريبي سريع (admin@lumiere.saas)
-          </button>
+              created by seed-runner.ts on first DB init. Only shown in
+              dev so production deployments don't leak demo credentials
+              in the UI. */}
+          {import.meta.env.DEV && (
+            <button
+              type="button"
+              onClick={handleQuickDemo}
+              disabled={loading}
+              className="w-full bg-[#FFFBF0] border border-[#F0D9A8] text-[#8D6E3A] py-2.5 rounded-xl font-bold hover:bg-[#FFF3E0] transition text-xs flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Zap size={12} /> دخول تجريبي سريع (admin@lumiere.saas)
+            </button>
+          )}
         </form>
 
         <div className="mt-4 text-center">
@@ -554,8 +558,14 @@ function SuperAdminLogin({
         </div>
 
         <div className="mt-3 text-center text-[11px] text-[#9A8A6B] bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-2">
-          <b>الحساب الافتراضي:</b><br />
-          admin@lumiere.saas / admin12345
+          {import.meta.env.DEV ? (
+            <>
+              <b>الحساب الافتراضي:</b><br />
+              admin@lumiere.saas / admin12345
+            </>
+          ) : (
+            <span>للوصول إلى لوحة المدير العام، يرجى التواصل مع إدارة المنصة.</span>
+          )}
         </div>
       </div>
     </div>

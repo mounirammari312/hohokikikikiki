@@ -20,6 +20,7 @@ import { ensureProducts, syncProducts } from './services/api/products'
 import { syncWilayas } from './services/api/wilayas'
 import { syncSettings } from './services/api/settings'
 import { syncDomains } from './services/api/domains'
+import { invalidateAll } from './services/api/client'
 
 /**
  * ─────────────────────────────────────────────────────────────────────────────
@@ -59,18 +60,24 @@ function TenantStorefront() {
   const hasExplicitSlug = !!urlParams.get('store')
   const hasTenantContext = !!storeId || !!storeSlug || hasExplicitStoreId || hasExplicitSlug
 
-  if (isPlatformHost && !hasTenantContext) {
-    return <PlatformLanding />
-  }
-
-  // Kick off the data syncs for the current tenant on mount
+  // Re-run the data syncs whenever the tenant changes. The `tenantKey`
+  // changes when the store changes (different ?store= slug, different
+  // ?storeId=, different subdomain, etc.) — this triggers a cache clear
+  // + re-sync so we never show one store's products on another store.
+  const tenantKey = storeId || storeSlug || 'default'
   useEffect(() => {
+    if (isPlatformHost && !hasTenantContext) return  // skip sync if no tenant
+    invalidateAll()
     void syncProducts()
     void syncWilayas()
     void syncSettings()
     void syncDomains()
     ensureProducts()
-  }, [])
+  }, [tenantKey])
+
+  if (isPlatformHost && !hasTenantContext) {
+    return <PlatformLanding />
+  }
 
   return (
     <>
