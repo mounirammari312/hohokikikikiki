@@ -43,9 +43,24 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 .rose-gradient { background: linear-gradient(135deg, #A02A5B 0%, #7A1F44 100%); }
 .rose-dot { background: radial-gradient(circle at 30% 30%, #C13B6F, #A02A5B); }
 
-/* Slider */
-.thumb-scroll { scrollbar-width: thin; scrollbar-color: #C9A96A #F5EFE6; }
-.thumb-scroll::-webkit-scrollbar { height: 6px; }
+/* Slider / horizontal scroll containers */
+.thumb-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary, #C9A96A) transparent;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+}
+.thumb-scroll::-webkit-scrollbar { height: 4px; }
+.thumb-scroll::-webkit-scrollbar-track { background: transparent; }
+.thumb-scroll::-webkit-scrollbar-thumb { background: var(--color-primary, #C9A96A); border-radius: 999px; }
+
+/* Hide scrollbar but keep scrollable (for chip rows that look cleaner without it) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 
 /* Shimmer for images */
 @keyframes shimmer { 0%{opacity:0.6} 50%{opacity:1} 100%{opacity:0.6} }

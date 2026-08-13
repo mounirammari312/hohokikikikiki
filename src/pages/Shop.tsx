@@ -68,11 +68,14 @@ export default function Shop(){
           </div>
         </div>
 
-        {/* Category chips: on mobile, allow horizontal scroll so the last chip
-            isn't cut off. On desktop, use flex-wrap as before. The padding-right
-            (RTL) / -mx-4 trick lets the chips scroll edge-to-edge on mobile
-            without the container padding cutting off the last chip. */}
-        <div className="mt-4 flex md:flex-wrap gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 thumb-scroll [&>button:last-child]:me-4 md:[&>button:last-child]:me-0">
+        {/* Category chips: horizontal scroll on mobile with momentum + snap.
+            Uses `overflow-x-auto` with `overscroll-containment` to prevent
+            scroll chaining. `snap-x` provides smooth snap-to-chip behavior.
+            `-webkit-overflow-scrolling: touch` enables momentum on iOS. */}
+        <div
+          className="mt-4 flex md:flex-wrap gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 thumb-scroll snap-x snap-mandatory overscroll-x-contain [&>button]:snap-start [&>button:last-child]:me-4 md:[&>button:last-child]:me-0"
+          style={{ WebkitOverflowScrolling: 'touch', scrollSnapType: 'x mandatory' }}
+        >
           <button type="button" onClick={()=>{const n=new URLSearchParams(params); n.delete('cat'); setParams(n)}} className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold border flex items-center gap-1.5 ${cat==='all' ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>الكل <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${cat==='all' ? 'bg-white text-[#1A1A1E]' : 'bg-[#1A1A1E] text-white'}`}>{products.length}</span></button>
           {domain.categories.map(c=> (
             <button key={c.key} type="button" onClick={()=>{const n=new URLSearchParams(params); n.set('cat',c.key); setParams(n)}} className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold border ${cat===c.key ? 'bg-[#A02A5B] text-white border-[#A02A5B] shadow shadow-[#A02A5B]/20' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>{c.labelAr} <span className="text-[10px] opacity-60 hidden md:inline">• {c.label}</span></button>

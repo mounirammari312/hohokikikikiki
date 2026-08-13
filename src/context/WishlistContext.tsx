@@ -1,3 +1,16 @@
+/**
+ * WishlistContext — fully per-store scoped.
+ *
+ * The wishlist is stored under `lumiere_wishlist__<storeSlug>` so that
+ * items added in Store A NEVER appear in Store B. When the user
+ * navigates to a different store (?store=xxx changes), the wishlist
+ * is reloaded from the new store's key.
+ *
+ * IMPORTANT: We do NOT write to any legacy global key. The old
+ * `lumiere_wishlist` key is only read ONCE on first load (migration)
+ * and then never touched again. This prevents cross-store leakage.
+ */
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import type { Product } from '../services/api/types'
 
@@ -12,11 +25,10 @@ interface WishlistCtx {
 
 const Ctx = createContext<WishlistCtx>(null as any)
 
-/** Per-store wishlist key. Caches the wishlist under
- *  `lumiere_wishlist__<slug>` so wishlists don't leak across stores
- *  on vercel.app / localhost. Falls back to `'default'` when no
- *  store context is set. */
-function getWishlistKey() {
+/** Get the per-store localStorage key for the wishlist.
+ *  Combines `?store=` and `?storeId=` to form a unique key per store.
+ *  If neither is present, uses 'default'. */
+function getWishlistKey(): string {
   try {
     const params = new URLSearchParams(window.location.search)
     const slug = params.get('store') || params.get('storeId') || 'default'
@@ -27,48 +39,64 @@ function getWishlistKey() {
 }
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<Product[]>(() => {
-    try {
-      const key = getWishlistKey()
-      const stored = localStorage.getItem(key)
-      if (stored) return JSON.parse(stored)
-      // Backwards-compat: fall back to the legacy global key.
-      const legacy = localStorage.getItem('lumiere_wishlist')
-      return legacy ? JSON.parse(legacy) : []
-    } catch { return [] }
-  })
+  const [items, setItems] = useState<Product[]>([])
 
-  // Persist to BOTH the per-store key (new) AND the legacy global key.
+  // Load wishlist from the per-store key on mount AND whenever the
+  // URL's ?store= / ?storeId= param changes.
   useEffect(() => {
-    try {
-      const key = getWishlistKey()
-      localStorage.setItem(key, JSON.stringify(items))
-      localStorage.setItem('lumiere_wishlist', JSON.stringify(items))
-    } catch {}
-  }, [items])
-
-  // Reload the wishlist when the store in the URL changes.
-  useEffect(() => {
-    const onPop = () => {
+    const loadWishlist = () => {
       try {
-        const stored = localStorage.getItem(getWishlistKey())
-        setItems(stored ? JSON.parse(stored) : [])
-      } catch { setItems([]) }
-    }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [])
-
-  // sync across tabs (uses the legacy key so existing tabs keep working)
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === 'lumiere_wishlist' && e.newValue) {
-        try { setItems(JSON.parse(e.newValue)) } catch {}
+        const key = getWishlistKey()
+        const stored = localStorage.getItem(key)
+        if (stored) {
+          setItems(JSON.parse(stored))
+          return
+        }
+        // One-time migration: if the per-store key doesn't exist but
+        // the legacy global key does, copy it (ONLY for 'default' store).
+        if (key === 'lumiere_wishlist__default') {
+          const legacy = localStorage.getItem('lumiere_wishlist')
+          if (legacy) {
+            const parsed = JSON.parse(legacy)
+            setItems(parsed)
+            localStorage.setItem(key, legacy)
+            return
+          }
+        }
+        setItems([])
+      } catch {
+        setItems([])
       }
     }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
+
+    // Load on mount
+    loadWishlist()
+
+    // Reload whenever the URL changes (popstate covers back/forward;
+    // we also poll location.search every 500ms to catch pushState
+    // changes from React Router <Link> clicks that don't fire popstate).
+    let lastSearch = window.location.search
+    const interval = setInterval(() => {
+      if (window.location.search !== lastSearch) {
+        lastSearch = window.location.search
+        loadWishlist()
+      }
+    }, 500)
+
+    window.addEventListener('popstate', loadWishlist)
+    return () => {
+      window.removeEventListener('popstate', loadWishlist)
+      clearInterval(interval)
+    }
   }, [])
+
+  // Persist to the per-store key ONLY (no legacy global key — that
+  // was the source of cross-store leakage).
+  useEffect(() => {
+    try {
+      localStorage.setItem(getWishlistKey(), JSON.stringify(items))
+    } catch {}
+  }, [items])
 
   const isWished = useCallback((id: string) => items.some(x => x._id === id), [items])
 
@@ -83,9 +111,17 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items])
 
-  const remove = useCallback((id: string) => setItems(prev => prev.filter(x => x._id !== id)), [])
+  const remove = useCallback((id: string) => {
+    setItems(prev => prev.filter(x => x._id !== id))
+  }, [])
+
   const clear = useCallback(() => setItems([]), [])
 
-  return <Ctx.Provider value={{ items, toggle, isWished, count: items.length, remove, clear }}>{children}</Ctx.Provider>
+  return (
+    <Ctx.Provider value={{ items, toggle, isWished, count: items.length, remove, clear }}>
+      {children}
+    </Ctx.Provider>
+  )
 }
+
 export const useWishlist = () => useContext(Ctx)

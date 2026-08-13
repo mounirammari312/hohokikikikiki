@@ -1,3 +1,17 @@
+/**
+ * CartContext — fully per-store scoped.
+ *
+ * The cart is stored under `lumiere_cart__<storeSlug>` so that items
+ * added in Store A NEVER appear in Store B's cart. When the user
+ * navigates to a different store (?store=xxx changes), the cart is
+ * reloaded from the new store's key.
+ *
+ * IMPORTANT: We do NOT write to any legacy global key. The old
+ * `lumiere_cart` key is only read ONCE on first load (migration for
+ * the default store) and then never touched again. This prevents
+ * cross-store cart leakage which was causing wrong-store orders.
+ */
+
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import type { Product, Variant } from '../services/api/types'
 import { Tracking } from '../services/tracking'
@@ -19,11 +33,18 @@ interface CartCtx {
 
 const Ctx = createContext<CartCtx>(null as any)
 
-/** Per-store cart key. Caches the cart under
- *  `lumiere_cart__<slug>` so carts don't leak across stores on
- *  vercel.app / localhost (where multiple stores share the same
- *  origin). Falls back to `'default'` when no store context is set. */
-function getCartKey() {
+function getVariantLabel(v?: Variant){
+  if(!v) return undefined
+  const parts=[]
+  if(v.colorAr || v.color) parts.push(v.colorAr || v.color || '')
+  if(v.size) parts.push(v.size)
+  return parts.filter(Boolean).join(' • ')
+}
+
+/** Get the per-store localStorage key for the cart.
+ *  Combines `?store=` and `?storeId=` to form a unique key per store.
+ *  If neither is present, uses 'default'. */
+function getCartKey(): string {
   try {
     const params = new URLSearchParams(window.location.search)
     const slug = params.get('store') || params.get('storeId') || 'default'
@@ -33,57 +54,69 @@ function getCartKey() {
   }
 }
 
-function getVariantLabel(v?: Variant){
-  if(!v) return undefined
-  const parts=[]
-  if(v.colorAr || v.color) parts.push(v.colorAr || v.color || '')
-  if(v.size) parts.push(v.size)
-  return parts.filter(Boolean).join(' • ')
-}
-
 export function CartProvider({children}:{children:React.ReactNode}){
-  const [items, setItems] = useState<CartItem[]>(()=>{
-    try {
-      const key = getCartKey()
-      const stored = localStorage.getItem(key)
-      if (stored) return JSON.parse(stored)
-      // Backwards-compat: fall back to the legacy global key so existing
-      // carts aren't lost on the first load after this change.
-      const legacy = localStorage.getItem('lumiere_cart')
-      return legacy ? JSON.parse(legacy) : []
-    } catch { return [] }
-  })
+  const [items, setItems] = useState<CartItem[]>([])
 
-  // Persist the cart to BOTH the per-store key (new) AND the legacy
-  // global key (so existing carts aren't lost for users who later
-  // visit a different store from the same browser).
+  // Load cart from the per-store key on mount AND whenever the
+  // URL's ?store= / ?storeId= param changes.
+  useEffect(() => {
+    const loadCart = () => {
+      try {
+        const key = getCartKey()
+        const stored = localStorage.getItem(key)
+        if (stored) {
+          setItems(JSON.parse(stored))
+          return
+        }
+        // One-time migration: if the per-store key doesn't exist but
+        // the legacy global key does, copy it (ONLY for 'default' store).
+        if (key === 'lumiere_cart__default') {
+          const legacy = localStorage.getItem('lumiere_cart')
+          if (legacy) {
+            const parsed = JSON.parse(legacy)
+            setItems(parsed)
+            localStorage.setItem(key, legacy)
+            return
+          }
+        }
+        setItems([])
+      } catch {
+        setItems([])
+      }
+    }
+
+    // Load on mount
+    loadCart()
+
+    // Reload whenever the URL changes (popstate covers back/forward;
+    // we also poll location.search every 500ms to catch pushState
+    // changes from React Router <Link> clicks that don't fire popstate).
+    let lastSearch = window.location.search
+    const interval = setInterval(() => {
+      if (window.location.search !== lastSearch) {
+        lastSearch = window.location.search
+        loadCart()
+      }
+    }, 500)
+
+    window.addEventListener('popstate', loadCart)
+    return () => {
+      window.removeEventListener('popstate', loadCart)
+      clearInterval(interval)
+    }
+  }, [])
+
+  // Persist to the per-store key ONLY (no legacy global key — that
+  // was the source of cross-store cart leakage).
   useEffect(()=>{
     try {
-      const key = getCartKey()
-      localStorage.setItem(key, JSON.stringify(items))
-      // Also write to the legacy key for backwards compat.
-      localStorage.setItem('lumiere_cart', JSON.stringify(items))
+      localStorage.setItem(getCartKey(), JSON.stringify(items))
     } catch {}
   },[items])
-
-  // Reload the cart from the new per-store key whenever the URL's
-  // ?store= / ?storeId= param changes (e.g. when the user switches
-  // stores on the same origin).
-  useEffect(()=>{
-    const onPop = () => {
-      try {
-        const stored = localStorage.getItem(getCartKey())
-        setItems(stored ? JSON.parse(stored) : [])
-      } catch { setItems([]) }
-    }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [])
 
   const addToCart=(p:Product, qty=1, variantId?: string)=>{
     const variant = variantId ? p.variants?.find(v=> v.id===variantId) : undefined
     if(p.variants?.length && !variantId){
-      // if product has variants, require selection? For cart button without selection, pick first available
       const first = p.variants.find(v=> (v.stock||0) >0) || p.variants[0]
       if(first){
         variantId = first.id
