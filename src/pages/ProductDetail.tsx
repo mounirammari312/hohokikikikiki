@@ -38,6 +38,7 @@ export default function ProductDetail(){
   const [showShare, setShowShare] = useState(false)
   const [shareUrl, setShareUrl] = useState('')
   const [copied, setCopied] = useState(false)
+  const [showOrderModal, setShowOrderModal] = useState(false)
 
   const thumbsRef = useRef<HTMLDivElement>(null)
   const orderRef = useRef<HTMLFormElement>(null)
@@ -245,7 +246,7 @@ export default function ProductDetail(){
   // jump around on mobile when the soft keyboard appears or when the user
   // accidentally drags the backdrop.
   useEffect(()=>{
-    const lock = showLightbox || showShare
+    const lock = showLightbox || showShare || showOrderModal
     if(lock){
       const prev = document.body.style.overflow
       const prevPad = document.body.style.paddingRight
@@ -270,11 +271,21 @@ export default function ProductDetail(){
     try{ await navigator.clipboard.writeText(shareUrl); setCopied(true); showToast('تم نسخ رابط الطلب المباشر ✓'); setTimeout(()=> setCopied(false),2000)}catch{ showToast('انسخي الرابط يدوياً')}
   }
 
-  const scrollToOrder = (e?:React.MouseEvent)=>{
+  const openOrderModal = (e?:React.MouseEvent)=>{
     if(e){ e.preventDefault(); e.stopPropagation() }
-    orderRef.current?.scrollIntoView({behavior:'smooth', block:'start'})
-    // update hash without jumping
-    history.replaceState(null,'', `#order`)
+    // If variants exist and user hasn't selected, show a toast instead
+    if(variantMissing){
+      showToast('اختر اللون والمقاس أولاً')
+      // scroll to variant selector
+      const el = document.getElementById('variant-selector')
+      el?.scrollIntoView({behavior:'smooth', block:'center'})
+      return
+    }
+    setShowOrderModal(true)
+  }
+
+  const closeOrderModal = ()=>{
+    setShowOrderModal(false)
   }
 
   if(!product) return <div className="max-w-[1280px] mx-auto px-4 py-12 text-center">المنتج غير موجود. <Link to="/shop" className="text-[#C9A96A] underline">العودة للمتجر</Link></div>
@@ -587,22 +598,107 @@ export default function ProductDetail(){
               {errors.qty && <p className="text-xs text-red-600 mt-1">{errors.qty}</p>}
             </div>
 
-            <form ref={orderRef} id="order" onSubmit={handleDirectOrder} className="bg-[#1A1A1E] rounded-[24px] p-5 md:p-6 text-white relative overflow-hidden scroll-mt-24" onFocus={onFormFocus} onBlur={onFormBlur}>
-              <div className="absolute -top-10 -left-10 w-40 h-40 bg-[#C9A96A]/20 rounded-full blur-2xl"/>
-              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-[#A02A5B]/15 rounded-full blur-2xl"/>
-              <div className="relative">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-extrabold text-lg flex items-center gap-2"><span className="w-7 h-7 rounded-full bg-[#C9A96A] grid place-items-center text-white text-xs">⚡</span> طلب مباشر - الدفع عند الاستلام</h3>
-                  <span className="text-[10px] tracking-widest bg-white/10 border border-white/15 px-2 py-1 rounded-full hidden md:inline">COD 2026 • آمن 100%</span>
+            {/* ─── Pulsing CTA: "اطلب الآن" opens a modal ─── */}
+            <div className="bg-gradient-to-br from-[#1A1A1E] to-[#2D2D35] rounded-[24px] p-5 md:p-6 text-white relative overflow-hidden">
+              <div className="absolute -top-10 -left-10 w-40 h-40 bg-[var(--color-primary)]/20 rounded-full blur-2xl"/>
+              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-[var(--color-accent)]/15 rounded-full blur-2xl"/>
+              <div className="relative text-center">
+                <div className="text-[10px] tracking-widest text-white/50 mb-2">الدفع عند الاستلام • COD</div>
+                <div className="text-2xl font-extrabold mb-1">{formatDZD(grandTotal)}</div>
+                <div className="text-xs text-white/60 mb-4">شحن {wilaya ? formatDZD(shipping) : '—'} • تأكيد هاتفي خلال 2-4 ساعات</div>
+
+                {/* Pulsing CTA button */}
+                <button
+                  type="button"
+                  onClick={openOrderModal}
+                  disabled={!canAdd}
+                  className="relative w-full py-4 rounded-2xl font-extrabold text-lg text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{background: 'var(--color-primary)'}}
+                >
+                  <span className="absolute inset-0 rounded-2xl animate-ping opacity-20" style={{background: 'var(--color-primary)'}}></span>
+                  <span className="relative flex items-center justify-center gap-2">
+                    <ShoppingBag size={20} />
+                    اطلب الآن — الدفع عند الاستلام
+                  </span>
+                </button>
+                {!canAdd && variantMissing && <p className="text-amber-300 text-xs mt-2">اختر اللون والمقاس أولاً</p>}
+
+                {/* Secondary actions */}
+                <div className="flex items-center justify-center gap-3 mt-4 text-[11px] text-white/50">
+                  <span className="flex gap-1 items-center"><ShieldCheck size={12}/> حماية الطلبات المكررة</span>
+                  <span>•</span>
+                  <span>استرجاع 14 يوم</span>
                 </div>
-                <p className="text-xs text-white/70 mt-1">املأ النموذج وسيتصل بك فريق التأكيد خلال ساعات. الشحن يحسب تلقائياً حسب الولاية.</p>
+              </div>
+            </div>
 
-                {duplicateWarn && <div className="mt-3 bg-amber-400 text-[#1A1A1E] rounded-xl px-3 py-2 text-xs font-bold flex gap-2 items-center"><AlertTriangle size={14}/> طلب مكرر! لديك طلب مشابه خلال آخر 30 دقيقة. سنتصل بك قريباً.</div>}
+            {/* compact action bar — below the payment form, smaller buttons */}
+            <div className="bg-white rounded-[24px] border border-[#EDE6D8] p-3 md:p-4">
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={handleAddToCart} disabled={!canAdd} className={`flex-1 min-w-0 rounded-full py-2.5 px-3 text-xs font-bold border-2 transition flex items-center justify-center gap-1.5 ${canAdd ? 'bg-white border-[#1A1A1E] text-[#1A1A1E] hover:bg-[#1A1A1E] hover:text-white' : 'bg-[#F5EFE6] border-[#EDE6D8] text-[#9A8A6B] cursor-not-allowed'}`}>
+                  <ShoppingBag size={14}/>
+                  <span className="truncate">{canAdd ? 'أضف للسلة' : variantMissing ? 'اختر المتغير' : 'غير متوفر'}</span>
+                </button>
+                <button type="button" onClick={handleWish} className={`shrink-0 rounded-full py-2.5 px-3 text-xs font-bold border flex items-center justify-center gap-1.5 transition ${wished ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white border-[#EDE6D8] hover:bg-[#FDF2F6] hover:border-[#F6C0D4] hover:text-[#A02A5B]'}`} aria-label="حفظ">
+                  <Heart size={14} className={wished ? 'fill-white' : ''}/>
+                  <span className="hidden sm:inline">{wished ? 'محفوظ' : 'حفظ'}</span>
+                </button>
+                <button type="button" onClick={handleShare} className="shrink-0 rounded-full py-2.5 px-3 text-xs font-bold border bg-white border-[#EDE6D8] hover:bg-[#1A1A1E] hover:text-white flex items-center justify-center gap-1.5 transition" aria-label="مشاركة">
+                  <Share2 size={14}/>
+                  <span className="hidden sm:inline">مشاركة</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                <div className="grid gap-3 mt-4">
+      <div className={`md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#EDE6D8] p-3 flex gap-3 items-center shadow-[0_-8px_24px_rgba(0,0,0,0.08)] transition-transform duration-300 ${formFocused ? 'translate-y-full pointer-events-none' : 'translate-y-0'}`}>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs text-[#9A8A6B] truncate">الإجمالي {variantLabel && `• ${variantLabel}`}</div><div className={`font-extrabold ${isRoseProduct ? 'text-[#A02A5B]' : 'text-[#1A1A1E]'}`}>{formatDZD(grandTotal)}</div>
+        </div>
+        <button type="button" onClick={openOrderModal} className="flex-1 text-white rounded-full py-3 text-center font-extrabold shrink-0 animate-pulse" style={{background: 'var(--color-primary)'}}>اطلب الآن</button>
+      </div>
+
+      {/* ─── Order Modal (popup form) ─── */}
+      <AnimatePresence>
+        {showOrderModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            onClick={closeOrderModal}
+          >
+            <div className="absolute inset-0 bg-[#1A1A1E]/70 backdrop-blur-sm" />
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative bg-[#1A1A1E] rounded-[24px] w-full max-w-[480px] max-h-[90vh] overflow-auto shadow-2xl text-white"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal header */}
+              <div className="sticky top-0 bg-[#1A1A1E] z-10 flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-[var(--color-primary)] grid place-items-center text-white text-xs font-bold">⚡</div>
+                  <div>
+                    <h3 className="font-extrabold text-sm">اطلب الآن — الدفع عند الاستلام</h3>
+                    <p className="text-[10px] text-white/50">{product.nameAr} {variantLabel && `• ${variantLabel}`}</p>
+                  </div>
+                </div>
+                <button type="button" onClick={closeOrderModal} className="w-8 h-8 rounded-full bg-white/10 grid place-items-center hover:bg-white/20 transition"><X size={16} /></button>
+              </div>
+
+              {/* Modal body — the order form */}
+              <form ref={orderRef} id="order" onSubmit={handleDirectOrder} className="p-5" onFocus={onFormFocus} onBlur={onFormBlur}>
+                {duplicateWarn && <div className="mb-3 bg-amber-400 text-[#1A1A1E] rounded-xl px-3 py-2 text-xs font-bold flex gap-2 items-center"><AlertTriangle size={14}/> طلب مكرر! لديك طلب مشابه خلال آخر 30 دقيقة.</div>}
+
+                <div className="grid gap-3">
                   <div>
                     <label className="text-xs font-bold text-white/80">الاسم الكامل *</label>
-                    <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="مثال: مريم بن علي" className="mt-1 w-full rounded-xl px-3 py-2.5 bg-white text-[#1A1A1E] text-sm outline-none placeholder:text-[#B8AA8E]"/>
+                    <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="مثال: محمد بن علي" className="mt-1 w-full rounded-xl px-3 py-2.5 bg-white text-[#1A1A1E] text-sm outline-none placeholder:text-[#B8AA8E]"/>
                     {errors.name && <p className="text-amber-300 text-xs mt-1">{errors.name}</p>}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -639,63 +735,45 @@ export default function ProductDetail(){
                   {hasVariants && (
                     <div className="bg-white/10 border border-white/15 rounded-xl p-3">
                       <div className="text-xs font-bold text-white/90">المتغير المختار</div>
-                      {variantLabel ? <div className="text-sm font-bold text-white mt-1 flex items-center gap-2 flex-wrap">{selectedVariant?.colorHex && <span className="w-4 h-4 rounded-full border border-white/30" style={{background:selectedVariant.colorHex}}></span>} {variantLabel} • {formatDZD(unitPrice)} {effectiveStock<=5 && effectiveStock>0 && <span className="bg-amber-400 text-black text-[11px] px-2 py-0.5 rounded-full">متبقي {effectiveStock}</span>}{effectiveStock<=0 && <span className="bg-red-500 text-white text-[11px] px-2 py-0.5 rounded-full">نفد</span>}</div> : <div className="text-xs text-amber-300 mt-1">لم تختاري المتغير بعد — اختره أعلاه</div>}
+                      {variantLabel ? <div className="text-sm font-bold text-white mt-1 flex items-center gap-2 flex-wrap">{selectedVariant?.colorHex && <span className="w-4 h-4 rounded-full border border-white/30" style={{background:selectedVariant.colorHex}}></span>} {variantLabel} • {formatDZD(unitPrice)} {effectiveStock<=5 && effectiveStock>0 && <span className="bg-amber-400 text-black text-[11px] px-2 py-0.5 rounded-full">متبقي {effectiveStock}</span>}{effectiveStock<=0 && <span className="bg-red-500 text-white text-[11px] px-2 py-0.5 rounded-full">نفد</span>}</div> : <div className="text-xs text-amber-300 mt-1">لم تختر المتغير بعد — اختره أعلاه</div>}
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={()=>setDeliveryType('home')} className={`rounded-xl py-3 text-sm font-bold border flex flex-col items-center gap-1 ${deliveryType==='home'? (isRoseProduct ? 'bg-[#A02A5B] border-[#A02A5B] text-white' : 'bg-[#C9A96A] border-[#C9A96A] text-white'):'bg-white text-[#1A1A1E] border-white'}`}><span className="flex gap-1 items-center"><Truck size={14}/> للمنزل</span><span className="text-xs opacity-80">{wilaya? formatDZD(wilaya.deliveryHome):''}</span></button>
-                    <button type="button" onClick={()=>setDeliveryType('desk')} className={`rounded-xl py-3 text-sm font-bold border flex flex-col items-center gap-1 ${deliveryType==='desk'? (isRoseProduct ? 'bg-[#A02A5B] border-[#A02A5B] text-white' : 'bg-[#C9A96A] border-[#C9A96A] text-white'):'bg-white text-[#1A1A1E] border-white'}`}><span className="flex gap-1 items-center"><MapPin size={14}/> مكتب Yalidine</span><span className="text-xs opacity-80">{wilaya? formatDZD(wilaya.deliveryDesk):''}</span></button>
+                    <button type="button" onClick={()=>setDeliveryType('home')} className={`rounded-xl py-3 text-sm font-bold border flex flex-col items-center gap-1 ${deliveryType==='home'? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white':'bg-white text-[#1A1A1E] border-white'}`}><span className="flex gap-1 items-center"><Truck size={14}/> للمنزل</span><span className="text-xs opacity-80">{wilaya? formatDZD(wilaya.deliveryHome):''}</span></button>
+                    <button type="button" onClick={()=>setDeliveryType('desk')} className={`rounded-xl py-3 text-sm font-bold border flex flex-col items-center gap-1 ${deliveryType==='desk'? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-white':'bg-white text-[#1A1A1E] border-white'}`}><span className="flex gap-1 items-center"><MapPin size={14}/> مكتب</span><span className="text-xs opacity-80">{wilaya? formatDZD(wilaya.deliveryDesk):''}</span></button>
                   </div>
                 </div>
 
-                <div className={`mt-4 rounded-2xl p-4 text-[#1A1A1E] border ${isRoseProduct ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-white'}`}>
+                {/* Order summary */}
+                <div className="mt-4 rounded-2xl p-4 bg-white text-[#1A1A1E]">
                   <div className="flex justify-between text-sm"><span className="text-[#7A6F5A]">المنتج × {qty} {variantLabel && `• ${variantLabel}`}</span><span className="font-bold">{formatDZD(unitPrice*qty)}</span></div>
-                  {discountAmount>0 && <div className={`flex justify-between text-sm ${isRoseProduct ? 'text-[#A02A5B]' : 'text-emerald-600'}`}><span>خصم الكمية ({disc}%)</span><span>-{formatDZD(discountAmount)}</span></div>}
+                  {discountAmount>0 && <div className="flex justify-between text-sm text-emerald-600"><span>خصم الكمية ({disc}%)</span><span>-{formatDZD(discountAmount)}</span></div>}
                   <div className="flex justify-between text-sm"><span className="text-[#7A6F5A]">الشحن ({wilaya?.nameAr})</span><span className="font-bold">{formatDZD(shipping)}</span></div>
-                  <div className={`h-px my-2 ${isRoseProduct ? 'bg-[#F6C0D4]' : 'bg-[#EDE6D8]'}`}/>
-                  <div className="flex justify-between font-extrabold text-base"><span>الإجمالي عند الاستلام</span><span className={isRoseProduct ? 'text-[#A02A5B]' : 'text-[#C9A96A]'}>{formatDZD(grandTotal)}</span></div>
-                  <div className="text-[11px] text-[#9A8A6B] mt-1 text-center">الدفع نقداً عند التسليم • لا تحتاجي لبطاقة</div>
+                  <div className="h-px bg-[#EDE6D8] my-2"/>
+                  <div className="flex justify-between font-extrabold text-base"><span>الإجمالي عند الاستلام</span><span style={{color: 'var(--color-primary)'}}>{formatDZD(grandTotal)}</span></div>
+                  <div className="text-[11px] text-[#9A8A6B] mt-1 text-center">الدفع نقداً عند التسليم • لا تحتاج لبطاقة</div>
                 </div>
 
-                <button type="submit" disabled={submitting || !canAdd} className={`mt-4 w-full disabled:opacity-60 text-white rounded-full py-3.5 font-extrabold text-[15px] flex items-center justify-center gap-2 transition ${isRoseProduct ? 'bg-[#A02A5B] hover:bg-[#7A1F44]' : 'bg-[#C9A96A] hover:bg-[#B8945A]'}`}>
-                  {submitting? 'جاري الإرسال...': <><Check size={18}/> تأكيد الطلب - الدفع عند الاستلام {variantLabel && `• ${variantLabel}`}</>}
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={submitting || !canAdd}
+                  className="mt-4 w-full disabled:opacity-60 text-white rounded-2xl py-4 font-extrabold text-base flex items-center justify-center gap-2 transition"
+                  style={{background: 'var(--color-primary)'}}
+                >
+                  {submitting ? 'جاري الإرسال...' : <><Check size={20}/> تأكيد الطلب — {formatDZD(grandTotal)}</>}
                 </button>
                 {!canAdd && variantMissing && <p className="text-center text-amber-300 text-xs mt-2">اختر المتغير قبل تأكيد الطلب</p>}
                 <div className="flex items-center justify-center gap-3 mt-3 text-[11px] text-white/60">
-                  <span className="flex gap-1 items-center"><ShieldCheck size={12}/> حماية الطلبات المكررة مفعّلة</span>
+                  <span className="flex gap-1 items-center"><ShieldCheck size={12}/> حماية الطلبات المكررة</span>
                   <span>•</span>
                   <span>تأكيد هاتفي خلال 2-4 ساعات</span>
                 </div>
-              </div>
-            </form>
-
-            {/* compact action bar — below the payment form, smaller buttons */}
-            <div className="bg-white rounded-[24px] border border-[#EDE6D8] p-3 md:p-4">
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={handleAddToCart} disabled={!canAdd} className={`flex-1 min-w-0 rounded-full py-2.5 px-3 text-xs font-bold border-2 transition flex items-center justify-center gap-1.5 ${canAdd ? 'bg-white border-[#1A1A1E] text-[#1A1A1E] hover:bg-[#1A1A1E] hover:text-white' : 'bg-[#F5EFE6] border-[#EDE6D8] text-[#9A8A6B] cursor-not-allowed'}`}>
-                  <ShoppingBag size={14}/>
-                  <span className="truncate">{canAdd ? 'أضف للسلة' : variantMissing ? 'اختر المتغير' : 'غير متوفر'}</span>
-                </button>
-                <button type="button" onClick={handleWish} className={`shrink-0 rounded-full py-2.5 px-3 text-xs font-bold border flex items-center justify-center gap-1.5 transition ${wished ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white border-[#EDE6D8] hover:bg-[#FDF2F6] hover:border-[#F6C0D4] hover:text-[#A02A5B]'}`} aria-label="حفظ">
-                  <Heart size={14} className={wished ? 'fill-white' : ''}/>
-                  <span className="hidden sm:inline">{wished ? 'محفوظ' : 'حفظ'}</span>
-                </button>
-                <button type="button" onClick={handleShare} className="shrink-0 rounded-full py-2.5 px-3 text-xs font-bold border bg-white border-[#EDE6D8] hover:bg-[#1A1A1E] hover:text-white flex items-center justify-center gap-1.5 transition" aria-label="مشاركة">
-                  <Share2 size={14}/>
-                  <span className="hidden sm:inline">مشاركة</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className={`md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#EDE6D8] p-3 flex gap-3 items-center shadow-[0_-8px_24px_rgba(0,0,0,0.08)] transition-transform duration-300 ${formFocused ? 'translate-y-full pointer-events-none' : 'translate-y-0'}`}>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs text-[#9A8A6B] truncate">الإجمالي {variantLabel && `• ${variantLabel}`}</div><div className={`font-extrabold ${isRoseProduct ? 'text-[#A02A5B]' : 'text-[#1A1A1E]'}`}>{formatDZD(grandTotal)}</div>
-        </div>
-        <button type="button" onClick={scrollToOrder} className={`flex-1 text-white rounded-full py-3 text-center font-bold shrink-0 ${isRoseProduct ? 'bg-[#A02A5B]' : 'bg-[#1A1A1E]'}`}>اطلب الآن</button>
-      </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -13,7 +13,7 @@ import {
   MapPinned, Save, Plus, Pencil, Copy, Eye, Star, Crown, Sparkles, Store, Megaphone,
   Phone, Mail, Instagram, Palette, Zap, Image as ImageIcon, Tag, Layers, X,
   AlertCircle, Check, Filter, ShoppingBag, TrendingUp, Award, Gem, Shirt, Heart,
-  Wand2, RefreshCw, Globe, Palette as PaletteIcon, Ruler, Droplet, Paintbrush, FileText
+  Wand2, RefreshCw, Globe, Palette as PaletteIcon, Ruler, Droplet, Paintbrush, FileText, Link2
 } from 'lucide-react'
 
 const statusMap: Record<OrderStatus, { label: string, color: string }> = {
@@ -776,11 +776,21 @@ export default function Admin() {
                       {p.tierPricing.length > 0 && <span className="bg-[#FFFBF0] border border-[#F5E6C8] text-[#8D6E3A] px-2 py-1 rounded-full font-bold">خصم حتى {p.tierPricing[p.tierPricing.length - 1].discountPercent}%</span>}
                     </div>
 
-                    <div className="grid grid-cols-4 gap-1.5 mt-3">
+                    <div className="grid grid-cols-5 gap-1.5 mt-3">
                       <button onClick={() => openEditModal(p)} className="bg-[#1A1A1E] text-white rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-black"><Pencil size={12} /> تعديل</button>
                       <button onClick={async () => { const c = await duplicateProduct(p._id); if (c) { setProducts([...getProducts()]); showToast('تم نسخ المنتج') } }} className="bg-white border border-[#EDE6D8] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#FFFCF8]"><Copy size={12} /> نسخ</button>
                       <button onClick={() => handleDeleteProduct(p._id)} className="bg-white border border-red-200 text-red-600 rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-50"><Trash2 size={12} /> حذف</button>
                       <a href={`/product/${p._id}?store=${currentSlug}`} target="_blank" className="bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#A02A5B] hover:text-white transition"><Eye size={12} /> عرض</a>
+                      <button
+                        onClick={async () => {
+                          const link = `${window.location.origin}/product/${p._id}?store=${currentSlug}`
+                          try { await navigator.clipboard.writeText(link); showToast('تم نسخ رابط المنتج ✓') } catch { showToast(link) }
+                        }}
+                        className="bg-[#FFFBF0] border border-[#F0D9A8] text-[#8D6E3A] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#FFF3E0] transition"
+                        title="نسخ رابط المنتج للمشاركة"
+                      >
+                        <Link2 size={12} /> رابط
+                      </button>
                     </div>
                     <div className="flex gap-1.5 mt-2">
                       <button onClick={async () => { const u = await toggleProductFlag(p._id, 'isFeatured'); setProducts([...u]); showToast(p.isFeatured ? 'أزيلت من المميزة' : 'أضيفت للمميزة ⭐') }} className={`flex-1 rounded-full py-1.5 text-[11px] font-bold border flex items-center justify-center gap-1 ${p.isFeatured ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFCF8]'}`}><Crown size={11} /> {p.isFeatured ? 'مميز ✓' : 'تمييز'}</button>
