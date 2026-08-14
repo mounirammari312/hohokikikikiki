@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { SlidersHorizontal, Search, PackageOpen } from 'lucide-react'
+import { SlidersHorizontal, Search, PackageOpen, ChevronDown } from 'lucide-react'
+import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
 import { getProducts } from '../services/api/products'
 import { getActiveDomain } from '../services/api/domains'
@@ -38,72 +39,99 @@ export default function Shop(){
   const countInDomain = products.filter(p=> domainCatKeys.includes(p.category)).length
 
   return (
-    <div className="bg-[#FFFCF8] min-h-screen">
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-6">
-        {/* Mobile: stack title + search vertically. Desktop: keep them on
-            one row with justify-between. The previous flex-wrap layout caused
-            the 240px search input to push the title off-screen on small phones. */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
+      <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-6 md:py-8">
+        {/* ═══ HEADER ════════════════════════════════════════════════ */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+        >
           <div className="min-w-0">
-            <h1 className="text-[24px] md:text-[28px] font-extrabold text-[#1A1A1E] flex items-center gap-2 flex-wrap">
-              <span>المتجر</span>
-              <span className="text-xs md:text-sm font-bold bg-[#1A1A1E] text-white px-2.5 py-1 rounded-full">{domain.nameAr}</span>
-            </h1>
-            <p className="text-xs md:text-sm text-[#9A8A6B] mt-1">اكتشف {products.length} منتج ({countInDomain} في مجال {domain.nameAr}) • الدفع عند الاستلام • توصيل 58 ولاية</p>
-            <p className="text-xs text-[#9A8A6B] mt-1 hidden md:block">{domain.descriptionAr}</p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {/* flex-1 lets the search input shrink on mobile instead of
-                staying fixed at 240px and overflowing. */}
-            <div className="flex items-center bg-white border border-[#EDE6D8] rounded-full px-3 py-2 flex-1 md:flex-initial md:w-[260px] min-w-0 focus-within:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--color-primary)]/20 focus-within:shadow-[0_0_0_4px_rgba(201,169,106,0.1)]">
-              <Search size={16} className="text-[#B8AA8E] shrink-0"/>
-              <input value={search} onChange={e=>{setSearch(e.target.value); const n=new URLSearchParams(params); if(e.target.value) n.set('q', e.target.value); else n.delete('q'); setParams(n, {replace:true})}} placeholder="بحث..." className="flex-1 outline-none px-2 text-sm bg-transparent min-w-0" />
+            <div className="flex items-center gap-2 text-xs font-bold tracking-widest mb-2" style={{ color: 'var(--color-primary)' }}>
+              <span className="w-8 h-px" style={{ background: 'color-mix(in srgb, var(--color-primary) 30%, transparent)' }} />
+              متجر {domain.nameAr}
             </div>
-            <select value={sort} onChange={e=>setSort(e.target.value)} className="bg-white border border-[#EDE6D8] rounded-full px-3 py-2 text-sm font-bold shrink-0">
-              <option value="featured">المميز</option>
-              <option value="price-asc">الأقل أولاً</option>
-              <option value="price-desc">الأعلى أولاً</option>
-              <option value="rating">الأعلى تقييماً</option>
-            </select>
+            <h1 className="text-[26px] md:text-[32px] font-extrabold flex items-center gap-2 flex-wrap" style={{ color: 'var(--color-text)' }}>
+              <span>المتجر</span>
+              <span className="text-xs md:text-sm font-bold text-white px-2.5 py-1 rounded-full" style={{ background: 'var(--color-secondary)' }}>{domain.nameAr}</span>
+            </h1>
+            <p className="text-xs md:text-sm mt-1.5" style={{ color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>اكتشف <span className="font-bold" style={{ color: 'var(--color-text)' }}>{products.length}</span> منتج ({countInDomain} في مجال {domain.nameAr}) • الدفع عند الاستلام • توصيل 58 ولاية</p>
+            <p className="text-xs mt-1 hidden md:block" style={{ color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>{domain.descriptionAr}</p>
           </div>
-        </div>
 
-        {/* Category chips: horizontal scroll on mobile with momentum + snap.
-            Uses `overflow-x-auto` with `overscroll-containment` to prevent
-            scroll chaining. `snap-x` provides smooth snap-to-chip behavior.
-            `-webkit-overflow-scrolling: touch` enables momentum on iOS. */}
+          {/* Search + Sort — premium pill design */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center bg-white border rounded-full px-4 py-2.5 flex-1 md:flex-initial md:w-[280px] min-w-0 transition-all duration-300 focus-within:shadow-[0_0_0_4px_rgba(201,169,106,0.12)]" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)' }}>
+              <Search size={16} className="shrink-0" style={{ color: 'color-mix(in srgb, var(--color-text) 45%, transparent)' }}/>
+              <input value={search} onChange={e=>{setSearch(e.target.value); const n=new URLSearchParams(params); if(e.target.value) n.set('q', e.target.value); else n.delete('q'); setParams(n, {replace:true})}} placeholder="ابحث عن منتج..." className="flex-1 outline-none px-2 text-sm bg-transparent min-w-0" style={{ color: 'var(--color-text)' }} />
+              {search && <button type="button" onClick={()=>{ setSearch(''); const n=new URLSearchParams(params); n.delete('q'); setParams(n, {replace:true}) }} className="w-5 h-5 rounded-full grid place-items-center text-xs" style={{ background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)', color: 'var(--color-text)' }}>×</button>}
+            </div>
+            {/* Sort — custom-styled select wrapper */}
+            <div className="relative shrink-0">
+              <select value={sort} onChange={e=>setSort(e.target.value)} className="appearance-none bg-white border rounded-full pl-9 pr-4 py-2.5 text-sm font-bold cursor-pointer outline-none transition-all duration-300 hover:shadow-md" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: 'var(--color-text)' }}>
+                <option value="featured">المميز</option>
+                <option value="price-asc">الأقل أولاً</option>
+                <option value="price-desc">الأعلى أولاً</option>
+                <option value="rating">الأعلى تقييماً</option>
+              </select>
+              <ChevronDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-primary)' }} />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* ═══ CATEGORY CHIPS ════════════════════════════════════════ */}
         <div
-          className="mt-4 flex md:flex-wrap gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 thumb-scroll snap-x snap-mandatory overscroll-x-contain [&>button]:snap-start [&>button:last-child]:me-4 md:[&>button:last-child]:me-0"
+          className="mt-5 flex md:flex-wrap gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 thumb-scroll snap-x snap-mandatory overscroll-x-contain [&>button]:snap-start [&>button:last-child]:me-4 md:[&>button:last-child]:me-0"
           style={{ WebkitOverflowScrolling: 'touch', scrollSnapType: 'x mandatory' }}
         >
-          <button type="button" onClick={()=>{const n=new URLSearchParams(params); n.delete('cat'); setParams(n)}} className={`btn-premium shrink-0 px-4 py-2 rounded-full text-sm font-bold border flex items-center gap-1.5 ${cat==='all' ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>الكل <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${cat==='all' ? 'bg-white text-[#1A1A1E]' : 'bg-[#1A1A1E] text-white'}`}>{products.length}</span></button>
+          <button type="button" onClick={()=>{const n=new URLSearchParams(params); n.delete('cat'); setParams(n)}} className={`btn-premium shrink-0 px-5 py-2.5 rounded-full text-sm font-bold border flex items-center gap-2 transition-all duration-300 ${cat==='all' ? 'text-white border-transparent shadow-lg' : 'bg-white hover:shadow-md' }`} style={cat==='all' ? { background: 'var(--color-secondary)', borderColor: 'var(--color-secondary)' } : { color: 'var(--color-text)', borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)' }}>الكل <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold ${cat==='all' ? 'bg-white/20 text-white' : ''}`} style={cat!=='all' ? { background: 'var(--color-secondary)', color: 'white' } : undefined}>{products.length}</span></button>
           {domain.categories.map(c=> (
-            <button key={c.key} type="button" onClick={()=>{const n=new URLSearchParams(params); n.set('cat',c.key); setParams(n)}} className={`btn-premium shrink-0 px-4 py-2 rounded-full text-sm font-bold border ${cat===c.key ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-md shadow-[#A02A5B]/20' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>{c.labelAr} <span className="text-[10px] opacity-60 hidden md:inline">• {c.label}</span></button>
+            <button key={c.key} type="button" onClick={()=>{const n=new URLSearchParams(params); n.set('cat',c.key); setParams(n)}} className={`btn-premium shrink-0 px-5 py-2.5 rounded-full text-sm font-bold border transition-all duration-300 ${cat===c.key ? 'text-white border-transparent shadow-lg' : 'bg-white hover:shadow-md' }`} style={cat===c.key ? { background: 'var(--color-accent)', borderColor: 'var(--color-accent)' } : { color: 'var(--color-text)', borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)' }}>{c.labelAr} <span className="text-[10px] opacity-60 hidden md:inline">• {c.label}</span></button>
           ))}
         </div>
-        <div className="mt-2 flex items-center gap-1.5 text-xs text-[#9A8A6B]"><SlidersHorizontal size={14}/> <span className="font-bold gradient-text text-sm">{filtered.length}</span> منتج</div>
+
+        <div className="mt-3 flex items-center gap-1.5 text-xs" style={{ color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>
+          <SlidersHorizontal size={14} style={{ color: 'var(--color-primary)' }}/>
+          <span className="font-bold gradient-text text-sm">{filtered.length}</span>
+          <span>منتج</span>
+        </div>
 
         {/* hint when browsing cross-domain */}
         {cat!=='all' && !domainCatKeys.includes(cat) && (
           <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-800">أنت تستعرض فئة خارج المجال النشط ({domain.nameAr}). يمكنك تغيير المجال من لوحة التحكم أو تصفح كل المنتجات.</div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 mt-6">
+        {/* ═══ PRODUCT GRID ══════════════════════════════════════════ */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5 mt-6">
           {filtered.map((p, i)=> <ProductCard key={p._id} p={p} index={i}/> )}
         </div>
+
+        {/* ═══ EMPTY STATE ═══════════════════════════════════════════ */}
         {filtered.length===0 && (
-          <div className="text-center py-14 bg-white border border-dashed border-[#EDE6D8] rounded-2xl mt-6 animate-slide-up">
-            {/* Empty state illustration — icon in circle */}
-            <div className="mx-auto w-20 h-20 rounded-full bg-[#FFF5E6] grid place-items-center mb-4 border border-[#F0D9A8]">
-              <PackageOpen size={36} className="text-[#C9A96A]" />
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center py-16 bg-white border border-dashed rounded-3xl mt-6"
+            style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 22%, transparent)' }}
+          >
+            {/* Empty state illustration — icon in circle with decorative ring */}
+            <div className="relative mx-auto w-24 h-24 mb-5">
+              <div className="absolute inset-0 rounded-full" style={{ background: 'color-mix(in srgb, var(--color-primary) 10%, white)' }} />
+              <div className="absolute inset-2 rounded-full border-2 border-dashed" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 25%, transparent)' }} />
+              <div className="absolute inset-0 grid place-items-center">
+                <PackageOpen size={36} style={{ color: 'var(--color-primary)' }} />
+              </div>
             </div>
-            <div className="font-bold text-[#1A1A1E] text-lg">لا توجد نتائج</div>
-            <p className="text-sm text-[#9A8A6B] mt-1 max-w-md mx-auto">جرّب بحثاً آخر أو غيّر الفئة. المجال النشط: {domain.nameAr}</p>
-            <div className="flex justify-center gap-2 mt-5">
-              <button type="button" onClick={()=>{ setSearch(''); const n=new URLSearchParams(params); n.delete('q'); n.delete('cat'); setParams(n)}} className="btn-premium bg-[#1A1A1E] text-white px-4 py-2 rounded-full text-sm font-bold">مسح الفلاتر</button>
-              <Link to="/admin" className="bg-white border border-[#EDE6D8] px-4 py-2 rounded-full text-sm font-bold hover:bg-[#FFFBF0]">إدارة المنتجات</Link>
+            <div className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>لا توجد نتائج</div>
+            <p className="text-sm mt-1.5 max-w-md mx-auto" style={{ color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}>جرّب بحثاً آخر أو غيّر الفئة. المجال النشط: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{domain.nameAr}</span></p>
+            <div className="flex justify-center gap-2 mt-6">
+              <button type="button" onClick={()=>{ setSearch(''); const n=new URLSearchParams(params); n.delete('q'); n.delete('cat'); setParams(n)}} className="btn-premium text-white px-5 py-2.5 rounded-full text-sm font-bold" style={{ background: 'var(--color-secondary)' }}>مسح الفلاتر</button>
+              <Link to="/admin" className="bg-white border px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 hover:shadow-md" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: 'var(--color-text)' }}>إدارة المنتجات</Link>
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

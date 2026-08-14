@@ -461,15 +461,16 @@ export default function ProductDetail(){
                       key={i+img}
                       type="button"
                       onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); goTo(i)}}
-                      className={`shrink-0 w-[64px] h-[64px] md:w-20 md:h-20 rounded-xl overflow-hidden border-2 snap-start relative transition ${selectedImg===i ? (isRoseProduct ? 'border-[#A02A5B] shadow-[0_4px_12px_rgba(160,42,91,0.2)]' : 'border-[#C9A96A] shadow') : 'border-transparent hover:border-[#EDE6D8]'}`}
+                      className={`shrink-0 w-[64px] h-[64px] md:w-20 md:h-20 rounded-xl overflow-hidden border-2 snap-start relative transition-all duration-300 ${selectedImg===i ? (isRoseProduct ? 'border-[#A02A5B] shadow-[0_4px_12px_rgba(160,42,91,0.2)]' : 'shadow') : 'border-transparent hover:border-[#EDE6D8] hover:scale-105'}`}
+                      style={selectedImg===i && !isRoseProduct ? { borderColor: 'var(--color-primary)' } : undefined}
                     >
                       <img src={img} alt={`صورة ${i+1}`} className="w-full h-full object-cover" draggable={false} loading="lazy"/>
                       {selectedImg===i && <span className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-xl pointer-events-none"></span>}
                     </button>
                   ))}
                 </div>
-                <button type="button" onClick={()=> thumbsRef.current?.scrollBy({left: -120, behavior:'smooth'})} className="hidden md:grid absolute top-1/2 -translate-y-1/2 -right-2 w-7 h-7 rounded-full bg-white border border-[#EDE6D8] place-items-center shadow"><ChevronRight size={14}/></button>
-                <button type="button" onClick={()=> thumbsRef.current?.scrollBy({left: 120, behavior:'smooth'})} className="hidden md:grid absolute top-1/2 -translate-y-1/2 -left-2 w-7 h-7 rounded-full bg-white border border-[#EDE6D8] place-items-center shadow"><ChevronLeft size={14}/></button>
+                <button type="button" onClick={()=> thumbsRef.current?.scrollBy({left: -120, behavior:'smooth'})} className="hidden md:grid absolute top-1/2 -translate-y-1/2 -right-2 w-8 h-8 rounded-full bg-white border border-[#EDE6D8] place-items-center shadow-md hover:scale-110 transition-transform" style={{ color: 'var(--color-primary)' }}><ChevronRight size={14}/></button>
+                <button type="button" onClick={()=> thumbsRef.current?.scrollBy({left: 120, behavior:'smooth'})} className="hidden md:grid absolute top-1/2 -translate-y-1/2 -left-2 w-8 h-8 rounded-full bg-white border border-[#EDE6D8] place-items-center shadow-md hover:scale-110 transition-transform" style={{ color: 'var(--color-primary)' }}><ChevronLeft size={14}/></button>
               </div>
 
             {/* compact trust badges — much smaller */}
@@ -531,7 +532,7 @@ export default function ProductDetail(){
                           const active = (v.colorAr||v.color)===selColor
                           const disabled = availableColorsForSize.length? !availableColorsForSize.some(a=> (a.colorAr||a.color)===(v.colorAr||v.color)) : false
                           return (
-                            <button key={v.id} type="button" onClick={()=> setSelColor(v.colorAr||v.color)} disabled={disabled} className={`flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-bold ${active ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white border-[#EDE6D8] hover:border-[#F6C0D4]'} ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
+                            <button key={v.id} type="button" onClick={()=> setSelColor(v.colorAr||v.color)} disabled={disabled} className={`flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-bold transition-all duration-300 ${active ? 'text-white border-transparent shadow-md' : 'bg-white hover:shadow-sm'} ${disabled ? 'opacity-40 pointer-events-none' : ''}`} style={active ? { background: 'var(--color-secondary)', borderColor: 'var(--color-secondary)' } : { borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)' }}>
                               <span className="w-5 h-5 rounded-full border border-black/10" style={{background: v.colorHex||'#ccc'}}></span>
                               {v.colorAr||v.color}
                               {active && <Check size={12}/>}
@@ -548,7 +549,7 @@ export default function ProductDetail(){
                         {(availableSizesForColor.length? availableSizesForColor : sizes).map(s=>{
                           const active = s===selSize
                           return (
-                            <button key={s} type="button" onClick={()=> setSelSize(s)} className={`min-w-[56px] px-4 py-2 rounded-full border text-sm font-bold ${active ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white border-[#EDE6D8] hover:border-[#C9A96A]'}`}>
+                            <button key={s} type="button" onClick={()=> setSelSize(s)} className={`min-w-[56px] px-4 py-2 rounded-full border text-sm font-bold transition-all duration-300 ${active ? 'text-white border-transparent shadow-md' : 'bg-white hover:shadow-sm'}`} style={active ? { background: 'var(--color-accent)', borderColor: 'var(--color-accent)' } : { borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)' }}>
                               {s}
                             </button>
                           )

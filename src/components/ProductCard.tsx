@@ -55,90 +55,111 @@ export default function ProductCard({ p, index = 0 }: Props){
   }
 
   return (
-    <div className={`group relative bg-white rounded-[22px] border border-[#EDE6D8] overflow-hidden card-shadow card-shadow-hover animate-slide-up ${staggerClass}`}>
-      {toast && <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 bg-[#1A1A1E] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow whitespace-nowrap pointer-events-none">{toast}</div>}
-      <Link to={`/product/${p._id}${storeQuery}`} className="block relative aspect-[4/5] img-zoom bg-[#FFF8EE]">
+    <div
+      className={`group relative rounded-[22px] border overflow-hidden card-shadow card-shadow-hover animate-slide-up ${staggerClass}`}
+      style={{ background: 'var(--color-card)', borderColor: 'color-mix(in srgb, var(--color-primary) 14%, transparent)' }}
+    >
+      {toast && <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow whitespace-nowrap pointer-events-none" style={{ background: 'var(--color-text)' }}>{toast}</div>}
+      <Link to={`/product/${p._id}${storeQuery}`} className="block relative aspect-[4/5] img-zoom overflow-hidden" style={{ background: 'color-mix(in srgb, var(--color-primary) 6%, var(--color-bg))' }}>
         <img src={p.images[0]} alt={p.nameAr} className="w-full h-full object-cover" loading="lazy"/>
 
-        {/* Badges top-right (discount + new) — discount pulses */}
-        <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 items-end">
-          {p.isNew && <span className="bg-[var(--color-secondary)] text-white text-[10px] tracking-widest px-2.5 py-1 rounded-full">جديد</span>}
-          {discount>0 && <span className="badge-pulse bg-[var(--color-accent)] text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md">-{discount}%</span>}
+        {/* ─── Badges TOP-LEFT (new + discount) ─────────────────────────── */}
+        <div className="absolute top-3 left-3 flex flex-col gap-2 z-10 items-start">
+          {p.isNew && (
+            <span className="text-white text-[10px] tracking-widest font-bold px-2.5 py-1 rounded-full shadow-md" style={{ background: 'var(--color-secondary)' }}>جديد</span>
+          )}
+          {discount>0 && (
+            <span className="badge-pulse text-white text-[11px] font-extrabold px-2.5 py-1 rounded-full shadow-md" style={{ background: 'var(--color-accent)' }}>-{discount}%</span>
+          )}
         </div>
 
-        {/* Quick actions top-left — fade in on hover (desktop), always visible (mobile) */}
-        <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
-          <button type="button" onClick={handleWish} className={`w-8 h-8 rounded-full shadow grid place-items-center ${wished ? 'bg-[var(--color-accent)] text-white' : 'bg-white text-[#1A1A1E] hover:bg-[#FDF2F6] hover:text-[var(--color-accent)]'}`} aria-label="wishlist">
-            <Heart size={14} className={wished ? 'fill-white' : ''}/>
+        {/* ─── Wishlist heart TOP-RIGHT (circular, glassmorphism) ──────── */}
+        <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 items-end">
+          <button
+            type="button"
+            onClick={handleWish}
+            aria-label="wishlist"
+            className={`w-9 h-9 rounded-full grid place-items-center backdrop-blur-md border border-white/40 shadow-md transition-all duration-300 hover:scale-110 ${wished ? 'text-white' : 'text-[var(--color-text)] hover:text-[var(--color-accent)]'}`}
+            style={wished ? { background: 'var(--color-accent)' } : { background: 'rgba(255,255,255,0.78)' }}
+          >
+            <Heart size={15} className={wished ? 'fill-white' : ''} />
           </button>
-          <Link to={`/product/${p._id}${storeQuery}`} onClick={e=> e.stopPropagation()} className="w-8 h-8 rounded-full bg-white/90 shadow grid place-items-center hover:bg-white hidden md:grid md:opacity-0 md:translate-y-1 md:group-hover:opacity-100 md:group-hover:translate-y-0" aria-label="quick view"><Eye size={14}/></Link>
+          {/* Quick view eye — glassmorphism, appears on hover (desktop) */}
+          <Link
+            to={`/product/${p._id}${storeQuery}`}
+            onClick={e=> e.stopPropagation()}
+            aria-label="quick view"
+            className="w-9 h-9 rounded-full grid place-items-center backdrop-blur-md bg-white/70 border border-white/40 text-[var(--color-text)] shadow-md hover:bg-white hover:text-[var(--color-accent)] transition-all duration-300 hover:scale-110 hidden md:grid md:opacity-0 md:translate-y-1 md:group-hover:opacity-100 md:group-hover:translate-y-0"
+          >
+            <Eye size={15} />
+          </Link>
         </div>
 
         {/* Stock indicator — center-top banner when low / out */}
         {outOfStock && <span className="absolute top-3 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-10">نفذت الكمية</span>}
         {!outOfStock && lowStock && <span className="absolute top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-10">باقي {p.stock} قطع</span>}
 
-        {/* Desktop: bottom overlay CTA — fades in on hover */}
-        <div className="hidden md:flex absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/55 to-transparent opacity-0 group-hover:opacity-100 gap-2">
+        {/* ─── Desktop: bottom overlay CTA — slides up on hover ─────────── */}
+        <div className="hidden md:flex absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/55 to-transparent opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 gap-2 transition-all duration-300">
           <Link
             to={`/product/${p._id}${storeQuery}#order`}
             onClick={e=> e.stopPropagation()}
-            className="btn-premium flex-1 bg-white text-[#1A1A1E] text-xs font-extrabold px-3 py-2 rounded-full text-center hover:bg-[var(--color-secondary)] hover:text-white"
+            className="btn-premium flex-1 bg-white text-[var(--color-text)] text-xs font-extrabold px-3 py-2.5 rounded-full text-center hover:bg-[var(--color-secondary)] hover:text-white"
           >
             اطلب الآن — COD
           </Link>
-          <button type="button" onClick={handleQuickCart} className="btn-premium w-9 h-9 rounded-full bg-[var(--color-secondary)] text-white grid place-items-center hover:bg-black shrink-0" aria-label="add to cart"><ShoppingBag size={14}/></button>
+          <button type="button" onClick={handleQuickCart} className="btn-premium w-9 h-9 rounded-full text-white grid place-items-center shrink-0" style={{ background: 'var(--color-secondary)' }} aria-label="add to cart"><ShoppingBag size={14}/></button>
         </div>
 
         {/* Variant count badge (hidden on hover for desktop so it doesn't overlap CTA) */}
         {p.variants && p.variants.length>0 && (
-          <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur border border-[#F6C0D4] text-[#A02A5B] text-[10px] font-bold px-2 py-1 rounded-full md:group-hover:opacity-0">
+          <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur border border-white/40 text-[10px] font-bold px-2 py-1 rounded-full md:group-hover:opacity-0 transition-opacity" style={{ color: 'var(--color-accent)' }}>
             {p.variants.length} متغير
           </div>
         )}
       </Link>
 
       <div className="p-3 md:p-4">
-        {/* Rating + material badge: stack on mobile so the rating number
-            isn't squeezed/truncated by the material badge. */}
-        <div className="flex items-center gap-1 text-[var(--color-primary)] text-xs min-w-0">
+        {/* Rating + material badge */}
+        <div className="flex items-center gap-1 text-xs min-w-0" style={{ color: 'var(--color-primary)' }}>
           <Star size={12} fill="var(--color-primary)" className="shrink-0"/>
           <span className="font-bold shrink-0 gold-text">{p.rating.toFixed(1)}</span>
-          <span className="text-[#9A8A6B] shrink-0">({p.reviewsCount})</span>
-          {p.materialAr && <span className="ms-auto text-[10px] md:text-[11px] px-2 py-0.5 rounded-full border truncate max-w-[90px] md:max-w-[110px] bg-[#FFF3E0] text-[#8D6E3A] border-[#F0D9A8]">{p.materialAr}</span>}
+          <span className="shrink-0" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>({p.reviewsCount})</span>
+          {p.materialAr && <span className="ms-auto text-[10px] md:text-[11px] px-2 py-0.5 rounded-full border truncate max-w-[90px] md:max-w-[110px]" style={{ background: 'color-mix(in srgb, var(--color-primary) 8%, white)', color: 'color-mix(in srgb, var(--color-primary) 55%, var(--color-text))', borderColor: 'color-mix(in srgb, var(--color-primary) 22%, transparent)' }}>{p.materialAr}</span>}
         </div>
         <Link to={`/product/${p._id}${storeQuery}`} className="block mt-2">
-          {/* Allow 2 lines on mobile so product names don't get cut off. */}
-          <h3 className="font-bold text-[#1A1A1E] leading-snug text-sm line-clamp-2 hover:text-[var(--color-accent)]">{p.nameAr}</h3>
-          <p className="cormorant text-[11px] md:text-[12px] tracking-widest text-[#9A8A6B] truncate mt-0.5">{p.name.toUpperCase()}</p>
+          <h3 className="font-bold leading-snug text-sm line-clamp-2 hover:text-[var(--color-accent)] transition-colors" style={{ color: 'var(--color-text)' }}>{p.nameAr}</h3>
+          <p className="cormorant text-[11px] md:text-[12px] tracking-widest truncate mt-0.5" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>{p.name.toUpperCase()}</p>
         </Link>
-        {/* Price row: allow wrapping so the compare-at price doesn't push
-            the main price off-screen. */}
+        {/* Price row */}
         <div className="mt-2 flex items-baseline gap-2 flex-wrap">
-          <span className="font-extrabold text-[#1A1A1E] text-sm md:text-base">{formatDZD(p.price)}</span>
-          {p.compareAtPrice && <span className="text-xs line-through text-[#B0A48A]">{formatDZD(p.compareAtPrice)}</span>}
+          <span className="font-extrabold text-base md:text-lg" style={{ color: 'var(--color-text)' }}>{formatDZD(p.price)}</span>
+          {p.compareAtPrice && <span className="text-xs line-through" style={{ color: 'color-mix(in srgb, var(--color-text) 40%, transparent)' }}>{formatDZD(p.compareAtPrice)}</span>}
+          {discount > 0 && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ background: 'var(--color-accent)' }}>وفّر {discount}%</span>
+          )}
         </div>
-        {/* Inline stock status (only when low/out — keeps card clean otherwise) */}
+        {/* Inline stock status */}
         {outOfStock && <div className="mt-1.5 text-[10px] font-bold text-red-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500"/> نفذت الكمية</div>}
         {!outOfStock && lowStock && <div className="mt-1.5 text-[10px] font-bold text-orange-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"/> باقي {p.stock} قطع فقط</div>}
         {p.tierPricing[0] && (
-          <div className="mt-2 text-[10px] md:text-[11px] font-bold rounded-full px-2.5 py-1 inline-flex items-center gap-1.5 border text-[#8D6E3A] bg-[#FFFBF0] border-[#F5E6C8]">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-primary)]"></span>
+          <div className="mt-2 text-[10px] md:text-[11px] font-bold rounded-full px-2.5 py-1 inline-flex items-center gap-1.5 border" style={{ background: 'color-mix(in srgb, var(--color-primary) 6%, white)', borderColor: 'color-mix(in srgb, var(--color-primary) 22%, transparent)', color: 'color-mix(in srgb, var(--color-primary) 55%, var(--color-text))' }}>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-primary)' }}></span>
             <span>وفّر حتى {p.tierPricing[p.tierPricing.length-1].discountPercent}% عند شراء {p.tierPricing[p.tierPricing.length-1].minQty} قطع</span>
           </div>
         )}
         {/* Color variant dots preview */}
         {p.variants && p.variants.length>0 && (
-          <div className="mt-2 flex gap-1 flex-wrap">
+          <div className="mt-2 flex gap-1.5 flex-wrap">
             {Array.from(new Map(p.variants.map(v=> [(v.colorAr||v.color||'')+(v.colorHex||''), v])).values()).slice(0,5).map((v:any)=> (
-              <span key={v.id} className="w-6 h-6 rounded-full border-2 border-white shadow flex items-center justify-center" style={{background:v.colorHex||'#ddd'}} title={v.colorAr||v.color}></span>
+              <span key={v.id} className="w-5 h-5 rounded-full border-2 border-white shadow-sm ring-1 ring-black/5 flex items-center justify-center transition-transform hover:scale-110" style={{background:v.colorHex||'#ddd'}} title={v.colorAr||v.color}></span>
             ))}
-            {p.variants.length>5 && <span className="text-[11px] text-[#9A8A6B] self-center">+{p.variants.length-5}</span>}
+            {p.variants.length>5 && <span className="text-[11px] self-center" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>+{p.variants.length-5}</span>}
           </div>
         )}
 
         {/* Mobile-only: always-visible compact "add to cart" button */}
-        <button type="button" onClick={handleQuickCart} className={`md:hidden btn-premium mt-3 w-full text-xs font-bold py-2.5 rounded-full flex items-center justify-center gap-1.5 ${outOfStock ? 'bg-gray-200 text-gray-500' : 'bg-[var(--color-secondary)] text-white'}`} aria-label="add to cart">
+        <button type="button" onClick={handleQuickCart} className={`md:hidden btn-premium mt-3 w-full text-xs font-bold py-2.5 rounded-full flex items-center justify-center gap-1.5 ${outOfStock ? 'bg-gray-200 text-gray-500' : 'text-white'}`} style={!outOfStock ? { background: 'var(--color-secondary)' } : undefined} aria-label="add to cart">
           <ShoppingBag size={13}/>
           <span>{outOfStock ? 'غير متوفر' : 'أضف للسلة'}</span>
         </button>

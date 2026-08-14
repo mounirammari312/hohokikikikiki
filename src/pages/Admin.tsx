@@ -395,21 +395,21 @@ export default function Admin() {
       <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-[26px] font-extrabold text-[#1A1A1E] flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-[#1A1A1E] grid place-items-center text-[#C9A96A]"><Crown size={18} /></span>
+            <h1 className="text-[26px] md:text-[28px] font-extrabold text-[#1A1A1E] flex items-center gap-3">
+              <span className="w-11 h-11 rounded-2xl grid place-items-center text-[#C9A96A] shadow-md" style={{ background: 'var(--color-secondary)' }}><Crown size={20} /></span>
               لوحة تحكم LUMIÈRE
-              <span className="text-xs font-bold bg-[#A02A5B] text-white px-2.5 py-1 rounded-full tracking-widest">PRO 2026</span>
+              <span className="text-xs font-bold text-white px-2.5 py-1 rounded-full tracking-widest shadow-sm" style={{ background: 'var(--color-accent)' }}>PRO 2026</span>
             </h1>
-            <p className="text-xs text-[#9A8A6B] mt-1 flex flex-wrap items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> حساب تاجر معتمد • منصة LUMIÈRE SaaS
+            <p className="text-xs text-[#9A8A6B] mt-2 flex flex-wrap items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> حساب تاجر معتمد • منصة LUMIÈRE SaaS
               <span className="w-1 h-1 rounded-full bg-[#EDE6D8]"></span> {products.length} منتج • {orders.length} طلب • {domains.length} مجال
               <span className="hidden md:inline-flex items-center gap-1.5 bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] px-2 py-0.5 rounded-full text-[11px] font-bold">♥ ÉDITION ROSE {storeForm.enableRoseEdition ? 'مفعّلة' : 'متوقفة'}</span>
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a href={`/?store=${currentSlug}`} target="_blank" className="bg-white border border-[#EDE6D8] px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[#FFFCF8]"><Eye size={16} /> عرض المتجر</a>
-            <button onClick={handleExport} className="bg-[#1A1A1E] text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-black"><Download size={16} /> تصدير CSV</button>
-            <button onClick={() => { if (confirm('إعادة تهيئة كل البيانات؟')) { localStorage.clear(); location.reload() } }} className="bg-white border border-[#EDE6D8] px-3 py-2 rounded-full text-xs font-bold text-[#9A8A6B] hover:text-red-600">إعادة تهيئة</button>
+            <a href={`/?store=${currentSlug}`} target="_blank" className="bg-white border border-[#EDE6D8] px-4 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"><Eye size={16} /> عرض المتجر</a>
+            <button onClick={handleExport} className="text-white px-4 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5" style={{ background: 'var(--color-secondary)' }}><Download size={16} /> تصدير CSV</button>
+            <button onClick={() => { if (confirm('إعادة تهيئة كل البيانات؟')) { localStorage.clear(); location.reload() } }} className="bg-white border border-[#EDE6D8] px-3 py-2.5 rounded-full text-xs font-bold text-[#9A8A6B] hover:text-red-600 hover:border-red-200 transition-all duration-300">إعادة تهيئة</button>
           </div>
         </div>
 
@@ -441,36 +441,52 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-4">
-          <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 relative overflow-hidden">
-            <div className="absolute -top-6 -left-6 w-16 h-16 bg-[#C9A96A]/10 rounded-full" />
-            <div className="text-xs text-[#9A8A6B] flex items-center gap-1"><ShoppingBag size={12} className="text-[#C9A96A]" /> إجمالي الطلبات</div><div className="text-2xl font-extrabold text-[#1A1A1E] mt-1">{stats.count}</div>
-            <div className="text-[11px] text-emerald-600 flex items-center gap-1"><TrendingUp size={10} /> مباشر</div>
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-5">
+          {/* Total orders — primary accent */}
+          <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 relative overflow-hidden card-shadow card-shadow-hover">
+            <div className="absolute -top-6 -left-6 w-16 h-16 rounded-full" style={{ background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)' }} />
+            <div className="relative">
+              <div className="w-8 h-8 rounded-full grid place-items-center mb-2" style={{ background: 'color-mix(in srgb, var(--color-primary) 14%, white)', color: 'var(--color-primary)' }}><ShoppingBag size={14} /></div>
+              <div className="text-xs text-[#9A8A6B]">إجمالي الطلبات</div><div className="text-2xl font-extrabold text-[#1A1A1E] mt-0.5">{stats.count}</div>
+              <div className="text-[11px] text-emerald-600 flex items-center gap-1"><TrendingUp size={10} /> مباشر</div>
+            </div>
           </div>
-          <div className="bg-[#1A1A1E] text-white rounded-2xl p-4 relative overflow-hidden">
-            <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-[#C9A96A]/15 rounded-full blur-xl" />
-            <div className="text-xs text-white/60">إيرادات متوقعة</div><div className="text-lg font-extrabold mt-1">{formatDZD(stats.totalRevenue)}</div>
-            <div className="text-[11px] text-[#C9A96A]">بدون الملغاة</div>
+          {/* Revenue — dark hero card */}
+          <div className="text-white rounded-2xl p-4 relative overflow-hidden card-shadow" style={{ background: 'var(--color-secondary)' }}>
+            <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full blur-xl" style={{ background: 'color-mix(in srgb, var(--color-primary) 22%, transparent)' }} />
+            <div className="relative">
+              <div className="w-8 h-8 rounded-full grid place-items-center mb-2" style={{ background: 'color-mix(in srgb, var(--color-primary) 22%, transparent)', color: 'var(--color-primary)' }}><Award size={14} /></div>
+              <div className="text-xs text-white/60">إيرادات متوقعة</div><div className="text-lg font-extrabold mt-0.5">{formatDZD(stats.totalRevenue)}</div>
+              <div className="text-[11px] text-[#C9A96A]">بدون الملغاة</div>
+            </div>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-            <div className="text-xs text-amber-700 flex items-center gap-1"><Clock size={12} /> طلبات جديدة</div><div className="text-2xl font-extrabold text-amber-800 mt-1">{stats.newCount}</div>
+          {/* New orders — amber */}
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 card-shadow card-shadow-hover">
+            <div className="w-8 h-8 rounded-full grid place-items-center mb-2 bg-amber-100 text-amber-700"><Clock size={14} /></div>
+            <div className="text-xs text-amber-700">طلبات جديدة</div><div className="text-2xl font-extrabold text-amber-800 mt-0.5">{stats.newCount}</div>
             <div className="text-[11px] text-amber-700">تحتاج تأكيد</div>
           </div>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-            <div className="text-xs text-emerald-700 flex items-center gap-1"><CheckCircle size={12} /> تم التسليم</div><div className="text-2xl font-extrabold text-emerald-800 mt-1">{stats.delivered}</div>
+          {/* Delivered — emerald */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 card-shadow card-shadow-hover">
+            <div className="w-8 h-8 rounded-full grid place-items-center mb-2 bg-emerald-100 text-emerald-700"><CheckCircle size={14} /></div>
+            <div className="text-xs text-emerald-700">تم التسليم</div><div className="text-2xl font-extrabold text-emerald-800 mt-0.5">{stats.delivered}</div>
             <div className="text-[11px] text-emerald-700">نجاح COD</div>
           </div>
-          <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4">
-            <div className="text-xs text-[#9A8A6B] flex items-center gap-1"><Layers size={12} className="text-[#C9A96A]" /> المنتجات</div><div className="text-2xl font-extrabold text-[#1A1A1E] mt-1">{stats.totalProducts}</div>
+          {/* Products — neutral */}
+          <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 card-shadow card-shadow-hover">
+            <div className="w-8 h-8 rounded-full grid place-items-center mb-2" style={{ background: 'color-mix(in srgb, var(--color-primary) 14%, white)', color: 'var(--color-primary)' }}><Layers size={14} /></div>
+            <div className="text-xs text-[#9A8A6B]">المنتجات</div><div className="text-2xl font-extrabold text-[#1A1A1E] mt-0.5">{stats.totalProducts}</div>
             <div className="text-[11px] text-[#9A8A6B]">{stats.featured} مميزة • {stats.inActiveDomain} في المجال</div>
           </div>
-          <div className={`rounded-2xl p-4 border ${stats.lowStock > 0 ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-[#EDE6D8]'}`}>
-            <div className={`text-xs flex items-center gap-1 ${stats.lowStock > 0 ? 'text-[#A02A5B]' : 'text-[#9A8A6B]'}`}><AlertCircle size={12} /> مخزون منخفض</div><div className={`text-2xl font-extrabold mt-1 ${stats.lowStock > 0 ? 'text-[#A02A5B]' : 'text-[#1A1A1E]'}`}>{stats.lowStock}</div>
+          {/* Low stock — accent when > 0 */}
+          <div className={`rounded-2xl p-4 border card-shadow card-shadow-hover ${stats.lowStock > 0 ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-[#EDE6D8]'}`}>
+            <div className={`w-8 h-8 rounded-full grid place-items-center mb-2 ${stats.lowStock > 0 ? 'bg-[#FCE7F0] text-[#A02A5B]' : 'bg-gray-100 text-gray-500'}`}><AlertCircle size={14} /></div>
+            <div className={`text-xs ${stats.lowStock > 0 ? 'text-[#A02A5B]' : 'text-[#9A8A6B]'}`}>مخزون منخفض</div><div className={`text-2xl font-extrabold mt-0.5 ${stats.lowStock > 0 ? 'text-[#A02A5B]' : 'text-[#1A1A1E]'}`}>{stats.lowStock}</div>
             <div className="text-[11px] text-[#9A8A6B]">≤ 10 قطع</div>
           </div>
         </div>
 
-        <div className="mt-6 bg-white border border-[#EDE6D8] rounded-[20px] p-1.5 flex flex-wrap gap-1.5 w-fit max-w-full overflow-x-auto">
+        <div className="mt-6 bg-white border border-[#EDE6D8] rounded-[20px] p-1.5 flex flex-wrap gap-1.5 w-fit max-w-full overflow-x-auto card-shadow sticky top-3 z-30 backdrop-blur" style={{ background: 'rgba(255,255,255,0.92)' }}>
           {[
             { k: 'domains', l: 'النطاق المخصص', i: Globe, count: null, desc: 'custom domain' },
             { k: 'products', l: 'المنتجات', i: Package, count: products.length, desc: 'إضافة وتعديل' },
@@ -480,10 +496,10 @@ export default function Admin() {
             { k: 'delivery', l: 'شركات التوصيل', i: Truck, count: null, desc: 'Yalidine + ZR' },
             { k: 'tracking', l: 'التتبع', i: BarChart3, count: null, desc: 'Pixel' },
           ].map(t => (
-            <button key={t.k} onClick={() => setTab(t.k as any)} className={`px-3.5 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 border transition ${tab === t.k ? 'bg-[#1A1A1E] text-white border-[#1A1A1E] shadow' : 'bg-[#FFFCF8] text-[#1A1A1E] border-transparent hover:bg-white hover:border-[#EDE6D8]'}`}>
-              <t.i size={15} className={tab === t.k ? 'text-[#C9A96A]' : 'text-[#9A8A6B]'} />
+            <button key={t.k} onClick={() => setTab(t.k as any)} className={`px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 border transition-all duration-300 ${tab === t.k ? 'text-white border-transparent shadow-md' : 'bg-transparent text-[#1A1A1E] border-transparent hover:bg-[#FFFCF8] hover:shadow-sm'}`} style={tab === t.k ? { background: 'var(--color-secondary)' } : undefined}>
+              <t.i size={15} className={`transition-colors ${tab === t.k ? 'text-[#C9A96A]' : 'text-[#9A8A6B]'}`} />
               <span>{t.l}</span>
-              {t.count !== null && <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold ${tab === t.k ? 'bg-white text-[#1A1A1E]' : 'bg-[#1A1A1E] text-white'}`}>{t.count}</span>}
+              {t.count !== null && <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold transition-colors ${tab === t.k ? 'bg-white text-[#1A1A1E]' : 'bg-[#1A1A1E] text-white'}`}>{t.count}</span>}
               <span className={`hidden xl:inline text-[11px] font-normal ${tab === t.k ? 'text-white/60' : 'text-[#9A8A6B]'}`}>• {t.desc}</span>
             </button>
           ))}
@@ -729,7 +745,7 @@ export default function Admin() {
                 const inActive = activeDomain.categories.some(c=> c.key===p.category)
                 const hasVariants = !!(p.variants && p.variants.length)
                 return (
-                <div key={p._id} className={`bg-white border rounded-[20px] overflow-hidden group hover:shadow-[0_8px_30px_rgba(0,0,0,0.07)] transition ${inActive ? 'border-[#EDE6D8]' : 'border-[#EDE6D8] opacity-90'}`}>
+                <div key={p._id} className={`bg-white border rounded-[20px] overflow-hidden group hover:shadow-[0_12px_36px_rgba(0,0,0,0.09)] hover:-translate-y-0.5 transition-all duration-300 ${inActive ? 'border-[#EDE6D8]' : 'border-[#EDE6D8] opacity-90'}`}>
                   <div className="relative h-[200px] bg-[#FFF8EE] overflow-hidden">
                     <img src={p.images[0]} alt={p.nameAr} className="w-full h-full object-cover group-hover:scale-[1.03] transition duration-500" />
                     <div className="absolute top-3 right-3 flex gap-1.5 flex-wrap">
