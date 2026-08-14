@@ -45,7 +45,7 @@ export default function MerchantLogin() {
             <Store size={24} className="text-[#C9A96A]" />
           </div>
           <h1 className="text-2xl font-extrabold text-[#1A1A1E] mt-3">دخول التاجر</h1>
-          <p className="text-sm text-[#7A6F5A] mt-1">سجّلي الدخول للوصول إلى لوحة تحكم متجرك</p>
+          <p className="text-sm text-[#7A6F5A] mt-1">سجّل الدخول للوصول إلى لوحة تحكم متجرك</p>
         </div>
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border border-[#EDE6D8] shadow-lg space-y-3">
           <div>
@@ -56,7 +56,7 @@ export default function MerchantLogin() {
               onChange={e => setEmail(e.target.value)}
               placeholder="you@store.com"
               dir="ltr"
-              className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]"
+              className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] text-left"
               required
             />
           </div>
@@ -67,7 +67,7 @@ export default function MerchantLogin() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]"
+              className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] text-right"
               required
             />
           </div>

@@ -482,25 +482,25 @@ export default function PlatformLanding() {
             <form onSubmit={handleRegister} className="space-y-3">
               <div className="relative">
                 <User size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
-                <input value={form.fullName} onChange={e => setForm({...form, fullName: e.target.value})} placeholder="الاسم الكامل *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A]" />
+                <input value={form.fullName} onChange={e => setForm({...form, fullName: e.target.value})} placeholder="الاسم الكامل *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" />
               </div>
               <div className="relative">
                 <Mail size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
-                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="البريد الإلكتروني *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A]" dir="ltr" />
+                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="البريد الإلكتروني *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" dir="rtl" />
               </div>
               <div className="relative">
                 <Lock size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
-                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A]" dir="ltr" />
+                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" dir="rtl" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B8AA8E] hover:text-[#1A1A1E]">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
-              <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="الهاتف (اختياري)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" dir="ltr" />
+              <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="الهاتف (اختياري)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] text-right" dir="rtl" />
               <div className="border-t border-[#EDE6D8] pt-3 mt-3">
                 <div className="text-xs font-bold text-[#7A6F5A] mb-2">معلومات المتجر</div>
                 <input value={form.storeName} onChange={e => {
                   const v = e.target.value
                   setForm(prev => ({ ...prev, storeName: v, slug: slugManuallyEdited ? prev.slug : slugify(v) }))
-                }} placeholder="اسم المتجر (فرنسي/إنجليزي) *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
-                <input value={form.storeNameAr} onChange={e => setForm({...form, storeNameAr: e.target.value})} placeholder="اسم المتجر (عربي)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] mt-2" />
+                }} placeholder="اسم المتجر (فرنسي/إنجليزي) *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] text-right" />
+                <input value={form.storeNameAr} onChange={e => setForm({...form, storeNameAr: e.target.value})} placeholder="اسم المتجر (عربي)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] text-right mt-2" />
                 <div className="flex items-center gap-2 mt-2">
                   {(() => {
                     const hostname = typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : PLATFORM_APEX
@@ -544,11 +544,11 @@ export default function PlatformLanding() {
             <form onSubmit={handleLogin} className="space-y-3">
               <div className="relative">
                 <Mail size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
-                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="البريد الإلكتروني" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A]" dir="ltr" />
+                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="البريد الإلكتروني" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" dir="rtl" />
               </div>
               <div className="relative">
                 <Lock size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
-                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A]" dir="ltr" />
+                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" dir="rtl" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B8AA8E] hover:text-[#1A1A1E]">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
               {error && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}
