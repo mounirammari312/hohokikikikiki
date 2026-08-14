@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { SlidersHorizontal, Search } from 'lucide-react'
+import { SlidersHorizontal, Search, PackageOpen } from 'lucide-react'
 import ProductCard from '../components/ProductCard'
 import { getProducts } from '../services/api/products'
 import { getActiveDomain } from '../services/api/domains'
@@ -55,7 +55,7 @@ export default function Shop(){
           <div className="flex items-center gap-2 shrink-0">
             {/* flex-1 lets the search input shrink on mobile instead of
                 staying fixed at 240px and overflowing. */}
-            <div className="flex items-center bg-white border border-[#EDE6D8] rounded-full px-3 py-2 flex-1 md:flex-initial md:w-[240px] min-w-0">
+            <div className="flex items-center bg-white border border-[#EDE6D8] rounded-full px-3 py-2 flex-1 md:flex-initial md:w-[260px] min-w-0 focus-within:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--color-primary)]/20 focus-within:shadow-[0_0_0_4px_rgba(201,169,106,0.1)]">
               <Search size={16} className="text-[#B8AA8E] shrink-0"/>
               <input value={search} onChange={e=>{setSearch(e.target.value); const n=new URLSearchParams(params); if(e.target.value) n.set('q', e.target.value); else n.delete('q'); setParams(n, {replace:true})}} placeholder="بحث..." className="flex-1 outline-none px-2 text-sm bg-transparent min-w-0" />
             </div>
@@ -76,28 +76,32 @@ export default function Shop(){
           className="mt-4 flex md:flex-wrap gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 thumb-scroll snap-x snap-mandatory overscroll-x-contain [&>button]:snap-start [&>button:last-child]:me-4 md:[&>button:last-child]:me-0"
           style={{ WebkitOverflowScrolling: 'touch', scrollSnapType: 'x mandatory' }}
         >
-          <button type="button" onClick={()=>{const n=new URLSearchParams(params); n.delete('cat'); setParams(n)}} className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold border flex items-center gap-1.5 ${cat==='all' ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>الكل <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${cat==='all' ? 'bg-white text-[#1A1A1E]' : 'bg-[#1A1A1E] text-white'}`}>{products.length}</span></button>
+          <button type="button" onClick={()=>{const n=new URLSearchParams(params); n.delete('cat'); setParams(n)}} className={`btn-premium shrink-0 px-4 py-2 rounded-full text-sm font-bold border flex items-center gap-1.5 ${cat==='all' ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>الكل <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${cat==='all' ? 'bg-white text-[#1A1A1E]' : 'bg-[#1A1A1E] text-white'}`}>{products.length}</span></button>
           {domain.categories.map(c=> (
-            <button key={c.key} type="button" onClick={()=>{const n=new URLSearchParams(params); n.set('cat',c.key); setParams(n)}} className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold border ${cat===c.key ? 'bg-[#A02A5B] text-white border-[#A02A5B] shadow shadow-[#A02A5B]/20' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>{c.labelAr} <span className="text-[10px] opacity-60 hidden md:inline">• {c.label}</span></button>
+            <button key={c.key} type="button" onClick={()=>{const n=new URLSearchParams(params); n.set('cat',c.key); setParams(n)}} className={`btn-premium shrink-0 px-4 py-2 rounded-full text-sm font-bold border ${cat===c.key ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-md shadow-[#A02A5B]/20' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFBF0]' }`}>{c.labelAr} <span className="text-[10px] opacity-60 hidden md:inline">• {c.label}</span></button>
           ))}
         </div>
-        <div className="mt-2 flex items-center gap-1 text-xs text-[#9A8A6B]"><SlidersHorizontal size={14}/> {filtered.length} منتج</div>
+        <div className="mt-2 flex items-center gap-1.5 text-xs text-[#9A8A6B]"><SlidersHorizontal size={14}/> <span className="font-bold gradient-text text-sm">{filtered.length}</span> منتج</div>
 
         {/* hint when browsing cross-domain */}
         {cat!=='all' && !domainCatKeys.includes(cat) && (
           <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-800">أنت تستعرض فئة خارج المجال النشط ({domain.nameAr}). يمكنك تغيير المجال من لوحة التحكم أو تصفح كل المنتجات.</div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          {filtered.map(p=> <ProductCard key={p._id} p={p}/> )}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 mt-6">
+          {filtered.map((p, i)=> <ProductCard key={p._id} p={p} index={i}/> )}
         </div>
         {filtered.length===0 && (
-          <div className="text-center py-10 bg-white border border-dashed border-[#EDE6D8] rounded-2xl mt-6">
-            <div className="font-bold">لا توجد نتائج</div>
-            <p className="text-sm text-[#9A8A6B] mt-1">جربي بحثاً آخر أو غيّري الفئة. المجال النشط: {domain.nameAr}</p>
-            <div className="flex justify-center gap-2 mt-3">
-              <button type="button" onClick={()=>{ setSearch(''); const n=new URLSearchParams(params); n.delete('q'); n.delete('cat'); setParams(n)}} className="bg-[#1A1A1E] text-white px-4 py-2 rounded-full text-sm font-bold">مسح الفلاتر</button>
-              <Link to="/admin" className="bg-white border border-[#EDE6D8] px-4 py-2 rounded-full text-sm font-bold">إدارة المنتجات</Link>
+          <div className="text-center py-14 bg-white border border-dashed border-[#EDE6D8] rounded-2xl mt-6 animate-slide-up">
+            {/* Empty state illustration — icon in circle */}
+            <div className="mx-auto w-20 h-20 rounded-full bg-[#FFF5E6] grid place-items-center mb-4 border border-[#F0D9A8]">
+              <PackageOpen size={36} className="text-[#C9A96A]" />
+            </div>
+            <div className="font-bold text-[#1A1A1E] text-lg">لا توجد نتائج</div>
+            <p className="text-sm text-[#9A8A6B] mt-1 max-w-md mx-auto">جرّب بحثاً آخر أو غيّر الفئة. المجال النشط: {domain.nameAr}</p>
+            <div className="flex justify-center gap-2 mt-5">
+              <button type="button" onClick={()=>{ setSearch(''); const n=new URLSearchParams(params); n.delete('q'); n.delete('cat'); setParams(n)}} className="btn-premium bg-[#1A1A1E] text-white px-4 py-2 rounded-full text-sm font-bold">مسح الفلاتر</button>
+              <Link to="/admin" className="bg-white border border-[#EDE6D8] px-4 py-2 rounded-full text-sm font-bold hover:bg-[#FFFBF0]">إدارة المنتجات</Link>
             </div>
           </div>
         )}

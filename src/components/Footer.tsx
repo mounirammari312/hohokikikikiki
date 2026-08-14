@@ -12,15 +12,15 @@ export default function Footer(){
     void syncSettings().then(() => setStore(getSettings()))
   }, [storeId, storeSlug])
   return (
-    <footer className="text-[#E8E0CC] mt-16" style={{background: store.secondaryColor || "#1A1A1E"}}>
+    <footer className="gradient-top-border text-[#E8E0CC] mt-16" style={{background: store.secondaryColor || "#1A1A1E"}}>
       <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-10">
         <div className="grid md:grid-cols-4 gap-8">
           <div>
-            <div className="cormorant text-2xl tracking-[0.2em] text-[#C9A96A] font-bold flex items-center gap-2">{store.storeName} {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B] shadow-[0_0_8px_rgba(160,42,91,0.6)]"></span>}</div>
+            <div className="cormorant text-2xl tracking-[0.2em] gradient-text font-bold flex items-center gap-2">{store.storeName} {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B] shadow-[0_0_8px_rgba(160,42,91,0.6)]"></span>}</div>
             <p className="text-sm leading-6 mt-3 text-[#B8AA8E]">{store.footerDescriptionAr}</p>
             <div className="flex gap-2 mt-4">
-              <a href={store.instagram.startsWith('@') ? `https://instagram.com/${store.instagram.slice(1)}` : '#'} target="_blank" className="w-8 h-8 rounded-full bg-white/10 grid place-items-center hover:bg-[#A02A5B] hover:text-white transition"><Instagram size={16}/></a>
-              <a href={`tel:${store.phone.replace(/\s/g,'')}`} className="w-8 h-8 rounded-full bg-white/10 grid place-items-center hover:bg-[#C9A96A] transition"><Phone size={16}/></a>
+              <a href={store.instagram.startsWith('@') ? `https://instagram.com/${store.instagram.slice(1)}` : '#'} target="_blank" className="social-bounce w-8 h-8 rounded-full bg-white/10 grid place-items-center hover:bg-[#A02A5B] hover:text-white"><Instagram size={16}/></a>
+              <a href={`tel:${store.phone.replace(/\s/g,'')}`} className="social-bounce w-8 h-8 rounded-full bg-white/10 grid place-items-center hover:bg-[#C9A96A]"><Phone size={16}/></a>
             </div>
             <div className="text-xs text-white/40 mt-3">{store.phone} • {store.email}</div>
           </div>
@@ -44,11 +44,11 @@ export default function Footer(){
           </div>
           <div className="bg-white/[0.05] rounded-2xl p-4 border border-white/10 relative overflow-hidden">
             {store.enableRoseEdition && <div className="absolute -top-8 -left-8 w-20 h-20 bg-[#A02A5B]/10 rounded-full blur-xl pointer-events-none"></div>}
-            <h4 className="font-bold text-white flex items-center gap-2">اشتركي واحصل على 10% خصم {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B]"></span>}</h4>
+            <h4 className="font-bold text-white flex items-center gap-2">اشترك واحصل على 10% خصم {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B]"></span>}</h4>
             <p className="text-xs text-[#B8AA8E] mt-1">لأول طلب + كود خصم حصري للكولكشن الجديد</p>
             <form onSubmit={e=>{e.preventDefault(); alert('تم التسجيل! كود الخصم: LUMIERE10')}} className="mt-3 flex gap-2">
               <input placeholder="بريدك الإلكتروني" className="flex-1 rounded-full px-3 py-2 text-sm bg-white text-black outline-none focus:ring-2 focus:ring-[#A02A5B]/20"/>
-              <button className="bg-[#C9A96A] text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-[#B8945A] transition">اشتراك</button>
+              <button className="btn-premium bg-[#C9A96A] text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-[#B8945A]">اشتراك</button>
             </form>
             {store.enableRoseEdition && <p className="text-[11px] text-white/30 mt-2 text-center">♥ لمسة روز راقية — ÉDITION ROSE</p>}
           </div>

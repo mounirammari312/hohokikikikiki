@@ -64,3 +64,66 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 
 /* Shimmer for images */
 @keyframes shimmer { 0%{opacity:0.6} 50%{opacity:1} 100%{opacity:0.6} }
+
+/* ═══ Premium Design System ═══════════════════════════════════════ */
+/* Smooth transitions everywhere — applied AFTER the existing
+   `* { font-family }` rule so font transitions don't cause repaints. */
+* { transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform; transition-duration: 200ms; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* Premium card shadow */
+.card-shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03); }
+.card-shadow-hover:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04); transform: translateY(-2px); }
+
+/* Premium button — animated shine sweep on hover */
+.btn-premium { position: relative; overflow: hidden; }
+.btn-premium::after { content: ''; position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%); transform: translateX(-100%); transition: transform 0.6s; pointer-events: none; }
+.btn-premium:hover::after { transform: translateX(100%); }
+
+/* Skeleton shimmer */
+@keyframes shimmer-skeleton { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer-skeleton 1.5s infinite; }
+
+/* Glass effect */
+.glass-card { background: rgba(255,255,255,0.7); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255,255,255,0.3); }
+
+/* Gradient text — uses tenant theme colors */
+.gradient-text { background: linear-gradient(135deg, var(--color-primary, #C9A96A), var(--color-accent, #A02A5B)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+/* Smooth image zoom on hover */
+.img-zoom { overflow: hidden; }
+.img-zoom img { transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+.img-zoom:hover img { transform: scale(1.08); }
+
+/* Badge pulse */
+@keyframes badge-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.badge-pulse { animation: badge-pulse 2s ease-in-out infinite; }
+
+/* Slide in animation */
+@keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+/* Stagger animation delays */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+
+/* Slide-in from side (mobile menu) */
+@keyframes slide-in-right { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+.animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+/* Social icon bounce on hover */
+.social-bounce { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.social-bounce:hover { transform: translateY(-3px) scale(1.08); }
+
+/* Subtle top border gradient (footer) */
+.gradient-top-border { position: relative; }
+.gradient-top-border::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--color-primary, #C9A96A), var(--color-accent, #A02A5B), transparent); opacity: 0.6; }
+
+/* Hero gradient overlay animation — slow sweeping accent tint */
+@keyframes hero-overlay { 0%, 100% { opacity: 0.25; transform: translateX(-3%); } 50% { opacity: 0.5; transform: translateX(3%); } }
+.hero-overlay-anim { animation: hero-overlay 8s ease-in-out infinite; }
+
+/* Arrow slide-in on hover (category cards) */
+.arrow-slide { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.group:hover .arrow-slide { transform: translateX(-4px); }
