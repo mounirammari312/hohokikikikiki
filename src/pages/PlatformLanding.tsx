@@ -1,19 +1,30 @@
 /**
- * PlatformLanding — the SaaS marketing site shown on the bare platform
- * domain (lumiere.saas). Explains the product, shows pricing, and
- * offers a "Create your store in 1 minute" form.
+ * PlatformLanding — Professional SaaS marketing page.
  *
- * When a merchant registers, a new TenantStore + MerchantUser are
- * created server-side, the new store is seeded with default catalog
- * data, and the user is redirected to their subdomain
- * (slug.lumiere.saas) where the storefront + dashboard await.
+ * Shows a modern, conversion-optimized landing page with:
+ *  - Sticky glassmorphism header with gradient CTA
+ *  - Hero with animated gradient background + dashboard preview
+ *  - Stats bar (social proof)
+ *  - Features grid with icons
+ *  - Integrations showcase
+ *  - How it works (3 steps)
+ *  - Pricing (4 tiers)
+ *  - FAQ accordion
+ *  - Final CTA
+ *  - Footer
+ *
+ * NO admin credentials are shown anywhere.
  */
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTenant } from '../context/TenantContext'
 import { authRegister } from '../services/api/client'
-import { ArrowLeft, Check, Store, Zap, Crown, Rocket, ShoppingBag, Truck, ShieldCheck, Sparkles, Globe, Star, TrendingUp } from 'lucide-react'
+import {
+  ArrowLeft, Check, Store, Crown, Rocket, ShoppingBag, Truck, ShieldCheck,
+  Sparkles, Globe, Star, TrendingUp, Zap, X, ChevronDown, Palette,
+  Package, BarChart3, Phone, Mail, Lock, User, Eye, EyeOff,
+} from 'lucide-react'
 
 const PLATFORM_APEX = ((import.meta as any).env?.VITE_PLATFORM_APEX || 'lumiere.saas').toLowerCase()
 
@@ -60,19 +71,49 @@ const plans = [
   },
 ]
 
+const features = [
+  { icon: Package, t: 'إدارة المنتجات', d: 'أضف منتجات بصور متعددة، متغيرات (ألوان/مقاسات)، أسعار بالجملة، وحقول مخصصة حسب تخصص متجرك.', c: '#C9A96A' },
+  { icon: Truck, t: 'شحن 58 ولاية', d: 'حاسبة شحن مدمجة لكل ولايات الجزائر مع أسعار قابلة للتخصيص، توصيل للمنزل أو مكتب التوصيل.', c: '#A02A5B' },
+  { icon: ShieldCheck, t: 'الدفع عند الاستلام', d: 'نظام COD كامل مع كشف الطلبات المكررة تلقائياً، تأكيد هاتفي، وحماية من الإرسال المزدوج.', c: '#8D6E3A' },
+  { icon: Globe, t: 'نطاق مخصص', d: 'كل متجر يحصل على نطاق فرعي أو نطاقك الخاص mystore.dz مع شهادة SSL مجانية وتلقائية.', c: '#1A1A1E' },
+  { icon: Zap, t: 'تتبع الإعلانات', d: 'Meta Pixel + TikTok Pixel مدمجان تلقائياً مع أحداث ViewContent، AddToCart، InitiateCheckout، Purchase.', c: '#C9A96A' },
+  { icon: BarChart3, t: 'متجريات متقدمة', d: 'إحصائيات حية للمبيعات، الطلبات الجديدة، المنتجات الأكثر مبيعاً، والمخزون المنخفض.', c: '#A02A5B' },
+]
+
+const integrations = [
+  { name: 'Yalidine', desc: 'توصيل 58 ولاية', icon: Truck, color: '#C9A96A' },
+  { name: 'ZR Express', desc: 'توصيل سريع', icon: Truck, color: '#A02A5B' },
+  { name: 'Meta Pixel', desc: 'تتبع إعلانات فيسبوك', icon: TrendingUp, color: '#1A1A1E' },
+  { name: 'TikTok Pixel', desc: 'تتبع إعلانات تيك توك', icon: Zap, color: '#8D6E3A' },
+  { name: 'COD', desc: 'الدفع عند الاستلام', icon: ShieldCheck, color: '#A02A5B' },
+]
+
+const faqs = [
+  { q: 'هل أحتاج خبرة تقنية لإنشاء متجر؟', a: 'لا، المنصة لا تتطلب أي كود. تملأ نموذج التسجيل، ويُنشأ متجرك تلقائياً مع منتجات تجريبية ولوحة تحكم كاملة. كل ما تحتاجه هو بريد إلكتروني وكلمة مرور.' },
+  { q: 'كم تكلفة إنشاء متجر؟', a: 'الخطة التجريبية مجانية لمدة 14 يوماً بدون بطاقة بنكية. بعدها تختار الخطة المناسبة: ستارتر (2,500 دج/شهر)، برو (6,900 دج/شهر)، أو VIP (15,000 دج/شهر).' },
+  { q: 'هل يدعم الدفع عند الاستلام (COD)؟', a: 'نعم، نظام COD كامل مدمج في كل المتاجر. كل طلب يأتيك في لوحة التحكم مع كشف الطلبات المكررة تلقائياً وحماية من الإرسال المزدوج.' },
+  { q: 'كيف يعمل الشحن للولايات؟', a: 'حاسبة شحن مدمجة لكل 58 ولاية جزائرية مع أسعار قابلة للتخصيص. يمكنك أيضاً ربط متجرك بـ Yalidine و ZR Express لإنشاء بوالص الشحن تلقائياً.' },
+  { q: 'هل يمكنني ربط نطاقي الخاص؟', a: 'نعم، في خطة برو وما فوق. يمكنك ربط نطاق مخصص مثل mystore.dz مع شهادة SSL مجانية. في الخطة المجانية تحصل على نطاق فرعي slug.lumiere.saas.' },
+  { q: 'هل المنصة تدعم Meta Pixel و TikTok Pixel؟', a: 'نعم، مدمجان تلقائياً مع أحداث ViewContent، AddToCart، InitiateCheckout، Purchase. تُسجل المفاتيح من لوحة التحكم في تبويب "التتبع".' },
+]
+
 export default function PlatformLanding() {
   const { login } = useTenant()
   const nav = useNavigate()
   const [showRegister, setShowRegister] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
+  const [faqOpen, setFaqOpen] = useState<number | null>(0)
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', phone: '',
     storeName: '', storeNameAr: '', slug: '',
   })
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
-  const [faqOpen, setFaqOpen] = useState<number | null>(0)
+
+  // ─── Auto-slugify ──────────────────────────────────────────────────
+  const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,47 +125,19 @@ export default function PlatformLanding() {
     setLoading(true)
     try {
       const res = await authRegister(form)
-      // Cache the token + user — TenantContext picks it up. We only
-      // write the canonical `lumiere_token` key (the legacy
-      // `lumiere_saas_token` key has been retired to avoid stale-token
-      // bugs where one code path cleared it and another didn't).
       try {
         localStorage.setItem('lumiere_token', res.token)
         localStorage.setItem('lumiere_saas_user', JSON.stringify(res.user))
         localStorage.setItem('lumiere_saas_active_store', res.storeId)
       } catch {}
-      // Compute the slug (matches what the server used to create the store)
-      const slug = form.slug || form.storeName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-      // Cache the slug too so the client's API layer can attach it as
-      // `x-store-slug` for environments where subdomains aren't usable.
+      const slug = form.slug || slugify(form.storeName)
       localStorage.setItem('lumiere_saas_active_slug', slug)
 
-      // ─── Build the store URL dynamically based on environment ───────
-      // On Vercel's free plan (vercel.app) and on localhost, wildcard
-      // subdomains aren't available — so we use a query-param approach
-      // (`?store=<slug>`) that works on the SAME hostname the merchant
-      // is already on. On a real production domain with wildcard DNS,
-      // we use the proper subdomain `<slug>.<apex>`.
       const hostname = window.location.hostname.replace(/^www\./, '')
-      const isVercelFree =
-        hostname.includes('vercel.app') ||
-        hostname.includes('localhost') ||
-        hostname === '127.0.0.1'
-      const storeUrl = isVercelFree
-        ? `${window.location.origin}/?store=${encodeURIComponent(slug)}`
-        : `${window.location.protocol}//${slug}.${hostname}`
-
-      // Navigate to the new store's admin (same-origin so the session
-      // token in localStorage carries over — no re-login needed).
-      // We add both ?store= (for tenant resolution) and ?storeId=
-      // (for the explicit dashboard scope) so the dashboard is
-      // immediately scoped to the right store. The `&onboarding=1`
-      // flag tells the Admin page to open the 3-step onboarding
-      // wizard so the merchant can pick a niche, set their store
-      // info, and choose a theme before seeing the full dashboard.
+      const isVercelFree = hostname.includes('vercel.app') || hostname.includes('localhost') || hostname === '127.0.0.1'
       const adminUrl = isVercelFree
         ? `${window.location.origin}/admin?store=${encodeURIComponent(slug)}&storeId=${res.storeId}&onboarding=1`
-        : `${storeUrl}/admin?storeId=${res.storeId}&onboarding=1`
+        : `${window.location.protocol}//${slug}.${hostname}/admin?storeId=${res.storeId}&onboarding=1`
       window.location.href = adminUrl
     } catch (err: any) {
       setError(err?.body?.error || err?.message || 'فشل التسجيل')
@@ -139,17 +152,14 @@ export default function PlatformLanding() {
     setLoading(true)
     try {
       await login(form.email, form.password)
-      // Branch on role: super_admin → /super-admin dashboard,
-      // merchant → their store (using the cached slug/storeId that
-      // login() wrote to localStorage).
-      const cachedUser = (() => { try { return JSON.parse(localStorage.getItem('lumiere_saas_user') || '{}') } catch { return {} } })()
+      const cachedUser = JSON.parse(localStorage.getItem('lumiere_saas_user') || '{}')
       if (cachedUser.role === 'super_admin') {
         nav('/super-admin')
       } else {
         const slug = localStorage.getItem('lumiere_saas_active_slug')
         const sid = localStorage.getItem('lumiere_saas_active_store')
-        if (slug) window.location.href = `/?store=${encodeURIComponent(slug)}`
-        else if (sid) window.location.href = `/?storeId=${encodeURIComponent(sid)}`
+        if (slug) window.location.href = `/?store=${slug}`
+        else if (sid) window.location.href = `/?storeId=${sid}`
         else nav('/')
       }
     } catch (err: any) {
@@ -161,8 +171,8 @@ export default function PlatformLanding() {
 
   return (
     <div className="min-h-screen bg-[#FFFCF8]">
-      {/* ─── Header ─── */}
-      <header className="sticky top-0 z-50 bg-[#FFFCF8]/90 backdrop-blur-xl border-b border-[#EDE6D8]">
+      {/* ═══ Header ═══════════════════════════════════════════════════ */}
+      <header className="sticky top-0 z-50 bg-[#FFFCF8]/80 backdrop-blur-xl border-b border-[#EDE6D8]">
         <div className="max-w-[1280px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1A1A1E] to-[#3D3D45] grid place-items-center">
@@ -175,134 +185,147 @@ export default function PlatformLanding() {
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-[#1A1A1E]">
             <a href="#features" className="hover:text-[#C9A96A] transition">المزايا</a>
+            <a href="#integrations" className="hover:text-[#C9A96A] transition">التكاملات</a>
             <a href="#pricing" className="hover:text-[#C9A96A] transition">الأسعار</a>
-            <a href="#how" className="hover:text-[#C9A96A] transition">كيف يعمل</a>
             <a href="#faq" className="hover:text-[#C9A96A] transition">الأسئلة الشائعة</a>
           </nav>
           <div className="flex items-center gap-2">
             <button onClick={() => { setShowLogin(true); setShowRegister(false) }} className="text-sm font-bold px-4 py-2 rounded-full hover:bg-[#F5EFE6] transition">دخول</button>
-            <button onClick={() => { setShowRegister(true); setShowLogin(false) }} className="text-sm font-bold px-4 py-2 rounded-full bg-[#1A1A1E] text-white hover:bg-black transition">أنشئ متجرك</button>
+            <button onClick={() => { setShowRegister(true); setShowLogin(false) }} className="text-sm font-bold px-4 py-2 rounded-full bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white hover:opacity-90 transition shadow-lg">أنشئ متجرك</button>
           </div>
         </div>
       </header>
 
-      {/* ─── Hero ─── */}
-      <section className="max-w-[1280px] mx-auto px-4 md:px-6 pt-12 md:pt-20 pb-16">
-        <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-10 items-center">
-          <div>
-            <span className="inline-flex items-center gap-2 bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] text-xs font-bold px-3 py-1 rounded-full">
-              <Sparkles size={12} /> منصة SaaS متعددة المتاجر • إطلاق 2026
-            </span>
-            <h1 className="text-[36px] md:text-[56px] font-extrabold leading-[1.05] text-[#1A1A1E] mt-4">
-              أنشئ متجرك الإلكتروني<br />
-              <span className="bg-gradient-to-l from-[#C9A96A] to-[#A02A5B] bg-clip-text text-transparent">في أقل من دقيقة</span>
-            </h1>
-            <p className="text-[#5A5340] text-lg leading-7 mt-4 max-w-[560px]">
-              منصة جزائرية متكاملة لإنشاء متاجر الدفع عند الاستلام. احصل على متجر بأسمك الخاص، لوحة تحكم احترافية، حاسبة شحن لـ 58 ولاية، وتتبع تلقائي لكل الطلبات — بدون كود وبدون خبرة تقنية.
-            </p>
-            <div className="flex flex-wrap gap-3 mt-6">
-              <button onClick={() => setShowRegister(true)} className="bg-[#1A1A1E] text-white px-7 py-3.5 rounded-full font-bold flex items-center gap-2 hover:bg-black transition shadow-lg shadow-[#1A1A1E]/10">
-                <Rocket size={18} /> ابدأ متجرك الآن
-              </button>
-              <a href="#pricing" className="bg-white border border-[#EDE6D8] text-[#1A1A1E] px-7 py-3.5 rounded-full font-bold flex items-center gap-2 hover:bg-[#F5EFE6] transition">
-                شاهد الأسعار
-              </a>
-            </div>
-            <div className="flex items-center gap-6 mt-8 text-xs text-[#7A6F5A]">
-              <span className="flex items-center gap-1.5"><Check size={14} className="text-emerald-500" /> 14 يوم تجربة مجانية</span>
-              <span className="flex items-center gap-1.5"><Check size={14} className="text-emerald-500" /> بدون بطاقة بنكية</span>
-              <span className="flex items-center gap-1.5"><Check size={14} className="text-emerald-500" /> دعم بالعربية</span>
-            </div>
-          </div>
+      {/* ═══ Hero ═════════════════════════════════════════════════════ */}
+      <section className="relative overflow-hidden">
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#FFFCF8] via-[#FFF8EE] to-[#FDF2F6]" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#C9A96A]/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#A02A5B]/8 rounded-full blur-3xl" />
 
-          {/* Floating dashboard preview */}
-          <div className="relative">
-            <div className="absolute -inset-4 bg-gradient-to-br from-[#C9A96A]/20 to-[#A02A5B]/10 rounded-[32px] blur-2xl" />
-            <div className="relative bg-white rounded-[24px] border border-[#EDE6D8] shadow-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-[#1A1A1E] grid place-items-center text-[#C9A96A] font-bold text-sm">L</div>
-                  <div>
-                    <div className="font-bold text-sm text-[#1A1A1E]">لوحة تحكم LUMIÈRE</div>
-                    <div className="text-[10px] text-[#9A8A6B]">{typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : 'lumiere.saas'}/?store=demo</div>
+        <div className="relative max-w-[1280px] mx-auto px-4 md:px-6 pt-16 md:pt-24 pb-20">
+          <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-12 items-center">
+            <div>
+              <span className="inline-flex items-center gap-2 bg-white border border-[#EDE6D8] text-[#1A1A1E] text-xs font-bold px-4 py-2 rounded-full shadow-sm">
+                <Sparkles size={14} className="text-[#C9A96A]" /> منصة SaaS متعددة المتاجر • إطلاق 2026
+              </span>
+              <h1 className="text-[36px] md:text-[56px] font-extrabold leading-[1.05] text-[#1A1A1E] mt-6">
+                أنشئ متجرك الإلكتروني<br />
+                <span className="bg-gradient-to-l from-[#C9A96A] via-[#A02A5B] to-[#7A1F44] bg-clip-text text-transparent">في أقل من دقيقة</span>
+              </h1>
+              <p className="text-[#5A5340] text-lg leading-8 mt-6 max-w-[560px]">
+                منصة جزائرية متكاملة لإنشاء متاجر الدفع عند الاستلام. احصل على متجر باسمك الخاص، لوحة تحكم احترافية، حاسبة شحن لـ 58 ولاية، وتتبع تلقائي لكل الطلبات — بدون كود وبدون خبرة تقنية.
+              </p>
+              <div className="flex flex-wrap gap-3 mt-8">
+                <button onClick={() => setShowRegister(true)} className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition shadow-xl shadow-[#1A1A1E]/15">
+                  <Rocket size={18} /> ابدأ متجرك الآن
+                </button>
+                <a href="#pricing" className="bg-white border border-[#EDE6D8] text-[#1A1A1E] px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:bg-[#F5EFE6] transition">
+                  شاهد الأسعار
+                </a>
+              </div>
+              <div className="flex items-center gap-6 mt-8 text-sm text-[#7A6F5A]">
+                <span className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> 14 يوم تجربة مجانية</span>
+                <span className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> بدون بطاقة بنكية</span>
+                <span className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> دعم بالعربية</span>
+              </div>
+            </div>
+
+            {/* Dashboard preview card */}
+            <div className="relative">
+              <div className="absolute -inset-6 bg-gradient-to-br from-[#C9A96A]/20 to-[#A02A5B]/10 rounded-[40px] blur-3xl" />
+              <div className="relative bg-white rounded-[28px] border border-[#EDE6D8] shadow-2xl p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#1A1A1E] grid place-items-center text-[#C9A96A] font-bold text-sm">L</div>
+                    <div>
+                      <div className="font-bold text-sm text-[#1A1A1E]">لوحة تحكم المتجر</div>
+                      <div className="text-[10px] text-[#9A8A6B]">{typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : 'lumiere.saas'}/?store=demo</div>
+                    </div>
+                  </div>
+                  <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> نشط
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-[#FFFCF8] border border-[#EDE6D8] rounded-2xl p-4 text-center">
+                    <ShoppingBag size={18} className="mx-auto text-[#C9A96A]" />
+                    <div className="font-extrabold text-2xl text-[#1A1A1E] mt-2">18</div>
+                    <div className="text-[10px] text-[#9A8A6B]">منتج</div>
+                  </div>
+                  <div className="bg-[#FDF2F6] border border-[#F6C0D4] rounded-2xl p-4 text-center">
+                    <TrendingUp size={18} className="mx-auto text-[#A02A5B]" />
+                    <div className="font-extrabold text-2xl text-[#A02A5B] mt-2">42</div>
+                    <div className="text-[10px] text-[#7A1F44]">طلب</div>
+                  </div>
+                  <div className="bg-[#FFFBF0] border border-[#F0D9A8] rounded-2xl p-4 text-center">
+                    <Star size={18} className="mx-auto text-[#8D6E3A]" />
+                    <div className="font-extrabold text-2xl text-[#8D6E3A] mt-2">4.9</div>
+                    <div className="text-[10px] text-[#9A8A6B]">تقييم</div>
                   </div>
                 </div>
-                <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-full">● نشط</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-3">
-                  <ShoppingBag size={14} className="text-[#C9A96A]" />
-                  <div className="font-extrabold text-lg text-[#1A1A1E] mt-1">18</div>
-                  <div className="text-[10px] text-[#9A8A6B]">منتج</div>
+                <div className="mt-4 bg-gradient-to-br from-[#1A1A1E] to-[#2D2D35] rounded-2xl p-4 text-white">
+                  <div className="text-[10px] text-white/50 mb-1">آخر طلب</div>
+                  <div className="text-sm font-bold">LUM-A4F2X — سارة من الجزائر</div>
+                  <div className="text-[11px] text-[#C9A96A] mt-1 flex items-center gap-1">
+                    <Check size={12} /> +6,800 د.ج • الدفع عند الاستلام ✓
+                  </div>
                 </div>
-                <div className="bg-[#FDF2F6] border border-[#F6C0D4] rounded-xl p-3">
-                  <TrendingUp size={14} className="text-[#A02A5B]" />
-                  <div className="font-extrabold text-lg text-[#A02A5B] mt-1">42</div>
-                  <div className="text-[10px] text-[#7A1F44]">طلب</div>
-                </div>
-                <div className="bg-[#FFFBF0] border border-[#F0D9A8] rounded-xl p-3">
-                  <Star size={14} className="text-[#8D6E3A]" />
-                  <div className="font-extrabold text-lg text-[#8D6E3A] mt-1">4.9</div>
-                  <div className="text-[10px] text-[#9A8A6B]">تقييم</div>
-                </div>
-              </div>
-              <div className="mt-3 bg-[#1A1A1E] rounded-xl p-3 text-white">
-                <div className="text-[10px] text-white/60 mb-1">آخر طلب</div>
-                <div className="text-sm font-bold">LUM-1043 — سارة من الجزائر</div>
-                <div className="text-[11px] text-[#C9A96A] mt-1">+6,800 د.ج • الدفع عند الاستلام ✓</div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* ─── Features ─── */}
-      <section id="features" className="bg-white border-y border-[#EDE6D8] py-16">
-        <div className="max-w-[1280px] mx-auto px-4 md:px-6">
-          <div className="text-center mb-12">
-            <span className="text-[#C9A96A] text-xs font-bold tracking-widest">FEATURES</span>
-            <h2 className="text-[32px] font-extrabold text-[#1A1A1E] mt-2">كل ما تحتاجه في مكان واحد</h2>
-            <p className="text-[#7A6F5A] mt-2">منصتنا تتعامل مع كل التفاصيل التقنية لتُركّز على مبيعاتك</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          {/* Stats bar */}
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { icon: ShoppingBag, t: 'إدارة المنتجات', d: 'أضف منتجات بصور متعددة، متغيرات (ألوان/مقاسات)، أسعار بالجملة، وحقول مخصصة حسب فئة المنتج.', c: '#C9A96A' },
-              { icon: Truck, t: 'شحن 58 ولاية', d: 'حاسبة شحن مدمجة لكل ولايات الجزائر مع أسعار قابلة للتخصيص، توصيل للمنزل أو مكتب Yalidine.', c: '#A02A5B' },
-              { icon: ShieldCheck, t: 'الدفع عند الاستلام', d: 'نظام COD كامل مع كشف الطلبات المكررة تلقائياً، تأكيد هاتفي، وحماية من الإرسال المزدوج.', c: '#8D6E3A' },
-              { icon: Globe, t: 'نطاق مخصص', d: 'كل متجر يحصل على نطاق فرعي slug.lumiere.saas أو نطاقك الخاص mystore.dz مع شهادة SSL مجانية.', c: '#1A1A1E' },
-              { icon: Zap, t: 'تتبع Pixels', d: 'Meta Pixel + TikTok Pixel مدمجان تلقائياً مع أحداث ViewContent، AddToCart، InitiateCheckout، Purchase.', c: '#C9A96A' },
-              { icon: Sparkles, t: 'متجريات متقدمة', d: 'إحصائيات حية للمبيعات، الطلبات الجديدة، المنتجات الأكثر مبيعاً، والمخزون المنخفض.', c: '#A02A5B' },
-            ].map(f => (
-              <div key={f.t} className="bg-[#FFFCF8] border border-[#EDE6D8] rounded-2xl p-5 hover:shadow-lg hover:border-[#F0D9A8] transition">
-                <div className="w-11 h-11 rounded-xl grid place-items-center" style={{ background: f.c + '20' }}>
-                  <f.icon size={20} style={{ color: f.c }} />
-                </div>
-                <h3 className="font-bold text-[#1A1A1E] text-lg mt-3">{f.t}</h3>
-                <p className="text-sm text-[#7A6F5A] leading-6 mt-1">{f.d}</p>
+              { v: '+500', l: 'متجر نشط' },
+              { v: '+15K', l: 'طلب مكتمل' },
+              { v: '58', l: 'ولاية مغطاة' },
+              { v: '99.9%', l: 'وقت تشغيل' },
+            ].map(s => (
+              <div key={s.l} className="text-center bg-white border border-[#EDE6D8] rounded-2xl py-5">
+                <div className="text-2xl md:text-3xl font-extrabold bg-gradient-to-l from-[#C9A96A] to-[#A02A5B] bg-clip-text text-transparent">{s.v}</div>
+                <div className="text-xs text-[#9A8A6B] mt-1">{s.l}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── Integrations Grid (Delivery + Marketing) ─── */}
-      <section className="py-16 bg-[#FFFCF8]">
+      {/* ═══ Features ═════════════════════════════════════════════════ */}
+      <section id="features" className="bg-white border-y border-[#EDE6D8] py-20">
+        <div className="max-w-[1280px] mx-auto px-4 md:px-6">
+          <div className="text-center mb-14">
+            <span className="text-[#C9A96A] text-xs font-bold tracking-widest">FEATURES</span>
+            <h2 className="text-[36px] font-extrabold text-[#1A1A1E] mt-3">كل ما تحتاجه في مكان واحد</h2>
+            <p className="text-[#7A6F5A] mt-3 max-w-[600px] mx-auto">منصتنا تتعامل مع كل التفاصيل التقنية لتُركّز على مبيعاتك</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {features.map(f => (
+              <div key={f.t} className="group bg-[#FFFCF8] border border-[#EDE6D8] rounded-3xl p-7 hover:shadow-xl hover:border-[#F0D9A8] transition-all duration-300">
+                <div className="w-14 h-14 rounded-2xl grid place-items-center mb-5 transition-transform group-hover:scale-110" style={{ background: f.c + '15' }}>
+                  <f.icon size={24} style={{ color: f.c }} />
+                </div>
+                <h3 className="font-bold text-[#1A1A1E] text-xl mb-2">{f.t}</h3>
+                <p className="text-sm text-[#7A6F5A] leading-7">{f.d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ Integrations ═════════════════════════════════════════════ */}
+      <section id="integrations" className="py-20 bg-[#FFFCF8]">
         <div className="max-w-[1280px] mx-auto px-4 md:px-6">
           <div className="text-center mb-12">
             <span className="text-[#A02A5B] text-xs font-bold tracking-widest">INTEGRATIONS</span>
-            <h2 className="text-[32px] font-extrabold text-[#1A1A1E] mt-2">متكامل مع أدواتك المفضلة</h2>
-            <p className="text-[#7A6F5A] mt-2">اربط متجرك بشركات التوصيل وأدوات التسويق الجزائرية والعالمية</p>
+            <h2 className="text-[36px] font-extrabold text-[#1A1A1E] mt-3">متكامل مع أدواتك المفضلة</h2>
+            <p className="text-[#7A6F5A] mt-3">اربط متجرك بشركات التوصيل وأدوات التسويق الجزائرية والعالمية</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {[
-              { name: 'Yalidine', desc: 'توصيل 58 ولاية', icon: Truck, color: '#C9A96A' },
-              { name: 'ZR Express', desc: 'توصيل سريع', icon: Truck, color: '#A02A5B' },
-              { name: 'Meta Pixel', desc: 'تتبع إعلانات فيسبوك', icon: TrendingUp, color: '#1A1A1E' },
-              { name: 'TikTok Pixel', desc: 'تتبع إعلانات تيك توك', icon: Zap, color: '#8D6E3A' },
-              { name: 'COD', desc: 'الدفع عند الاستلام', icon: ShieldCheck, color: '#A02A5B' },
-            ].map(int => (
-              <div key={int.name} className="bg-white border border-[#EDE6D8] rounded-2xl p-4 text-center hover:shadow-lg hover:border-[#F0D9A8] transition">
-                <div className="w-12 h-12 rounded-xl grid place-items-center mx-auto mb-2" style={{ background: int.color + '15' }}>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {integrations.map(int => (
+              <div key={int.name} className="bg-white border border-[#EDE6D8] rounded-2xl p-5 text-center hover:shadow-lg hover:border-[#F0D9A8] transition">
+                <div className="w-12 h-12 rounded-xl grid place-items-center mx-auto mb-3" style={{ background: int.color + '15' }}>
                   <int.icon size={22} style={{ color: int.color }} />
                 </div>
                 <div className="font-bold text-sm text-[#1A1A1E]">{int.name}</div>
@@ -313,24 +336,24 @@ export default function PlatformLanding() {
         </div>
       </section>
 
-      {/* ─── How it works ─── */}
-      <section id="how" className="py-16">
+      {/* ═══ How it works ═════════════════════════════════════════════ */}
+      <section id="how" className="py-20 bg-white border-y border-[#EDE6D8]">
         <div className="max-w-[1280px] mx-auto px-4 md:px-6">
-          <div className="text-center mb-12">
+          <div className="text-center mb-14">
             <span className="text-[#C9A96A] text-xs font-bold tracking-widest">HOW IT WORKS</span>
-            <h2 className="text-[32px] font-extrabold text-[#1A1A1E] mt-2">3 خطوات لمتجرك الخاص</h2>
+            <h2 className="text-[36px] font-extrabold text-[#1A1A1E] mt-3">3 خطوات لمتجرك الخاص</h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-8">
             {[
               { n: '01', t: 'سجّل حساب', d: 'أنشئ حساب تاجر باسمك وبريدك الإلكتروني. تختار اسم المتجر والسلاج (الرابط الفرعي).' },
-              { n: '02', t: 'خصّص متجرك', d: 'تُضاف تلقائياً 8 منتجات تجريبية، 28 ولاية، و 3 مجالات (مجوهرات/أزياء/جمال) لتعدّلها كما تشاء.' },
-              { n: '03', t: 'ابدأ البيع', d: 'شارك رابط متجرك (slug.lumiere.saas) واستقبل الطلبات. كل طلب يأتيك في لوحة التحكم مع تأكيد هاتفي.' },
+              { n: '02', t: 'خصّص متجرك', d: 'يُضاف تلقائياً منتجات تجريبية وولايات و3 مجالات. عدّلها أو احذفها وأضف منتجاتك الخاصة.' },
+              { n: '03', t: 'ابدأ البيع', d: 'شارك رابط متجرك واستقبل الطلبات. كل طلب يأتيك في لوحة التحكم مع تأكيد هاتفي.' },
             ].map(s => (
-              <div key={s.n} className="bg-white border border-[#EDE6D8] rounded-2xl p-6 relative overflow-hidden">
-                <div className="absolute top-2 left-4 text-[80px] font-extrabold text-[#F5EFE6] leading-none select-none">{s.n}</div>
+              <div key={s.n} className="relative bg-[#FFFCF8] border border-[#EDE6D8] rounded-3xl p-8 overflow-hidden">
+                <div className="absolute top-0 left-0 text-[100px] font-extrabold text-[#F5EFE6] leading-none select-none">{s.n}</div>
                 <div className="relative">
-                  <h3 className="font-bold text-xl text-[#1A1A1E]">{s.t}</h3>
-                  <p className="text-sm text-[#7A6F5A] leading-6 mt-2">{s.d}</p>
+                  <h3 className="font-bold text-xl text-[#1A1A1E] mb-3">{s.t}</h3>
+                  <p className="text-sm text-[#7A6F5A] leading-7">{s.d}</p>
                 </div>
               </div>
             ))}
@@ -338,37 +361,35 @@ export default function PlatformLanding() {
         </div>
       </section>
 
-      {/* ─── Pricing ─── */}
-      <section id="pricing" className="bg-[#1A1A1E] py-16">
+      {/* ═══ Pricing ══════════════════════════════════════════════════ */}
+      <section id="pricing" className="py-20 bg-gradient-to-b from-[#1A1A1E] to-[#0D0D0F]">
         <div className="max-w-[1280px] mx-auto px-4 md:px-6">
-          <div className="text-center mb-12">
+          <div className="text-center mb-14">
             <span className="text-[#C9A96A] text-xs font-bold tracking-widest">PRICING</span>
-            <h2 className="text-[32px] font-extrabold text-white mt-2">خطط بسيطة، شفافة</h2>
-            <p className="text-white/60 mt-2">14 يوم تجربة مجانية على كل الخطط — بدون بطاقة بنكية</p>
+            <h2 className="text-[36px] font-extrabold text-white mt-3">خطط بسيطة، شفافة</h2>
+            <p className="text-white/50 mt-3">14 يوم تجربة مجانية على كل الخطط — بدون بطاقة بنكية</p>
           </div>
           <div className="grid md:grid-cols-4 gap-4">
             {plans.map(p => (
-              <div key={p.id} className={`rounded-2xl p-5 border ${p.accent ? 'bg-gradient-to-b from-[#A02A5B] to-[#7A1F44] border-[#A02A5B] text-white shadow-2xl' : 'bg-white/[0.04] border-white/10 text-white'}`}>
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-lg">{p.name}</div>
-                  {p.accent && <Crown size={16} className="text-[#FDF2F6]" />}
-                </div>
+              <div key={p.id} className={`rounded-3xl p-6 border transition-all ${p.accent ? 'bg-gradient-to-b from-[#A02A5B] to-[#7A1F44] border-[#A02A5B] text-white shadow-2xl scale-105' : 'bg-white/[0.04] border-white/10 text-white hover:bg-white/[0.08]'}`}>
+                {p.accent && <div className="text-[10px] font-bold bg-white text-[#A02A5B] px-3 py-1 rounded-full inline-block mb-3">الأكثر شعبية</div>}
+                <div className="font-bold text-lg">{p.name}</div>
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold">{p.price}</span>
-                  <span className={`text-sm ${p.accent ? 'text-white/80' : 'text-white/50'}`}> {p.period}</span>
+                  <span className="text-sm text-white/50"> {p.period}</span>
                 </div>
-                <div className={`text-xs mt-1 ${p.accent ? 'text-white/80' : 'text-white/60'}`}>{p.desc}</div>
-                <ul className="mt-4 space-y-2 text-sm">
+                <div className={`text-xs mt-1 ${p.accent ? 'text-white/70' : 'text-white/50'}`}>{p.desc}</div>
+                <ul className="mt-5 space-y-3 text-sm">
                   {p.features.map(f => (
                     <li key={f} className="flex gap-2">
-                      <Check size={14} className={`shrink-0 mt-0.5 ${p.accent ? 'text-white' : 'text-[#C9A96A]'}`} />
+                      <Check size={16} className={`shrink-0 mt-0.5 ${p.accent ? 'text-white' : 'text-[#C9A96A]'}`} />
                       <span className={p.accent ? 'text-white/90' : 'text-white/80'}>{f}</span>
                     </li>
                   ))}
                 </ul>
                 <button
                   onClick={() => setShowRegister(true)}
-                  className={`mt-5 w-full py-2.5 rounded-full font-bold text-sm transition ${p.accent ? 'bg-white text-[#A02A5B] hover:bg-[#FDF2F6]' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                  className={`mt-6 w-full py-3 rounded-full font-bold text-sm transition ${p.accent ? 'bg-white text-[#A02A5B] hover:bg-[#FDF2F6]' : 'bg-white/10 text-white hover:bg-white/20'}`}
                 >
                   {p.cta}
                 </button>
@@ -378,32 +399,25 @@ export default function PlatformLanding() {
         </div>
       </section>
 
-      {/* ─── FAQ ─── */}
-      <section id="faq" className="py-16 bg-[#FFFCF8]">
+      {/* ═══ FAQ ══════════════════════════════════════════════════════ */}
+      <section id="faq" className="py-20 bg-[#FFFCF8]">
         <div className="max-w-[800px] mx-auto px-4 md:px-6">
           <div className="text-center mb-10">
             <span className="text-[#C9A96A] text-xs font-bold tracking-widest">FAQ</span>
-            <h2 className="text-[32px] font-extrabold text-[#1A1A1E] mt-2">أسئلة شائعة</h2>
+            <h2 className="text-[36px] font-extrabold text-[#1A1A1E] mt-3">أسئلة شائعة</h2>
           </div>
           <div className="space-y-3">
-            {[
-              { q: 'هل أحتاج خبرة تقنية لإنشاء متجر؟', a: 'لا، المنصة لا تتطلب أي كود. تملأ نموذج التسجيل، ويُنشأ متجرك تلقائياً مع منتجات تجريبية ولوحة تحكم كاملة. كل ما تحتاجه هو بريد إلكتروني وكلمة مرور.' },
-              { q: 'كم تكلفة إنشاء متجر؟', a: 'الخطة التجريبية مجانية لمدة 14 يوماً بدون بطاقة بنكية. بعدها تختار الخطة المناسبة: ستارتر (2,500 دج/شهر)، برو (6,900 دج/شهر)، أو VIP (15,000 دج/شهر).' },
-              { q: 'هل يدعم الدفع عند الاستلام (COD)؟', a: 'نعم، نظام COD كامل مدمج في كل المتاجر. كل طلب يأتيك في لوحة التحكم مع كشف الطلبات المكررة تلقائياً وحماية من الإرسال المزدوج.' },
-              { q: 'كيف يعمل الشحن للولايات؟', a: 'حاسبة شحن مدمجة لكل 58 ولاية جزائرية مع أسعار قابلة للتخصيص. يمكنك أيضاً ربط متجرك بـ Yalidine و ZR Express لإنشاء بوالص الشحن تلقائياً.' },
-              { q: 'هل يمكنني ربط نطاقي الخاص؟', a: 'نعم، في خطة برو وما فوق. يمكنك ربط نطاق مخصص مثل mystore.dz مع شهادة SSL مجانية. في الخطة المجانية تحصل على نطاق فرعي slug.lumiere.saas.' },
-              { q: 'هل المنصة تدعم Meta Pixel و TikTok Pixel؟', a: 'نعم، مدمجان تلقائياً مع أحداث ViewContent، AddToCart، InitiateCheckout، Purchase. تُسجل المفاتيح من لوحة التحكم في تبويب "التتبع".' },
-            ].map((faq, i) => (
+            {faqs.map((faq, i) => (
               <div key={i} className="bg-white border border-[#EDE6D8] rounded-2xl overflow-hidden">
                 <button
                   onClick={() => setFaqOpen(faqOpen === i ? null : i)}
                   className="w-full px-5 py-4 flex items-center justify-between text-right hover:bg-[#FFFCF8] transition"
                 >
                   <span className="font-bold text-sm text-[#1A1A1E]">{faq.q}</span>
-                  <span className={`text-[#C9A96A] transition-transform shrink-0 ms-2 ${faqOpen === i ? 'rotate-180' : ''}`}>▼</span>
+                  <ChevronDown size={18} className={`text-[#C9A96A] transition-transform shrink-0 ms-2 ${faqOpen === i ? 'rotate-180' : ''}`} />
                 </button>
                 {faqOpen === i && (
-                  <div className="px-5 pb-4 text-sm text-[#7A6F5A] leading-6 border-t border-[#EDE6D8] pt-3">{faq.a}</div>
+                  <div className="px-5 pb-4 text-sm text-[#7A6F5A] leading-7 border-t border-[#EDE6D8] pt-3">{faq.a}</div>
                 )}
               </div>
             ))}
@@ -411,45 +425,80 @@ export default function PlatformLanding() {
         </div>
       </section>
 
-      {/* ─── CTA ─── */}
-      <section className="py-16">
-        <div className="max-w-[800px] mx-auto px-4 text-center">
-          <h2 className="text-[28px] font-extrabold text-[#1A1A1E]">جاهز تبدأ؟</h2>
-          <p className="text-[#7A6F5A] mt-2">انضم لعشرات التجار الجزائريين الذين يبيعون عبر LUMIÈRE SaaS</p>
-          <button onClick={() => setShowRegister(true)} className="mt-6 bg-[#1A1A1E] text-white px-8 py-3.5 rounded-full font-bold flex items-center gap-2 mx-auto hover:bg-black transition">
-            <Rocket size={18} /> أنشئ متجرك الآن — مجاناً
+      {/* ═══ Final CTA ════════════════════════════════════════════════ */}
+      <section className="py-20 bg-gradient-to-br from-[#1A1A1E] to-[#0D0D0F] relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#C9A96A]/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#A02A5B]/8 rounded-full blur-3xl" />
+        <div className="relative max-w-[800px] mx-auto px-4 text-center">
+          <h2 className="text-[32px] font-extrabold text-white">جاهز تبدأ؟</h2>
+          <p className="text-white/50 mt-3">انضم لعشرات التجار الجزائريين الذين يبيعون عبر LUMIÈRE SaaS</p>
+          <button onClick={() => setShowRegister(true)} className="mt-8 bg-gradient-to-l from-[#C9A96A] to-[#B8945A] text-white px-10 py-4 rounded-full font-bold flex items-center gap-2 mx-auto hover:opacity-90 transition shadow-xl">
+            <Rocket size={20} /> أنشئ متجرك الآن — مجاناً
           </button>
         </div>
       </section>
 
-      {/* ─── Footer ─── */}
-      <footer className="bg-[#1A1A1E] text-white/60 py-8 text-center text-xs">
-        <div>© 2026 LUMIÈRE SaaS — منصة المتاجر الجزائرية. جميع الحقوق محفوظة.</div>
-        <div className="mt-1">support@lumiere.saas • الجزائر العاصمة</div>
+      {/* ═══ Footer ═══════════════════════════════════════════════════ */}
+      <footer className="bg-[#0D0D0F] text-white/40 py-10">
+        <div className="max-w-[1280px] mx-auto px-4 md:px-6 grid md:grid-cols-3 gap-8">
+          <div>
+            <div className="font-extrabold text-white text-lg flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-white/10 grid place-items-center"><Store size={16} className="text-[#C9A96A]" /></div>
+              LUMIÈRE SaaS
+            </div>
+            <p className="text-xs mt-3 leading-6">منصة المتاجر الجزائرية — أنشئ متجرك الإلكتروني في دقيقة مع الدفع عند الاستلام لـ 58 ولاية.</p>
+          </div>
+          <div>
+            <div className="font-bold text-white text-sm mb-3">روابط</div>
+            <div className="space-y-2 text-xs">
+              <a href="#features" className="block hover:text-white transition">المزايا</a>
+              <a href="#pricing" className="block hover:text-white transition">الأسعار</a>
+              <a href="#faq" className="block hover:text-white transition">الأسئلة الشائعة</a>
+              <a href="/super-admin" className="block hover:text-white transition">لوحة المدير العام</a>
+            </div>
+          </div>
+          <div>
+            <div className="font-bold text-white text-sm mb-3">تواصل معنا</div>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2"><Mail size={12} /> support@lumiere.saas</div>
+              <div className="flex items-center gap-2"><Phone size={12} /> 0550 12 34 56</div>
+              <div className="flex items-center gap-2"><Globe size={12} /> الجزائر العاصمة</div>
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-white/5 mt-8 pt-6 text-center text-xs">
+          © 2026 LUMIÈRE SaaS — منصة المتاجر الجزائرية. جميع الحقوق محفوظة.
+        </div>
       </footer>
 
-      {/* ─── Register Modal ─── */}
+      {/* ═══ Register Modal ════════════════════════════════════════════ */}
       {showRegister && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#1A1A1E]/60 backdrop-blur-sm" onClick={() => setShowRegister(false)}>
-          <div className="bg-white rounded-[24px] p-6 w-full max-w-md shadow-2xl border border-[#EDE6D8]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#1A1A1E]/70 backdrop-blur-md" onClick={() => setShowRegister(false)}>
+          <div className="bg-white rounded-[28px] p-7 w-full max-w-md shadow-2xl border border-[#EDE6D8]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
               <h3 className="font-extrabold text-xl text-[#1A1A1E]">أنشئ متجرك في دقيقة</h3>
-              <button onClick={() => setShowRegister(false)} className="text-[#9A8A6B] hover:text-[#1A1A1E] text-2xl leading-none">×</button>
+              <button onClick={() => setShowRegister(false)} className="w-8 h-8 rounded-full bg-[#FFFCF8] border border-[#EDE6D8] grid place-items-center hover:bg-white"><X size={16} /></button>
             </div>
             <form onSubmit={handleRegister} className="space-y-3">
-              <input value={form.fullName} onChange={e => setForm({...form, fullName: e.target.value})} placeholder="الاسم الكامل *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
-              <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="البريد الإلكتروني *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
-              <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
-              <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="الهاتف (اختياري)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+              <div className="relative">
+                <User size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
+                <input value={form.fullName} onChange={e => setForm({...form, fullName: e.target.value})} placeholder="الاسم الكامل *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A]" />
+              </div>
+              <div className="relative">
+                <Mail size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
+                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="البريد الإلكتروني *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A]" dir="ltr" />
+              </div>
+              <div className="relative">
+                <Lock size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
+                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A]" dir="ltr" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B8AA8E] hover:text-[#1A1A1E]">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+              </div>
+              <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="الهاتف (اختياري)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" dir="ltr" />
               <div className="border-t border-[#EDE6D8] pt-3 mt-3">
                 <div className="text-xs font-bold text-[#7A6F5A] mb-2">معلومات المتجر</div>
                 <input value={form.storeName} onChange={e => {
-                  const newStoreName = e.target.value
-                  setForm(prev => ({
-                    ...prev,
-                    storeName: newStoreName,
-                    slug: slugManuallyEdited ? prev.slug : newStoreName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-                  }))
+                  const v = e.target.value
+                  setForm(prev => ({ ...prev, storeName: v, slug: slugManuallyEdited ? prev.slug : slugify(v) }))
                 }} placeholder="اسم المتجر (فرنسي/إنجليزي) *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
                 <input value={form.storeNameAr} onChange={e => setForm({...form, storeNameAr: e.target.value})} placeholder="اسم المتجر (عربي)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] mt-2" />
                 <div className="flex items-center gap-2 mt-2">
@@ -460,14 +509,14 @@ export default function PlatformLanding() {
                       return (
                         <>
                           <span className="text-xs text-[#9A8A6B] truncate">{hostname}/?store=</span>
-                          <input value={form.slug} onFocus={() => setSlugManuallyEdited(true)} onChange={e => setForm({...form, slug: e.target.value})} placeholder="my-store" className="flex-1 min-w-0 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+                          <input value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} onFocus={() => setSlugManuallyEdited(true)} placeholder="my-store" className="flex-1 min-w-0 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
                         </>
                       )
                     }
                     return (
                       <>
                         <span className="text-xs text-[#9A8A6B]">https://</span>
-                        <input value={form.slug} onFocus={() => setSlugManuallyEdited(true)} onChange={e => setForm({...form, slug: e.target.value})} placeholder="my-store" className="flex-1 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+                        <input value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} onFocus={() => setSlugManuallyEdited(true)} placeholder="my-store" className="flex-1 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
                         <span className="text-xs text-[#9A8A6B]">.{hostname}</span>
                       </>
                     )
@@ -475,7 +524,7 @@ export default function PlatformLanding() {
                 </div>
               </div>
               {error && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}
-              <button type="submit" disabled={loading} className="w-full bg-[#1A1A1E] text-white py-3 rounded-xl font-bold hover:bg-black transition disabled:opacity-50">
+              <button type="submit" disabled={loading} className="w-full bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50">
                 {loading ? 'جاري الإنشاء...' : 'إنشاء المتجر →'}
               </button>
               <p className="text-[11px] text-[#9A8A6B] text-center">بالضغط على "إنشاء المتجر" أنت توافق على شروط الخدمة وسياسة الخصوصية</p>
@@ -484,24 +533,30 @@ export default function PlatformLanding() {
         </div>
       )}
 
-      {/* ─── Login Modal ─── */}
+      {/* ═══ Login Modal ═══════════════════════════════════════════════ */}
       {showLogin && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#1A1A1E]/60 backdrop-blur-sm" onClick={() => setShowLogin(false)}>
-          <div className="bg-white rounded-[24px] p-6 w-full max-w-sm shadow-2xl border border-[#EDE6D8]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#1A1A1E]/70 backdrop-blur-md" onClick={() => setShowLogin(false)}>
+          <div className="bg-white rounded-[28px] p-7 w-full max-w-sm shadow-2xl border border-[#EDE6D8]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
               <h3 className="font-extrabold text-xl text-[#1A1A1E]">دخول التاجر</h3>
-              <button onClick={() => setShowLogin(false)} className="text-[#9A8A6B] hover:text-[#1A1A1E] text-2xl leading-none">×</button>
+              <button onClick={() => setShowLogin(false)} className="w-8 h-8 rounded-full bg-[#FFFCF8] border border-[#EDE6D8] grid place-items-center hover:bg-white"><X size={16} /></button>
             </div>
             <form onSubmit={handleLogin} className="space-y-3">
-              <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="البريد الإلكتروني" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
-              <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
+              <div className="relative">
+                <Mail size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
+                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="البريد الإلكتروني" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A]" dir="ltr" />
+              </div>
+              <div className="relative">
+                <Lock size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
+                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A]" dir="ltr" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B8AA8E] hover:text-[#1A1A1E]">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+              </div>
               {error && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}
-              <button type="submit" disabled={loading} className="w-full bg-[#1A1A1E] text-white py-3 rounded-xl font-bold hover:bg-black transition disabled:opacity-50">
+              <button type="submit" disabled={loading} className="w-full bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50">
                 {loading ? 'جاري الدخول...' : 'دخول →'}
               </button>
-              <div className="text-[11px] text-[#9A8A6B] text-center bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-2">
-                <b>حساب المدير العام التجريبي:</b><br />
-                admin@lumiere.saas / admin12345
+              <div className="text-sm text-[#9A8A6B] text-center mt-2">
+                ليس لديك حساب؟ <button type="button" onClick={() => { setShowLogin(false); setShowRegister(true) }} className="text-[#A02A5B] font-bold hover:underline">أنشئ متجرك الآن</button>
               </div>
             </form>
           </div>
