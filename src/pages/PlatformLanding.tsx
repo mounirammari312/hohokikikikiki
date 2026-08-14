@@ -473,8 +473,8 @@ export default function PlatformLanding() {
 
       {/* ═══ Register Modal ════════════════════════════════════════════ */}
       {showRegister && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#1A1A1E]/70 backdrop-blur-md" onClick={() => setShowRegister(false)}>
-          <div className="bg-white rounded-[28px] p-7 w-full max-w-md shadow-2xl border border-[#EDE6D8]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center p-4 bg-[#1A1A1E]/70 backdrop-blur-md overflow-y-auto" onClick={() => setShowRegister(false)}>
+          <div className="bg-white rounded-[28px] p-7 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-[#EDE6D8] my-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-extrabold text-xl text-[#1A1A1E]">أنشئ متجرك في دقيقة</h3>
               <button onClick={() => setShowRegister(false)} className="w-8 h-8 rounded-full bg-[#FFFCF8] border border-[#EDE6D8] grid place-items-center hover:bg-white"><X size={16} /></button>
@@ -535,8 +535,8 @@ export default function PlatformLanding() {
 
       {/* ═══ Login Modal ═══════════════════════════════════════════════ */}
       {showLogin && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#1A1A1E]/70 backdrop-blur-md" onClick={() => setShowLogin(false)}>
-          <div className="bg-white rounded-[28px] p-7 w-full max-w-sm shadow-2xl border border-[#EDE6D8]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center p-4 bg-[#1A1A1E]/70 backdrop-blur-md overflow-y-auto" onClick={() => setShowLogin(false)}>
+          <div className="bg-white rounded-[28px] p-7 w-full max-w-sm max-h-[90vh] overflow-y-auto shadow-2xl border border-[#EDE6D8] my-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-extrabold text-xl text-[#1A1A1E]">دخول التاجر</h3>
               <button onClick={() => setShowLogin(false)} className="w-8 h-8 rounded-full bg-[#FFFCF8] border border-[#EDE6D8] grid place-items-center hover:bg-white"><X size={16} /></button>
