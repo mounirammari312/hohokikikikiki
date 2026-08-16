@@ -167,14 +167,19 @@ const SettingsSchema = new mongoose.Schema({
   activeDomainId: { type: String, default: 'domain_jewelry' },
 
   // ─── Delivery Integrations (شركات التوصيل الجزائرية) ──────────────
-  // Yalidine — https://yalidine.app/  (developer portal for API keys)
+  // LEGACY — kept for backwards-compat with older clients that read
+  // these flat fields directly. New code reads `deliveryProviders`.
   yalidineEnabled: { type: Boolean, default: false },
-  yalidineApiId: { type: String, default: '' },     // X-API-ID
-  yalidineApiToken: { type: String, default: '' },  // X-API-TOKEN
-  // ZR Express — https://zrexpress.com/
+  yalidineApiId: { type: String, default: '' },
+  yalidineApiToken: { type: String, default: '' },
   zrExpressEnabled: { type: Boolean, default: false },
   zrExpressApiKey: { type: String, default: '' },
   zrExpressApiSecret: { type: String, default: '' },
+  // CANONICAL — extensible list of providers. Each entry is
+  // { id, enabled, credentials: { key: value } }.
+  // Schema is `Mixed` so the credentials shape can vary per provider
+  // (yalidine has apiId+apiToken, others have apiKey+apiSecret, etc.)
+  deliveryProviders: { type: [Mixed], default: [] },
 
   // ─── Theme Colors (customizable by merchant) ───────────────────────
   primaryColor: { type: String, default: '#C9A96A' },     // gold accent

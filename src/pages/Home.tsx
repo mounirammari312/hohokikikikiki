@@ -3,7 +3,7 @@ import { ArrowLeft, Truck, ShieldCheck, Sparkles, BadgeCheck, Star, Quote } from
 import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
 import { getProducts } from '../services/api/products'
-import { getSettings } from '../services/api/settings'
+import { getSettings, subscribeSettings } from '../services/api/settings'
 import { getActiveDomain } from '../services/api/domains'
 import { useEffect, useState } from 'react'
 import { formatDZD } from '../lib/utils'
@@ -56,6 +56,17 @@ export default function Home(){
     setStore(getSettings())
     setDomain(getActiveDomain())
   },[])
+
+  // Re-render when settings change (merchant saves in /admin → same tab).
+  // Cross-tab changes are handled by the storage event listener inside
+  // settings.ts which calls syncSettings() and then notifies subscribers.
+  useEffect(() => {
+    const unsub = subscribeSettings(() => {
+      setStore(getSettings())
+      setDomain(getActiveDomain())
+    })
+    return unsub
+  }, [])
 
   // Per-category product count for the category cards badge
   const countByCat = (key: string) => products.filter(p=>p.category===key).length

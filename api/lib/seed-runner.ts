@@ -15,6 +15,7 @@ import {
   TenantStoreModel, MerchantUserModel,
 } from './models.js'
 import { seedProducts, seedWilayas, presetDomains, defaultSettings } from './seed.js'
+import { defaultDeliveryProviders, migrateLegacyDeliveryFields } from './deliveryProviders.js'
 import type { StoreSettings } from './types.js'
 
 // Re-export so API routes can import everything from a single module
@@ -203,10 +204,13 @@ export async function seedStoreData(storeId: string): Promise<void> {
   // ─── Settings ──────────────────────────────────────────────────────
   const settings = await SettingsModel.findById(settingsDocId(storeId)).lean()
   if (!settings) {
+    // Fresh store — populate defaultSettings + the full providers list
+    // (one entry per provider in the registry, all disabled by default).
     await SettingsModel.create({
       _id: settingsDocId(storeId),
       storeId,
       ...defaultSettings,
+      deliveryProviders: defaultDeliveryProviders(),
     })
     console.log(`[seed] inserted default settings for store ${storeId}`)
   } else {
@@ -215,9 +219,19 @@ export async function seedStoreData(storeId: string): Promise<void> {
     for (const [k, v] of Object.entries(defaultSettings)) {
       if ((settings as any)[k] === undefined) (update as any)[k] = v
     }
+
+    // ─── Migrate legacy yalidine/zrexpress fields → deliveryProviders[] ──
+    // Also ensures every provider in the registry has an entry (so
+    // newly-added providers show up automatically on existing stores).
+    const asDoc: any = { ...settings, ...(update as any) }
+    const touched = migrateLegacyDeliveryFields(asDoc)
+    if (touched.length || !Array.isArray((settings as any).deliveryProviders)) {
+      (update as any).deliveryProviders = asDoc.deliveryProviders
+    }
+
     if (Object.keys(update).length) {
       await SettingsModel.updateOne({ _id: settingsDocId(storeId) }, { $set: update })
-      console.log(`[seed] synced ${Object.keys(update).length} new settings fields for store ${storeId}`)
+      console.log(`[seed] synced ${Object.keys(update).length} settings fields for store ${storeId} (delivery providers: ${touched.length ? touched.join(',') : 'none'})`)
     }
   }
 }

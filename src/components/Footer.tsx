@@ -1,5 +1,5 @@
 import { Instagram, Phone, MapPin, Truck, ShieldCheck, Award } from 'lucide-react'
-import { getSettings, syncSettings } from '../services/api/settings'
+import { getSettings, syncSettings, subscribeSettings } from '../services/api/settings'
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTenant } from '../context/TenantContext'
@@ -11,6 +11,11 @@ export default function Footer(){
   useEffect(() => {
     void syncSettings().then(() => setStore(getSettings()))
   }, [storeId, storeSlug])
+  // Re-render when settings change (e.g. merchant saves in /admin).
+  useEffect(() => {
+    const unsub = subscribeSettings(() => setStore(getSettings()))
+    return unsub
+  }, [])
   return (
     <footer className="gradient-top-border text-[#E8E0CC] mt-16" style={{background: store.secondaryColor || "#1A1A1E"}}>
       <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-10">

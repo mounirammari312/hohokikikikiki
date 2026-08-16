@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ShoppingBag, Search, Menu, X, Heart } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
-import { getSettings, syncSettings } from '../services/api/settings'
+import { getSettings, syncSettings, subscribeSettings } from '../services/api/settings'
 import { useTenant } from '../context/TenantContext'
 
 export default function Header(){
@@ -23,6 +23,15 @@ export default function Header(){
     // No setInterval — the cache is updated reactively by the service layer.
     void syncSettings().then(() => setStore(getSettings()))
   }, [storeId, storeSlug])
+
+  // Subscribe to settings changes — when the merchant saves settings in
+  // /admin (same tab) or another tab writes to localStorage, re-read
+  // the cache and re-render. This is the fix for "storefront doesn't
+  // update after saving in dashboard".
+  useEffect(() => {
+    const unsub = subscribeSettings(() => setStore(getSettings()))
+    return unsub
+  }, [])
 
   // Scroll listener — toggle header shadow once the user scrolls past 10px.
   useEffect(() => {

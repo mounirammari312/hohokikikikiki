@@ -466,12 +466,16 @@ export const defaultSettings: StoreSettings = {
   activeDomainId: "domain_jewelry",
 
   // Delivery integrations (default: disabled, empty credentials)
+  // LEGACY flat fields kept for backwards-compat with older clients
   yalidineEnabled: false,
   yalidineApiId: "",
   yalidineApiToken: "",
   zrExpressEnabled: false,
   zrExpressApiKey: "",
   zrExpressApiSecret: "",
+  // CANONICAL — populated by seed-runner using `defaultDeliveryProviders()`
+  // so the registry is the single source of truth.
+  deliveryProviders: [],
 
   // Theme Colors
   primaryColor: "#C9A96A",

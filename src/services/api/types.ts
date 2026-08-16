@@ -76,6 +76,16 @@ export interface VariantConfig {
   colorPresets: { name: string; nameAr: string; hex: string }[]
 }
 
+/** One delivery provider's saved configuration. */
+export interface DeliveryProviderConfig {
+  /** Stable id matching a DeliveryProviderMeta in the registry (e.g. 'yalidine') */
+  id: string
+  /** Whether the merchant has toggled this provider ON for order fulfillment */
+  enabled: boolean
+  /** Provider-specific credentials (apiId, apiToken, apiKey, ...) — keys match the registry's credentialFields[].id */
+  credentials: Record<string, string>
+}
+
 export interface DomainCategory {
   key: string
   label: string
@@ -201,14 +211,24 @@ export interface StoreSettings {
   activeDomainId: string
 
   // ─── Delivery Integrations (شركات التوصيل الجزائرية) ──────────────
+  /** LEGACY — kept for backwards-compat. New code reads `deliveryProviders` instead. */
   /** Yalidine — https://yalidine.app/ */
-  yalidineEnabled: boolean
-  yalidineApiId: string      // X-API-ID
-  yalidineApiToken: string   // X-API-TOKEN
+  yalidineEnabled?: boolean
+  yalidineApiId?: string      // X-API-ID
+  yalidineApiToken?: string   // X-API-TOKEN
   /** ZR Express — https://zrexpress.com/ */
-  zrExpressEnabled: boolean
-  zrExpressApiKey: string
-  zrExpressApiSecret: string
+  zrExpressEnabled?: boolean
+  zrExpressApiKey?: string
+  zrExpressApiSecret?: string
+
+  /**
+   * Canonical, extensible list of Algerian delivery integrations.
+   * Each entry is `{ id, enabled, credentials: Record<string,string> }`.
+   * Adding a new provider = add one entry to ALGERIAN_DELIVERY_PROVIDERS
+   * in src/services/api/deliveryProviders.ts — the dashboard card, seed,
+   * and migration all read from that registry automatically.
+   */
+  deliveryProviders?: DeliveryProviderConfig[]
 
   // Theme Colors (customizable by merchant)
   primaryColor: string

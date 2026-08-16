@@ -1055,6 +1055,25 @@ async function getSettings(ctx: RouteCtx) {
 async function putSettings(ctx: RouteCtx) {
   const data = await getReqBody(ctx.req)
   delete data.storeId  // tenant guard
+  delete data._id      // _id is derived from storeId, never trust client
+  // Coerce deliveryProviders: if the client sent a malformed shape
+  // (e.g. missing credentials object), normalize it so Mongoose doesn't
+  // store a half-shaped document. Empty/undefined → keep existing.
+  if (data.deliveryProviders !== undefined) {
+    if (!Array.isArray(data.deliveryProviders)) {
+      delete data.deliveryProviders
+    } else {
+      data.deliveryProviders = data.deliveryProviders
+        .filter((p: any) => p && typeof p.id === 'string')
+        .map((p: any) => ({
+          id: String(p.id),
+          enabled: !!p.enabled,
+          credentials: (p.credentials && typeof p.credentials === 'object')
+            ? p.credentials
+            : {},
+        }))
+    }
+  }
   const next = await SettingsModel.findByIdAndUpdate(
     settingsDocId(ctx.storeId),
     { $set: { ...data, _id: settingsDocId(ctx.storeId), storeId: ctx.storeId } },
@@ -1066,6 +1085,23 @@ async function putSettings(ctx: RouteCtx) {
 async function patchSettings(ctx: RouteCtx) {
   const patch = await getReqBody(ctx.req)
   delete patch.storeId  // tenant guard
+  delete patch._id
+  // Same normalization as putSettings — defensive against bad client input.
+  if (patch.deliveryProviders !== undefined) {
+    if (!Array.isArray(patch.deliveryProviders)) {
+      delete patch.deliveryProviders
+    } else {
+      patch.deliveryProviders = patch.deliveryProviders
+        .filter((p: any) => p && typeof p.id === 'string')
+        .map((p: any) => ({
+          id: String(p.id),
+          enabled: !!p.enabled,
+          credentials: (p.credentials && typeof p.credentials === 'object')
+            ? p.credentials
+            : {},
+        }))
+    }
+  }
   const next = await SettingsModel.findByIdAndUpdate(
     settingsDocId(ctx.storeId),
     { $set: patch },

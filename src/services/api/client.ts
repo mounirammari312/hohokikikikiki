@@ -183,6 +183,30 @@ async function cachedGet<T>(
 function invalidate(path: string) { memCache.delete(getCacheKey(path)) }
 export function invalidateAll() { memCache.clear() }
 
+/**
+ * Write a fresh value into BOTH the in-memory cache and localStorage,
+ * so other tabs get notified via the `storage` event listener below.
+ *
+ * Used by saveSettingsApi / updateSettingsApi after a successful PUT/PATCH
+ * — without this, the storefront in another tab would keep showing the
+ * stale cached value until the next server fetch (which may never come
+ * if the network is flaky).
+ */
+function primeCache(path: string, lsKey: string, data: unknown) {
+  const cacheKey = getCacheKey(path)
+  memCache.set(cacheKey, { data, ts: Date.now() })
+  lsSet(lsKey, data)
+  // Dispatch a synthetic storage event so the SAME tab also refreshes
+  // (the native `storage` event only fires in OTHER tabs). This is the
+  // fix for "settings don't update in the storefront after I save them
+  // in /admin" — previously the merchant had to refresh the page.
+  if (isBrowser()) {
+    try {
+      window.dispatchEvent(new StorageEvent('storage', { key: lsKey, newValue: JSON.stringify(data) }))
+    } catch {}
+  }
+}
+
 // ─── Public API: Products ───────────────────────────────────────────────────
 
 const PRODUCTS_PATH = '/api/products'
@@ -298,13 +322,22 @@ export async function saveSettingsApi(data: StoreSettings): Promise<StoreSetting
   const { settings } = await apiFetch<{ settings: StoreSettings }>(SETTINGS_PATH, {
     method: 'PUT', body: JSON.stringify(data),
   })
-  invalidate(SETTINGS_PATH); return settings
+  // Prime BOTH the in-memory cache and localStorage with the fresh
+  // value returned by the server, then fire a synthetic `storage` event
+  // so the storefront (in this tab AND others) re-renders immediately.
+  // This was the root cause of "settings don't update in the store
+  // after saving in /admin" — the old code only invalidated the cache,
+  // leaving the stale localStorage entry as the fallback for any later
+  // failed fetch.
+  primeCache(SETTINGS_PATH, 'lumiere_settings_v3', { settings })
+  return settings
 }
 export async function updateSettingsApi(patch: Partial<StoreSettings>): Promise<StoreSettings> {
   const { settings } = await apiFetch<{ settings: StoreSettings }>(SETTINGS_PATH, {
     method: 'PATCH', body: JSON.stringify(patch),
   })
-  invalidate(SETTINGS_PATH); return settings
+  primeCache(SETTINGS_PATH, 'lumiere_settings_v3', { settings })
+  return settings
 }
 
 // ─── Public API: Domains ────────────────────────────────────────────────────

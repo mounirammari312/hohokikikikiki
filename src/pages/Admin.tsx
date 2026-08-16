@@ -6,14 +6,16 @@ import { getSettings, saveSettings } from '../services/api/settings'
 import { updateStoreApi } from '../services/api/client'
 import { useTenant } from '../context/TenantContext'
 import { getDomains, getActiveDomain, setActiveDomain, createCustomDomain, updateDomain, deleteDomain, duplicateDomain } from '../services/api/domains'
-import type { Order, OrderStatus, WilayaRate, Product, StoreDomain, DomainCategory, AttributeDef, Variant } from '../services/api/types'
+import { ALGERIAN_DELIVERY_PROVIDERS, defaultDeliveryProviders } from '../services/api/deliveryProviders'
+import type { Order, OrderStatus, WilayaRate, Product, StoreDomain, DomainCategory, AttributeDef, Variant, DeliveryProviderConfig } from '../services/api/types'
 import { formatDZD } from '../lib/utils'
 import {
   Download, Trash2, Search, Package, Truck, CheckCircle, XCircle, Clock, BarChart3, Settings,
   MapPinned, Save, Plus, Pencil, Copy, Eye, Star, Crown, Sparkles, Store, Megaphone,
   Phone, Mail, Instagram, Palette, Zap, Image as ImageIcon, Tag, Layers, X,
   AlertCircle, Check, Filter, ShoppingBag, TrendingUp, Award, Gem, Shirt, Heart,
-  Wand2, RefreshCw, Globe, Palette as PaletteIcon, Ruler, Droplet, Paintbrush, FileText, Link2
+  Wand2, RefreshCw, Globe, Palette as PaletteIcon, Ruler, Droplet, Paintbrush, FileText, Link2,
+  ExternalLink
 } from 'lucide-react'
 
 const statusMap: Record<OrderStatus, { label: string, color: string }> = {
@@ -126,6 +128,83 @@ export default function Admin() {
 
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t) } }, [toast])
   const showToast = (msg: string) => setToast(msg)
+
+  // ─── Settings save error helper ─────────────────────────────────────
+  // Translates API error codes into Arabic messages so the merchant
+  // knows WHY the save failed instead of staring at a generic "error".
+  // The previous code silently swallowed errors on the store + tracking
+  // tabs (no try/catch), which made merchants think "settings aren't
+  // being saved" — they were, but they were also failing silently.
+  function describeSaveError(err: any): string {
+    const code = err?.body?.error || err?.message || 'UNKNOWN'
+    switch (code) {
+      case 'UNAUTHORIZED': return 'يجب تسجيل الدخول أولاً قبل حفظ الإعدادات'
+      case 'FORBIDDEN — store not owned by user': return 'لا تملك صلاحية تعديل هذا المتجر'
+      case 'NO_TENANT_CONTEXT': return 'لم يتم تحديد المتجر — افتح لوحة التحكم من رابط متجرك'
+      case 'MONGODB_URI_NOT_CONFIGURED': return 'قاعدة البيانات غير مُهيّأة على الخادم'
+      case 'Failed to fetch':
+      case 'NETWORK_ERROR': return 'تعذّر الاتصال بالخادم — تحقق من الإنترنت'
+      case 'HTTP_401': return 'انتهت الجلسة — سجّل الدخول مرة أخرى'
+      case 'HTTP_403': return 'لا تملك صلاحية تعديل هذا المتجر'
+      default: return `فشل الحفظ: ${code}`
+    }
+  }
+
+  /**
+   * Ensure the settings object has a full `deliveryProviders` array
+   * matching the current registry. Old stores (created before the
+   * array schema was introduced) may have only the legacy flat
+   * yalidine/zrexpress fields — we backfill the array here so the
+   * dashboard renders every provider card.
+   */
+  function ensureDeliveryProviders(s: any): any {
+    const next = Array.isArray(s.deliveryProviders) ? [...s.deliveryProviders] : []
+    // Ensure every registered provider has an entry
+    for (const meta of ALGERIAN_DELIVERY_PROVIDERS) {
+      if (!next.some(p => p.id === meta.id)) {
+        // Migrate legacy fields on first sight
+        const credentials: Record<string, string> = Object.fromEntries(
+          meta.credentialFields.map(f => [f.id, ''])
+        )
+        let enabled = false
+        if (meta.id === 'yalidine' && (s as any).yalidineApiId) {
+          credentials.apiId = (s as any).yalidineApiId || ''
+          credentials.apiToken = (s as any).yalidineApiToken || ''
+          enabled = !!(s as any).yalidineEnabled
+        } else if (meta.id === 'zrexpress' && (s as any).zrExpressApiKey) {
+          credentials.apiKey = (s as any).zrExpressApiKey || ''
+          credentials.apiSecret = (s as any).zrExpressApiSecret || ''
+          enabled = !!(s as any).zrExpressEnabled
+        }
+        next.push({ id: meta.id, enabled, credentials })
+      }
+    }
+    return { ...s, deliveryProviders: next }
+  }
+
+  /** Update a single provider's enabled flag. */
+  function setProviderEnabled(id: string, enabled: boolean) {
+    setSettings(prev => {
+      const next = ensureDeliveryProviders(prev)
+      next.deliveryProviders = next.deliveryProviders.map((p: DeliveryProviderConfig) =>
+        p.id === id ? { ...p, enabled } : p
+      )
+      return next
+    })
+  }
+
+  /** Update a single credential field on a single provider. */
+  function setProviderCredential(id: string, key: string, value: string) {
+    setSettings(prev => {
+      const next = ensureDeliveryProviders(prev)
+      next.deliveryProviders = next.deliveryProviders.map((p: DeliveryProviderConfig) =>
+        p.id === id
+          ? { ...p, credentials: { ...p.credentials, [key]: value } }
+          : p
+      )
+      return next
+    })
+  }
 
   const refreshAll = ()=>{
     setDomains([...getDomains()])
@@ -1059,7 +1138,15 @@ export default function Admin() {
                       </div>
                     </div>
                   </div>
-                  <button onClick={async () => { await saveSettings(storeForm as any); setSettings({ ...storeForm } as any); showToast('تم حفظ إعدادات المتجر — ستظهر فوراً في الواجهة') }} className="w-full mt-4 bg-[#C9A96A] hover:bg-[#B8945A] text-white rounded-full py-3 font-extrabold flex items-center justify-center gap-2"><Save size={16} /> حفظ كل إعدادات المتجر</button>
+                  <button onClick={async () => {
+                    try {
+                      await saveSettings(storeForm as any)
+                      setSettings({ ...storeForm } as any)
+                      showToast('تم حفظ إعدادات المتجر — ستظهر فوراً في الواجهة ✓')
+                    } catch (err: any) {
+                      showToast(describeSaveError(err))
+                    }
+                  }} className="w-full mt-4 bg-[#C9A96A] hover:bg-[#B8945A] text-white rounded-full py-3 font-extrabold flex items-center justify-center gap-2"><Save size={16} /> حفظ كل إعدادات المتجر</button>
                 </div>
               </div>
 
@@ -1096,7 +1183,14 @@ export default function Admin() {
               <div className="grid gap-3 mt-4">
                 <div><label className="text-xs font-bold">Meta Pixel ID</label><input value={settings.metaPixelId} onChange={e => setSettings({ ...settings, metaPixelId: e.target.value })} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#C9A96A]" /></div>
                 <div><label className="text-xs font-bold">TikTok Pixel ID</label><input value={settings.tiktokPixelId} onChange={e => setSettings({ ...settings, tiktokPixelId: e.target.value })} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#A02A5B]" /></div>
-                <button onClick={async () => { await saveSettings(settings); showToast('تم حفظ إعدادات التتبع') }} className="bg-[#1A1A1E] text-white rounded-full py-2.5 font-bold hover:bg-black transition">حفظ الإعدادات</button>
+                <button onClick={async () => {
+                  try {
+                    await saveSettings(settings)
+                    showToast('تم حفظ إعدادات التتبع ✓')
+                  } catch (err: any) {
+                    showToast(describeSaveError(err))
+                  }
+                }} className="bg-[#1A1A1E] text-white rounded-full py-2.5 font-bold hover:bg-black transition">حفظ الإعدادات</button>
               </div>
               <div className="mt-4 bg-[#FFFBF0] border border-[#F5E6C8] rounded-xl p-3 text-xs leading-5">
                 <div className="font-bold text-[#8D6E3A]">أحداث التجارة الإلكترونية المفعّلة:</div>
@@ -1121,166 +1215,158 @@ export default function Admin() {
         )}
 
         {/* ─── DELIVERY INTEGRATIONS TAB ───────────────────────────────────
-            Yalidine + ZR Express API integration cards.
-            Each card has a toggle + API credential inputs. The "Save"
-            button calls `saveSettings()` which PUTs the full settings
-            object (including the new delivery fields) to /api/settings. */}
-        {tab === 'delivery' && (
-          <div className="mt-4 grid lg:grid-cols-2 gap-4">
-            {/* ─── Yalidine Card ─────────────────────────────────────────── */}
-            <div className={`bg-white border rounded-2xl p-5 transition ${settings.yalidineEnabled ? 'border-[#C9A96A] shadow-lg shadow-[#C9A96A]/10' : 'border-[#EDE6D8]'}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-11 h-11 rounded-xl grid place-items-center ${settings.yalidineEnabled ? 'bg-[#C9A96A]' : 'bg-[#F5EFE6]'}`}>
-                    <Truck size={20} className={settings.yalidineEnabled ? 'text-white' : 'text-[#9A8A6B]'} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-[#1A1A1E]">Yalidine Delivery</h3>
-                    <p className="text-[11px] text-[#9A8A6B]">yalidine.app — توصيل 58 ولاية</p>
-                  </div>
+            Renders one card per Algerian delivery company from the
+            ALGERIAN_DELIVERY_PROVIDERS registry. Adding a new provider
+            is a one-line change in src/services/api/deliveryProviders.ts
+            — the card UI, schema, seed, and migration all pick it up
+            automatically.
+
+            Each card has:
+              - Brand-colored toggle (on/off)
+              - Dynamic credential inputs driven by `credentialFields`
+              - Link to the provider's developer portal
+              - Status indicator (enabled/disabled)
+
+            The bottom save bar calls `saveSettings()` with the full
+            settings object — the server stores `deliveryProviders` as
+            a flexible Mixed array. */}
+        {tab === 'delivery' && (() => {
+          const ensured = ensureDeliveryProviders(settings)
+          const providers: DeliveryProviderConfig[] = ensured.deliveryProviders || []
+          const enabledCount = providers.filter(p => p.enabled).length
+          return (
+            <div className="mt-4 space-y-4">
+              {/* Summary header */}
+              <div className="bg-gradient-to-l from-[#1A1A1E] to-[#2A2A2E] text-white rounded-2xl p-5 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-extrabold flex items-center gap-2"><Truck size={18} className="text-[#C9A96A]" /> شركات التوصيل الجزائرية</h3>
+                  <p className="text-xs text-white/70 mt-1">تفعّل الشركات التي تتعامل معها وأدخل مفاتيح API لكل واحدة. البوالص ستُنشأ تلقائياً عند تأكيد الطلب.</p>
                 </div>
-                {/* Toggle switch */}
+                <div className="bg-white/10 border border-white/15 rounded-xl px-4 py-2 text-center shrink-0">
+                  <div className="text-[10px] text-white/60">المُفعّلة</div>
+                  <div className="text-2xl font-extrabold text-[#C9A96A]">{enabledCount}<span className="text-sm text-white/40">/{providers.length}</span></div>
+                </div>
+              </div>
+
+              {/* Cards grid */}
+              <div className="grid lg:grid-cols-2 gap-4">
+                {ALGERIAN_DELIVERY_PROVIDERS.map(meta => {
+                  const cfg = providers.find(p => p.id === meta.id) || { id: meta.id, enabled: false, credentials: {} }
+                  const on = !!cfg.enabled
+                  return (
+                    <div
+                      key={meta.id}
+                      className={`bg-white border rounded-2xl p-5 transition ${on ? 'shadow-lg' : 'border-[#EDE6D8]'}`}
+                      style={on ? { borderColor: meta.accent, boxShadow: `0 10px 30px -12px ${meta.accent}33` } : undefined}
+                    >
+                      {/* Header: icon + name + toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-11 h-11 rounded-xl grid place-items-center transition"
+                            style={{ background: on ? meta.accent : '#F5EFE6' }}
+                          >
+                            <Truck size={20} style={{ color: on ? '#FFFFFF' : '#9A8A6B' }} />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-[#1A1A1E] flex items-center gap-1.5">
+                              {meta.name}
+                              <a href={meta.portal || meta.website} target="_blank" rel="noreferrer" className="text-[#9A8A6B] hover:text-[#1A1A1E] transition" title="فتح موقع الشركة">
+                                <ExternalLink size={12} />
+                              </a>
+                            </h3>
+                            <p className="text-[11px] text-[#9A8A6B]">{meta.nameAr} — {meta.coverage}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setProviderEnabled(meta.id, !on)}
+                          className="relative w-12 h-6 rounded-full transition shrink-0"
+                          style={{ background: on ? meta.accent : '#EDE6D8' }}
+                          aria-label={`تفعيل ${meta.nameAr}`}
+                        >
+                          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${on ? 'left-0.5' : 'left-6'}`} />
+                        </button>
+                      </div>
+
+                      {/* Credential inputs (driven by registry) */}
+                      <div className={`grid gap-3 mt-4 transition ${on ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                        {meta.credentialFields.map(field => (
+                          <div key={field.id}>
+                            <label className="text-xs font-bold text-[#7A6F5A] flex items-center gap-1">
+                              <span
+                                className="font-mono text-[10px] px-1.5 py-0.5 rounded"
+                                style={{ background: '#1A1A1E', color: meta.accent }}
+                              >{field.label}</span>
+                              {field.labelAr}
+                            </label>
+                            <input
+                              type={field.type === 'password' ? 'password' : 'text'}
+                              value={cfg.credentials?.[field.id] || ''}
+                              onChange={e => setProviderCredential(meta.id, field.id, e.target.value)}
+                              placeholder={field.placeholder || ''}
+                              dir="ltr"
+                              className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none font-mono"
+                              style={{ outlineColor: meta.accent }}
+                            />
+                            {field.hint && (
+                              <p className="text-[10px] text-[#9A8A6B] mt-1">{field.hint}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Description blurb + status indicator */}
+                      <div
+                        className="mt-3 rounded-xl p-3 text-[11px] leading-5"
+                        style={{
+                          background: `${meta.accent}0D`,
+                          borderColor: `${meta.accent}33`,
+                          border: '1px solid',
+                          color: '#1A1A1E',
+                        }}
+                      >
+                        {meta.description}
+                      </div>
+
+                      <div className="mt-3 flex items-center gap-2 text-[11px]">
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ background: on ? '#10B981' : '#EDE6D8' }}
+                        />
+                        <span className={on ? 'text-emerald-700 font-bold' : 'text-[#9A8A6B]'}>
+                          {on ? 'مُفعّل — البوالص ستُنشأ تلقائياً' : 'معطّل'}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Save bar */}
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-3 sticky bottom-4 shadow-lg">
+                <div>
+                  <h4 className="font-bold text-[#1A1A1E]">حفظ إعدادات شركات التوصيل</h4>
+                  <p className="text-xs text-[#9A8A6B] mt-1">سيتم حفظ المفاتيح بشكل آمن في قاعدة البيانات. يمكنك تفعيل/تعطيل أي شركة في أي وقت.</p>
+                </div>
                 <button
-                  type="button"
-                  onClick={() => setSettings({ ...settings, yalidineEnabled: !settings.yalidineEnabled })}
-                  className={`relative w-12 h-6 rounded-full transition ${settings.yalidineEnabled ? 'bg-[#C9A96A]' : 'bg-[#EDE6D8]'}`}
-                  aria-label="تفعيل Yalidine"
+                  onClick={async () => {
+                    try {
+                      const toSave = ensureDeliveryProviders(settings)
+                      await saveSettings(toSave)
+                      showToast(`تم حفظ إعدادات شركات التوصيل ✓ (${enabledCount} مُفعّلة)`)
+                    } catch (err: any) {
+                      showToast(describeSaveError(err))
+                    }
+                  }}
+                  className="bg-[#1A1A1E] text-white px-8 py-3 rounded-full font-bold hover:bg-black transition flex items-center gap-2 shrink-0"
                 >
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${settings.yalidineEnabled ? 'left-0.5' : 'left-6'}`} />
+                  <Save size={16} /> حفظ التغييرات
                 </button>
               </div>
-
-              <div className={`grid gap-3 mt-4 transition ${settings.yalidineEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-                <div>
-                  <label className="text-xs font-bold text-[#7A6F5A] flex items-center gap-1">
-                    <span className="font-mono text-[10px] bg-[#1A1A1E] text-[#C9A96A] px-1.5 py-0.5 rounded">X-API-ID</span>
-                    API ID
-                  </label>
-                  <input
-                    value={settings.yalidineApiId || ''}
-                    onChange={e => setSettings({ ...settings, yalidineApiId: e.target.value })}
-                    placeholder="12345"
-                    dir="ltr"
-                    className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#7A6F5A] flex items-center gap-1">
-                    <span className="font-mono text-[10px] bg-[#1A1A1E] text-[#C9A96A] px-1.5 py-0.5 rounded">X-API-TOKEN</span>
-                    API Token
-                  </label>
-                  <input
-                    type="password"
-                    value={settings.yalidineApiToken || ''}
-                    onChange={e => setSettings({ ...settings, yalidineApiToken: e.target.value })}
-                    placeholder="••••••••••••••••"
-                    dir="ltr"
-                    className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-3 bg-[#FFFBF0] border border-[#F5E6C8] rounded-xl p-3 text-[11px] text-[#8D6E3A] leading-5">
-                احصل على بيانات الربط من حسابك في منصة <a href="https://app.yalidine.app/" target="_blank" rel="noreferrer" className="font-bold underline">Yalidine Developer Portal</a>.
-                ستُستخدم هذه المفاتيح لإنشاء بوالص الشحن تلقائياً عند تأكيد الطلب.
-              </div>
-
-              <div className="mt-3 flex items-center gap-2 text-[11px]">
-                <span className={`w-2 h-2 rounded-full ${settings.yalidineEnabled ? 'bg-emerald-500' : 'bg-[#EDE6D8]'}`} />
-                <span className={settings.yalidineEnabled ? 'text-emerald-700 font-bold' : 'text-[#9A8A6B]'}>
-                  {settings.yalidineEnabled ? 'مُفعّل — البوالص ستُنشأ تلقائياً' : 'معطّل'}
-                </span>
-              </div>
             </div>
-
-            {/* ─── ZR Express Card ───────────────────────────────────────── */}
-            <div className={`bg-white border rounded-2xl p-5 transition ${settings.zrExpressEnabled ? 'border-[#A02A5B] shadow-lg shadow-[#A02A5B]/10' : 'border-[#EDE6D8]'}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-11 h-11 rounded-xl grid place-items-center ${settings.zrExpressEnabled ? 'bg-[#A02A5B]' : 'bg-[#FDF2F6]'}`}>
-                    <Truck size={20} className={settings.zrExpressEnabled ? 'text-white' : 'text-[#9A8A6B]'} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-[#1A1A1E]">ZR Express</h3>
-                    <p className="text-[11px] text-[#9A8A6B]">zrexpress.com — توصيل سريع</p>
-                  </div>
-                </div>
-                {/* Toggle switch */}
-                <button
-                  type="button"
-                  onClick={() => setSettings({ ...settings, zrExpressEnabled: !settings.zrExpressEnabled })}
-                  className={`relative w-12 h-6 rounded-full transition ${settings.zrExpressEnabled ? 'bg-[#A02A5B]' : 'bg-[#EDE6D8]'}`}
-                  aria-label="تفعيل ZR Express"
-                >
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${settings.zrExpressEnabled ? 'left-0.5' : 'left-6'}`} />
-                </button>
-              </div>
-
-              <div className={`grid gap-3 mt-4 transition ${settings.zrExpressEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-                <div>
-                  <label className="text-xs font-bold text-[#7A6F5A] flex items-center gap-1">
-                    <span className="font-mono text-[10px] bg-[#1A1A1E] text-[#A02A5B] px-1.5 py-0.5 rounded">API Key</span>
-                    مفتاح API
-                  </label>
-                  <input
-                    value={settings.zrExpressApiKey || ''}
-                    onChange={e => setSettings({ ...settings, zrExpressApiKey: e.target.value })}
-                    placeholder="zr_live_..."
-                    dir="ltr"
-                    className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#A02A5B] font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#7A6F5A] flex items-center gap-1">
-                    <span className="font-mono text-[10px] bg-[#1A1A1E] text-[#A02A5B] px-1.5 py-0.5 rounded">API Secret</span>
-                    سرّ API
-                  </label>
-                  <input
-                    type="password"
-                    value={settings.zrExpressApiSecret || ''}
-                    onChange={e => setSettings({ ...settings, zrExpressApiSecret: e.target.value })}
-                    placeholder="••••••••••••••••"
-                    dir="ltr"
-                    className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#A02A5B] font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-3 bg-[#FDF2F6] border border-[#F6C0D4] rounded-xl p-3 text-[11px] text-[#7A1F44] leading-5">
-                احصل على مفتاح API من حسابك في <a href="https://zrexpress.com/" target="_blank" rel="noreferrer" className="font-bold underline">ZR Express</a>.
-                ستُستخدم هذه المفاتيح لإنشاء بوالص الشحن تلقائياً وتتبع الطرود.
-              </div>
-
-              <div className="mt-3 flex items-center gap-2 text-[11px]">
-                <span className={`w-2 h-2 rounded-full ${settings.zrExpressEnabled ? 'bg-emerald-500' : 'bg-[#EDE6D8]'}`} />
-                <span className={settings.zrExpressEnabled ? 'text-emerald-700 font-bold' : 'text-[#9A8A6B]'}>
-                  {settings.zrExpressEnabled ? 'مُفعّل — البوالص ستُنشأ تلقائياً' : 'معطّل'}
-                </span>
-              </div>
-            </div>
-
-            {/* ─── Save button (spans full width) ────────────────────────── */}
-            <div className="lg:col-span-2 bg-white border border-[#EDE6D8] rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-3">
-              <div>
-                <h4 className="font-bold text-[#1A1A1E]">حفظ إعدادات شركات التوصيل</h4>
-                <p className="text-xs text-[#9A8A6B] mt-1">سيتم حفظ المفاتيح بشكل آمن في قاعدة البيانات. يمكنك تفعيل/تعطيل أي شركة في أي وقت.</p>
-              </div>
-              <button
-                onClick={async () => {
-                  try {
-                    await saveSettings(settings)
-                    showToast('تم حفظ إعدادات شركات التوصيل ✓')
-                  } catch (err: any) {
-                    showToast('فشل الحفظ: ' + (err?.message || 'خطأ غير متوقع'))
-                  }
-                }}
-                className="bg-[#1A1A1E] text-white px-8 py-3 rounded-full font-bold hover:bg-black transition flex items-center gap-2 shrink-0"
-              >
-                <Save size={16} /> حفظ التغييرات
-              </button>
-            </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
 
       {/* DOMAIN MODAL */}
@@ -1631,11 +1717,12 @@ export default function Admin() {
               await saveSettings(storeForm as any)
               setSettings({ ...storeForm } as any)
               showToast('تم إعداد متجرك بنجاح! 🎉')
-            } catch {
-              // Even if the save fails (e.g. network error), dismiss
-              // the wizard so the merchant isn't trapped — they can
-              // re-save from the Store tab later.
-              showToast('تم تخطّي المعالج — يمكنك تعديل الإعدادات لاحقاً')
+            } catch (err: any) {
+              // Show the specific failure reason so the merchant knows
+              // whether to log in again, check their network, etc.
+              // Even if the save fails, dismiss the wizard so they
+              // aren't trapped — they can re-save from the Store tab.
+              showToast(describeSaveError(err))
             }
             setOnboarding(false)
             try {
