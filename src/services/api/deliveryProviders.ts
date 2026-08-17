@@ -58,20 +58,28 @@ export interface DeliveryProviderMeta {
 
 export const ALGERIAN_DELIVERY_PROVIDERS: DeliveryProviderMeta[] = [
   // 1 ── Yalidine Express ───────────────────────────────────────────────
-  // The largest Algerian delivery company, founded 2013.
-  // Corporate site: https://yalidine-express.com.dz
-  // API dashboard:   https://app.yalidine.app
+  // The largest Algerian delivery company.
+  // Founded 2013 as "YALIDINE EL DJAZAIR SERVICES".
+  //
+  // SOURCES (verified Aug 2026):
+  //  - Corporate website (merchant-facing): https://www.yalidine.com/
+  //  - Developer dashboard (where API ID + Token are issued):
+  //    https://yalidine.app/app/dev/index.php
+  //  - API endpoint base: https://api.yalidine.app/v1/
+  //  - Laravel API wrapper (sebbahali/Yalidine-Dz-Laravel-Api) confirms
+  //    the API_ID / API_TOKEN env var names
+  //  - Coverage is 55 wilayas per the official corporate site (not 58)
   {
     id: 'yalidine',
     name: 'Yalidine Express',
     nameAr: 'يالدين إكسبرس',
-    website: 'https://yalidine.app/',
-    portal: 'https://app.yalidine.app/',
+    website: 'https://www.yalidine.com/',
+    portal: 'https://yalidine.app/app/dev/index.php',
     accent: '#C9A96A',
-    description: 'أكبر شركة توصيل في الجزائر — تغطية 58 ولاية مع تتبع البوالص وواجهة برمجية كاملة.',
-    coverage: '58 ولاية',
+    description: 'أكبر شركة توصيل في الجزائر — موجودة منذ 2013 (YALIDINE EL DJAZAIR SERVICES)، تغطي 55 ولاية مع تتبع البوالص وواجهة برمجية كاملة.',
+    coverage: '55 ولاية',
     credentialFields: [
-      { id: 'apiId',    label: 'API ID',    labelAr: 'API ID',    type: 'text',     placeholder: '12345',           hint: 'تجده في لوحة Yalidine تحت قسم API' },
+      { id: 'apiId',    label: 'API ID',    labelAr: 'API ID',    type: 'text',     placeholder: '12345',           hint: 'تجده في لوحة المطورين: yalidine.app/app/dev/index.php' },
       { id: 'apiToken', label: 'API Token', labelAr: 'API Token', type: 'password', placeholder: '••••••••••••••••', hint: 'مفتاح سري — لا تشاركه مع أحد' },
     ],
   },

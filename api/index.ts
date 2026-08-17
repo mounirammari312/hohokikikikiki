@@ -638,6 +638,61 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
     }, 200]
   }
 
+  // PATCH /api/auth/me — update merchant's own profile (fullName, phone)
+  // Email is intentionally NOT editable here — changing email requires
+  // a verification flow we haven't built yet, so we reject it to avoid
+  // silently orphaning the account.
+  if (segments[1] === 'me' && method === 'PATCH') {
+    const user = await userFromToken(req)
+    if (!user) return [{ error: 'UNAUTHORIZED' }, 401]
+    const body = await getReqBody(req)
+    const patch: any = { updatedAt: new Date().toISOString() }
+    if (typeof body.fullName === 'string' && body.fullName.trim()) {
+      patch.fullName = body.fullName.trim().slice(0, 120)
+    }
+    if (typeof body.phone === 'string') {
+      patch.phone = body.phone.trim().slice(0, 30)
+    }
+    // Email changes are rejected (see comment above)
+    if (body.email !== undefined && body.email !== user.email) {
+      return [{ error: 'EMAIL_CHANGE_NOT_SUPPORTED', message: 'لا يمكن تغيير البريد الإلكتروني من هنا — تواصل مع الدعم' }, 400]
+    }
+    const next = await MerchantUserModel.findByIdAndUpdate(user._id, { $set: patch }, { new: true }).lean()
+    return [{ user: sanitizeUser(next) }, 200]
+  }
+
+  // POST /api/auth/change-password — change the merchant's password
+  // Requires the current password to be correct. On success, issues a
+  // fresh token (because the token embeds the passwordHash, the old
+  // token would stop working anyway).
+  if (segments[1] === 'change-password' && method === 'POST') {
+    const user = await userFromToken(req)
+    if (!user) return [{ error: 'UNAUTHORIZED' }, 401]
+    const body = await getReqBody(req)
+    const { currentPassword, newPassword } = body
+    if (!currentPassword || !newPassword) {
+      return [{ error: 'CURRENT_AND_NEW_PASSWORD_REQUIRED' }, 400]
+    }
+    if (String(newPassword).length < 6) {
+      return [{ error: 'PASSWORD_TOO_SHORT', message: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }, 400]
+    }
+    // Verify current password
+    const ok = await verifyPassword(user, String(currentPassword))
+    if (!ok) return [{ error: 'CURRENT_PASSWORD_INCORRECT' }, 400]
+    // Hash + save new password
+    const bcrypt = await import('bcryptjs')
+    const hash = await bcrypt.hash(String(newPassword), 10)
+    const now = new Date().toISOString()
+    const next = await MerchantUserModel.findByIdAndUpdate(
+      user._id,
+      { $set: { passwordHash: hash, updatedAt: now } },
+      { new: true }
+    ).lean()
+    // Issue a fresh token (old token embedded the old hash and is now invalid)
+    const freshUser = next.toObject ? next.toObject() : next
+    return [{ user: sanitizeUser(freshUser), token: makeToken(freshUser) }, 200]
+  }
+
   return [{ error: 'NOT_FOUND' }, 404]
 }
 

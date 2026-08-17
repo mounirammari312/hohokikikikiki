@@ -3,11 +3,11 @@ import { getOrders, updateOrderStatus, deleteOrder, exportOrdersCsv } from '../s
 import { getWilayas, updateWilayaRate, addWilaya } from '../services/api/wilayas'
 import { getProducts, addProduct, updateProduct, deleteProduct, duplicateProduct, toggleProductFlag } from '../services/api/products'
 import { getSettings, saveSettings } from '../services/api/settings'
-import { updateStoreApi } from '../services/api/client'
+import { updateStoreApi, authUpdateProfile, authChangePassword, listMyStores } from '../services/api/client'
 import { useTenant } from '../context/TenantContext'
 import { getDomains, getActiveDomain, setActiveDomain, createCustomDomain, updateDomain, deleteDomain, duplicateDomain } from '../services/api/domains'
 import { ALGERIAN_DELIVERY_PROVIDERS, defaultDeliveryProviders } from '../services/api/deliveryProviders'
-import type { Order, OrderStatus, WilayaRate, Product, StoreDomain, DomainCategory, AttributeDef, Variant, DeliveryProviderConfig } from '../services/api/types'
+import type { Order, OrderStatus, WilayaRate, Product, StoreDomain, DomainCategory, AttributeDef, Variant, DeliveryProviderConfig, TenantStore } from '../services/api/types'
 import { formatDZD } from '../lib/utils'
 import {
   Download, Trash2, Search, Package, Truck, CheckCircle, XCircle, Clock, BarChart3, Settings,
@@ -15,7 +15,7 @@ import {
   Phone, Mail, Instagram, Palette, Zap, Image as ImageIcon, Tag, Layers, X,
   AlertCircle, Check, Filter, ShoppingBag, TrendingUp, Award, Gem, Shirt, Heart,
   Wand2, RefreshCw, Globe, Palette as PaletteIcon, Ruler, Droplet, Paintbrush, FileText, Link2,
-  ExternalLink
+  ExternalLink, LayoutDashboard, Lock, User, LogOut, Building2, CreditCard, ChevronDown, Menu, KeyRound, ShieldCheck
 } from 'lucide-react'
 
 const statusMap: Record<OrderStatus, { label: string, color: string }> = {
@@ -33,14 +33,21 @@ const domainIcons: Record<string, any> = {
 }
 
 export default function Admin() {
-  const { storeId } = useTenant()
+  const { storeId, user, logout, refreshUser } = useTenant()
   const [orders, setOrders] = useState<Order[]>(() => getOrders())
   const [wilayas, setWilayas] = useState<WilayaRate[]>(() => getWilayas())
   const [products, setProducts] = useState<Product[]>(() => getProducts())
   const [settings, setSettings] = useState(() => getSettings())
   const [domains, setDomains] = useState<StoreDomain[]>(() => getDomains())
   const [activeDomain, setActiveDomainState] = useState<StoreDomain>(() => getActiveDomain())
-  const [tab, setTab] = useState<'domains' | 'products' | 'orders' | 'wilayas' | 'store' | 'tracking' | 'delivery'>('domains')
+  const [tab, setTab] = useState<'overview' | 'domains' | 'products' | 'orders' | 'wilayas' | 'store' | 'tracking' | 'delivery' | 'account-profile' | 'account-security' | 'account-stores' | 'account-billing'>('overview')
+  // ─── Sidebar (mobile) + my stores list ──────────────────────────────
+  // Sidebar slides in on mobile (drawer). On desktop it's always visible.
+  // `myStores` is the list of TenantStores the merchant owns — fetched
+  // from /api/stores so the sidebar store-switcher shows real data.
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [myStores, setMyStores] = useState<TenantStore[]>([])
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   // ─── Onboarding wizard ─────────────────────────────────────────────
   // When a merchant registers, PlatformLanding redirects to /admin?onboarding=1.
   // We detect that here and show a 3-step wizard (niche → store info → theme)
@@ -120,9 +127,30 @@ export default function Admin() {
   const [bulkSizes, setBulkSizes] = useState<string>('')
   const [bulkColors, setBulkColors] = useState<string>('')
 
+  // ─── Account profile form state ─────────────────────────────────────
+  // Used by the "account-profile" + "account-security" tabs.
+  const [profileForm, setProfileForm] = useState({ fullName: '', phone: '' })
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [isSavingPw, setIsSavingPw] = useState(false)
+
   useEffect(() => {
     setOrders(getOrders()); setWilayas(getWilayas()); setProducts(getProducts()); setSettings(getSettings()); setStoreForm(getSettings()); setDomains(getDomains()); setActiveDomainState(getActiveDomain())
   }, [tab])
+
+  // Fetch the merchant's stores list (for sidebar store-switcher + the
+  // "متاجري" tab). Runs once on mount + whenever storeId changes (e.g.
+  // after creating a new store).
+  useEffect(() => {
+    void listMyStores().then(setMyStores).catch(() => {})
+  }, [storeId])
+
+  // Sync profileForm from the logged-in user whenever user changes.
+  useEffect(() => {
+    if (user) {
+      setProfileForm({ fullName: user.fullName || '', phone: user.phone || '' })
+    }
+  }, [user])
 
   useEffect(()=>{ if(!showProdModal) setProdForm(makeEmptyProduct(activeDomain)) }, [activeDomain.id])
 
@@ -146,8 +174,90 @@ export default function Admin() {
       case 'NETWORK_ERROR': return 'تعذّر الاتصال بالخادم — تحقق من الإنترنت'
       case 'HTTP_401': return 'انتهت الجلسة — سجّل الدخول مرة أخرى'
       case 'HTTP_403': return 'لا تملك صلاحية تعديل هذا المتجر'
+      case 'CURRENT_PASSWORD_INCORRECT': return 'كلمة المرور الحالية غير صحيحة'
+      case 'PASSWORD_TOO_SHORT': return 'كلمة المرور الجديدة قصيرة جداً (6 أحرف على الأقل)'
+      case 'CURRENT_AND_NEW_PASSWORD_REQUIRED': return 'املأ كلمة المرور الحالية والجديدة'
+      case 'EMAIL_CHANGE_NOT_SUPPORTED': return 'لا يمكن تغيير البريد الإلكتروني من هنا — تواصل مع الدعم'
       default: return `فشل الحفظ: ${code}`
     }
+  }
+
+  // ─── Merchant account handlers ─────────────────────────────────────
+  // These talk to /api/auth/me (PATCH) + /api/auth/change-password (POST).
+  // They use the user/refreshUser/logout from TenantContext so the
+  // session stays in sync after a profile update or password change.
+
+  async function handleSaveProfile() {
+    if (!profileForm.fullName.trim()) {
+      showToast('الاسم الكامل مطلوب')
+      return
+    }
+    setIsSavingProfile(true)
+    try {
+      await authUpdateProfile({
+        fullName: profileForm.fullName.trim(),
+        phone: profileForm.phone.trim(),
+      })
+      await refreshUser()
+      showToast('تم حفظ بياناتك الشخصية ✓')
+    } catch (err: any) {
+      showToast(describeSaveError(err))
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
+  async function handleChangePassword() {
+    if (!pwForm.currentPassword || !pwForm.newPassword) {
+      showToast('املأ كلمة المرور الحالية والجديدة')
+      return
+    }
+    if (pwForm.newPassword.length < 6) {
+      showToast('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل')
+      return
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      showToast('كلمة المرور الجديدة وتأكيدها غير متطابقين')
+      return
+    }
+    setIsSavingPw(true)
+    try {
+      const res = await authChangePassword(pwForm.currentPassword, pwForm.newPassword)
+      // Update the stored token (the old one is now invalid because the
+      // password hash changed).
+      try { localStorage.setItem('lumiere_token', res.token) } catch {}
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      await refreshUser()
+      showToast('تم تغيير كلمة المرور ✓ — استخدمها في المرة القادمة')
+    } catch (err: any) {
+      showToast(describeSaveError(err))
+    } finally {
+      setIsSavingPw(false)
+    }
+  }
+
+  /** Switch to a different store owned by the merchant. */
+  function handleSwitchStore(store: TenantStore) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('store', store.slug)
+    url.searchParams.delete('storeId')
+    window.history.replaceState(null, '', url.toString())
+    try {
+      localStorage.setItem('lumiere_saas_active_slug', store.slug)
+      localStorage.removeItem('lumiere_saas_active_store')
+    } catch {}
+    // Reload so the whole app re-syncs data for the new tenant
+    window.location.reload()
+  }
+
+  function handleLogout() {
+    logout()
+    // Clear cached active store + navigate to landing
+    try {
+      localStorage.removeItem('lumiere_saas_active_slug')
+      localStorage.removeItem('lumiere_saas_active_store')
+    } catch {}
+    window.location.href = '/'
   }
 
   /**
@@ -468,128 +578,282 @@ export default function Admin() {
     showToast(`تم إنشاء ${newVariants.length} متغير`)
   }
 
+  // ─── Sidebar nav config ─────────────────────────────────────────────
+  // Categorized like Shopify / WooCommerce. Each item has an id (matches
+  // the `tab` state), a label, an icon, and a group key for the section
+  // heading. Counts are filled in dynamically where applicable.
+  type NavItem = { id: typeof tab; label: string; icon: any; count?: number }
+  const navGroups: { title: string; items: NavItem[] }[] = [
+    {
+      title: 'الرئيسية',
+      items: [
+        { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: 'إدارة المتجر',
+      items: [
+        { id: 'orders', label: 'الطلبات', icon: ShoppingBag, count: orders.length },
+        { id: 'products', label: 'المنتجات', icon: Package, count: products.length },
+        { id: 'domains', label: 'المجالات والنطاق', icon: Globe },
+        { id: 'wilayas', label: 'أسعار الشحن', icon: MapPinned, count: wilayas.length },
+        { id: 'delivery', label: 'شركات التوصيل', icon: Truck },
+        { id: 'store', label: 'إعدادات المتجر', icon: Store },
+        { id: 'tracking', label: 'التتبع والإعلانات', icon: BarChart3 },
+      ],
+    },
+    {
+      title: 'حساب التاجر',
+      items: [
+        { id: 'account-profile', label: 'الملف الشخصي', icon: User },
+        { id: 'account-security', label: 'الأمان وكلمة المرور', icon: Lock },
+        { id: 'account-stores', label: 'متاجري', icon: Building2, count: myStores.length },
+        { id: 'account-billing', label: 'الفوترة والباقة', icon: CreditCard },
+      ],
+    },
+  ]
+
+  // The store currently being managed (from myStores; falls back to the
+  // slug from URL — used by the sidebar store-switcher header).
+  const currentStore: TenantStore | undefined = myStores.find(s => s.slug === currentSlug)
+    || (myStores[0] as TenantStore | undefined)
+
   return (
-    <div className="bg-[#FFFCF8] min-h-screen">
+    <div className="bg-[#FFFCF8] min-h-screen flex">
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-[#1A1A1E] text-white px-4 py-2.5 rounded-full text-sm font-bold shadow-xl flex items-center gap-2 border border-white/10">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] bg-[#1A1A1E] text-white px-4 py-2.5 rounded-full text-sm font-bold shadow-xl flex items-center gap-2 border border-white/10">
           <Check size={16} className="text-emerald-400" /> {toast}
         </div>
       )}
 
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-[26px] md:text-[28px] font-extrabold text-[#1A1A1E] flex items-center gap-3">
-              <span className="w-11 h-11 rounded-2xl grid place-items-center text-[#C9A96A] shadow-md" style={{ background: 'var(--color-secondary)' }}><Crown size={20} /></span>
-              لوحة تحكم LUMIÈRE
-              <span className="text-xs font-bold text-white px-2.5 py-1 rounded-full tracking-widest shadow-sm" style={{ background: 'var(--color-accent)' }}>PRO 2026</span>
-            </h1>
-            <p className="text-xs text-[#9A8A6B] mt-2 flex flex-wrap items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> حساب تاجر معتمد • منصة LUMIÈRE SaaS
-              <span className="w-1 h-1 rounded-full bg-[#EDE6D8]"></span> {products.length} منتج • {orders.length} طلب • {domains.length} مجال
-              <span className="hidden md:inline-flex items-center gap-1.5 bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] px-2 py-0.5 rounded-full text-[11px] font-bold">♥ ÉDITION ROSE {storeForm.enableRoseEdition ? 'مفعّلة' : 'متوقفة'}</span>
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <a href={`/?store=${currentSlug}`} target="_blank" className="bg-white border border-[#EDE6D8] px-4 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"><Eye size={16} /> عرض المتجر</a>
-            <button onClick={handleExport} className="text-white px-4 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5" style={{ background: 'var(--color-secondary)' }}><Download size={16} /> تصدير CSV</button>
-            <button onClick={() => { if (confirm('إعادة تهيئة كل البيانات؟')) { localStorage.clear(); location.reload() } }} className="bg-white border border-[#EDE6D8] px-3 py-2.5 rounded-full text-xs font-bold text-[#9A8A6B] hover:text-red-600 hover:border-red-200 transition-all duration-300">إعادة تهيئة</button>
-          </div>
-        </div>
-
-        <div className="mt-4 bg-[#1A1A1E] rounded-[20px] p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-white relative overflow-hidden">
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#C9A96A]/10 rounded-full blur-2xl"/>
-          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#A02A5B]/15 rounded-full blur-2xl"/>
-          <div className="relative flex gap-4 items-center">
-            <div className="w-14 h-14 rounded-2xl bg-white grid place-items-center shrink-0 overflow-hidden border border-white/10">
-              {(()=>{
-                const Ico = domainIcons[activeDomain.id] || Store
-                return <Ico size={22} className="text-[#1A1A1E]"/>
-              })()}
+      {/* ═══ SIDEBAR (desktop persistent + mobile drawer) ════════════════ */}
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-[#1A1A1E]/60 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+      <aside
+        className={`fixed lg:sticky top-0 right-0 z-50 lg:z-0 h-screen lg:h-screen w-[280px] shrink-0 bg-[#1A1A1E] text-white flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}
+      >
+        {/* Brand + close (mobile) */}
+        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#C9A96A] to-[#A02A5B] grid place-items-center shadow-md">
+              <Crown size={16} className="text-white" />
             </div>
             <div>
-              <div className="text-xs tracking-[0.2em] text-[#C9A96A] flex items-center gap-2">المجال النشط الآن <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> <span className="bg-[#A02A5B] text-white text-[10px] px-2 py-0.5 rounded-full">حي في المتجر</span></div>
-              <div className="font-extrabold text-lg leading-tight">{activeDomain.nameAr} <span className="font-normal text-white/60">— {activeDomain.name}</span></div>
-              <div className="text-xs text-white/60 line-clamp-1 max-w-[520px]">{activeDomain.descriptionAr} • {activeDomain.categories.length} فئات • {stats.inActiveDomain} منتج في هذا المجال • <span className="text-[#F6C0D4]">{activeDomain.attributeSchema.length} حقل مخصص</span> • {activeDomain.variantConfig.hasColor ? 'ألوان' : ''}{activeDomain.variantConfig.hasColor && activeDomain.variantConfig.hasSize ? ' + ' : ''}{activeDomain.variantConfig.hasSize ? 'مقاسات' : '—'}</div>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {activeDomain.categories.map(c=> <span key={c.key} className="bg-white/10 border border-white/15 px-2 py-1 rounded-full text-[11px] font-bold">{c.labelAr}</span>)}
+              <div className="font-extrabold text-sm leading-tight">LUMIÈRE SaaS</div>
+              <div className="text-[10px] text-white/50">لوحة تحكم التاجر</div>
+            </div>
+          </div>
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden w-8 h-8 rounded-full bg-white/5 grid place-items-center hover:bg-white/10">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Store switcher (top of sidebar) */}
+        <div className="px-3 py-3 border-b border-white/10">
+          <div className="text-[10px] text-white/40 tracking-widest mb-1.5 px-2">المتجر النشط</div>
+          {currentStore ? (
+            <button
+              onClick={() => setTab('account-stores')}
+              className="w-full bg-white/5 hover:bg-white/10 transition rounded-xl px-3 py-2.5 flex items-center gap-3 text-right border border-white/10"
+            >
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#C9A96A]/30 to-[#A02A5B]/20 grid place-items-center shrink-0">
+                <Store size={14} className="text-[#C9A96A]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-sm truncate">{currentStore.nameAr || currentStore.name}</div>
+                <div className="text-[10px] text-white/40 truncate dir-ltr text-left" dir="ltr">{currentStore.slug}.lumiere.saas</div>
+              </div>
+              <ChevronDown size={14} className="text-white/40 shrink-0" />
+            </button>
+          ) : (
+            <div className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white/50">جاري التحميل…</div>
+          )}
+        </div>
+
+        {/* Nav groups (scrollable) */}
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+          {navGroups.map(group => (
+            <div key={group.title}>
+              <div className="text-[10px] font-bold text-white/40 tracking-widest px-2 mb-1.5">{group.title}</div>
+              <div className="space-y-0.5">
+                {group.items.map(item => {
+                  const Icon = item.icon
+                  const active = tab === item.id
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => { setTab(item.id); setSidebarOpen(false) }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition ${active ? 'bg-gradient-to-l from-[#C9A96A]/20 to-transparent text-white border border-[#C9A96A]/30' : 'text-white/70 hover:bg-white/5 hover:text-white border border-transparent'}`}
+                    >
+                      <Icon size={16} className={active ? 'text-[#C9A96A]' : 'text-white/50'} />
+                      <span className="flex-1 text-right font-medium">{item.label}</span>
+                      {item.count !== undefined && item.count > 0 && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${active ? 'bg-[#C9A96A] text-[#1A1A1E]' : 'bg-white/10 text-white/70'}`}>{item.count}</span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             </div>
-          </div>
-          <div className="relative flex flex-col gap-2 w-full md:w-auto">
-            <div className="flex gap-2">
-              <a href={`/?store=${currentSlug}`} target="_blank" className="flex-1 md:flex-initial bg-white text-[#1A1A1E] px-4 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#FFFCF8]"><Eye size={14}/> معاينة المتجر</a>
-              <button onClick={()=> setTab('domains')} className="flex-1 md:flex-initial bg-[#C9A96A] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#B8945A]"><Globe size={14}/> النطاق المخصص</button>
-            </div>
-            <span className="text-[11px] text-white/40 text-center">التبديل يحدث فوراً — إعدادات المنتج تتبدل حسب المجال</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-5">
-          {/* Total orders — primary accent */}
-          <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 relative overflow-hidden card-shadow card-shadow-hover">
-            <div className="absolute -top-6 -left-6 w-16 h-16 rounded-full" style={{ background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)' }} />
-            <div className="relative">
-              <div className="w-8 h-8 rounded-full grid place-items-center mb-2" style={{ background: 'color-mix(in srgb, var(--color-primary) 14%, white)', color: 'var(--color-primary)' }}><ShoppingBag size={14} /></div>
-              <div className="text-xs text-[#9A8A6B]">إجمالي الطلبات</div><div className="text-2xl font-extrabold text-[#1A1A1E] mt-0.5">{stats.count}</div>
-              <div className="text-[11px] text-emerald-600 flex items-center gap-1"><TrendingUp size={10} /> مباشر</div>
-            </div>
-          </div>
-          {/* Revenue — dark hero card */}
-          <div className="text-white rounded-2xl p-4 relative overflow-hidden card-shadow" style={{ background: 'var(--color-secondary)' }}>
-            <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full blur-xl" style={{ background: 'color-mix(in srgb, var(--color-primary) 22%, transparent)' }} />
-            <div className="relative">
-              <div className="w-8 h-8 rounded-full grid place-items-center mb-2" style={{ background: 'color-mix(in srgb, var(--color-primary) 22%, transparent)', color: 'var(--color-primary)' }}><Award size={14} /></div>
-              <div className="text-xs text-white/60">إيرادات متوقعة</div><div className="text-lg font-extrabold mt-0.5">{formatDZD(stats.totalRevenue)}</div>
-              <div className="text-[11px] text-[#C9A96A]">بدون الملغاة</div>
-            </div>
-          </div>
-          {/* New orders — amber */}
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 card-shadow card-shadow-hover">
-            <div className="w-8 h-8 rounded-full grid place-items-center mb-2 bg-amber-100 text-amber-700"><Clock size={14} /></div>
-            <div className="text-xs text-amber-700">طلبات جديدة</div><div className="text-2xl font-extrabold text-amber-800 mt-0.5">{stats.newCount}</div>
-            <div className="text-[11px] text-amber-700">تحتاج تأكيد</div>
-          </div>
-          {/* Delivered — emerald */}
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 card-shadow card-shadow-hover">
-            <div className="w-8 h-8 rounded-full grid place-items-center mb-2 bg-emerald-100 text-emerald-700"><CheckCircle size={14} /></div>
-            <div className="text-xs text-emerald-700">تم التسليم</div><div className="text-2xl font-extrabold text-emerald-800 mt-0.5">{stats.delivered}</div>
-            <div className="text-[11px] text-emerald-700">نجاح COD</div>
-          </div>
-          {/* Products — neutral */}
-          <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 card-shadow card-shadow-hover">
-            <div className="w-8 h-8 rounded-full grid place-items-center mb-2" style={{ background: 'color-mix(in srgb, var(--color-primary) 14%, white)', color: 'var(--color-primary)' }}><Layers size={14} /></div>
-            <div className="text-xs text-[#9A8A6B]">المنتجات</div><div className="text-2xl font-extrabold text-[#1A1A1E] mt-0.5">{stats.totalProducts}</div>
-            <div className="text-[11px] text-[#9A8A6B]">{stats.featured} مميزة • {stats.inActiveDomain} في المجال</div>
-          </div>
-          {/* Low stock — accent when > 0 */}
-          <div className={`rounded-2xl p-4 border card-shadow card-shadow-hover ${stats.lowStock > 0 ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-[#EDE6D8]'}`}>
-            <div className={`w-8 h-8 rounded-full grid place-items-center mb-2 ${stats.lowStock > 0 ? 'bg-[#FCE7F0] text-[#A02A5B]' : 'bg-gray-100 text-gray-500'}`}><AlertCircle size={14} /></div>
-            <div className={`text-xs ${stats.lowStock > 0 ? 'text-[#A02A5B]' : 'text-[#9A8A6B]'}`}>مخزون منخفض</div><div className={`text-2xl font-extrabold mt-0.5 ${stats.lowStock > 0 ? 'text-[#A02A5B]' : 'text-[#1A1A1E]'}`}>{stats.lowStock}</div>
-            <div className="text-[11px] text-[#9A8A6B]">≤ 10 قطع</div>
-          </div>
-        </div>
-
-        <div className="mt-6 bg-white border border-[#EDE6D8] rounded-[20px] p-1.5 flex flex-wrap gap-1.5 w-fit max-w-full overflow-x-auto card-shadow sticky top-3 z-30 backdrop-blur" style={{ background: 'rgba(255,255,255,0.92)' }}>
-          {[
-            { k: 'domains', l: 'النطاق المخصص', i: Globe, count: null, desc: 'custom domain' },
-            { k: 'products', l: 'المنتجات', i: Package, count: products.length, desc: 'إضافة وتعديل' },
-            { k: 'orders', l: 'الطلبات', i: ShoppingBag, count: orders.length, desc: 'دورة الحياة' },
-            { k: 'wilayas', l: 'الشحن', i: MapPinned, count: wilayas.length, desc: '58 ولاية' },
-            { k: 'store', l: 'إعدادات المتجر', i: Store, count: null, desc: 'تحكم شامل' },
-            { k: 'delivery', l: 'شركات التوصيل', i: Truck, count: null, desc: 'Yalidine + ZR' },
-            { k: 'tracking', l: 'التتبع', i: BarChart3, count: null, desc: 'Pixel' },
-          ].map(t => (
-            <button key={t.k} onClick={() => setTab(t.k as any)} className={`px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 border transition-all duration-300 ${tab === t.k ? 'text-white border-transparent shadow-md' : 'bg-transparent text-[#1A1A1E] border-transparent hover:bg-[#FFFCF8] hover:shadow-sm'}`} style={tab === t.k ? { background: 'var(--color-secondary)' } : undefined}>
-              <t.i size={15} className={`transition-colors ${tab === t.k ? 'text-[#C9A96A]' : 'text-[#9A8A6B]'}`} />
-              <span>{t.l}</span>
-              {t.count !== null && <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold transition-colors ${tab === t.k ? 'bg-white text-[#1A1A1E]' : 'bg-[#1A1A1E] text-white'}`}>{t.count}</span>}
-              <span className={`hidden xl:inline text-[11px] font-normal ${tab === t.k ? 'text-white/60' : 'text-[#9A8A6B]'}`}>• {t.desc}</span>
-            </button>
           ))}
-        </div>
+        </nav>
 
-        {tab==='domains' && (
+        {/* User mini-card + logout (bottom of sidebar) */}
+        <div className="border-t border-white/10 p-3">
+          <div className="bg-white/5 rounded-xl p-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#C9A96A] to-[#A02A5B] grid place-items-center font-bold text-white shrink-0">
+              {(user?.fullName || user?.email || '?').charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-sm truncate">{user?.fullName || 'تاجر'}</div>
+              <div className="text-[10px] text-white/40 truncate" dir="ltr">{user?.email}</div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-8 h-8 rounded-lg bg-white/5 hover:bg-red-500/20 hover:text-red-300 grid place-items-center transition shrink-0"
+              title="تسجيل الخروج"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ═══ MAIN CONTENT ═══════════════════════════════════════════════ */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 bg-[#FFFCF8]/95 backdrop-blur border-b border-[#EDE6D8] px-4 md:px-6 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-9 h-9 rounded-xl bg-white border border-[#EDE6D8] grid place-items-center shrink-0">
+              <Menu size={18} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-lg md:text-xl font-extrabold text-[#1A1A1E] truncate">
+                {navGroups.flatMap(g => g.items).find(i => i.id === tab)?.label || 'لوحة التحكم'}
+              </h1>
+              <p className="text-[11px] text-[#9A8A6B] hidden md:block">
+                {currentStore?.nameAr || 'المتجر'} • {products.length} منتج • {orders.length} طلب
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a href={`/?store=${currentSlug}`} target="_blank" className="hidden md:flex bg-white border border-[#EDE6D8] px-3 py-2 rounded-full text-xs font-bold items-center gap-1.5 hover:shadow-md transition">
+              <Eye size={14} /> عرض المتجر
+            </a>
+            {tab !== 'overview' && (
+              <button onClick={() => setTab('overview')} className="bg-[#1A1A1E] text-white px-3 py-2 rounded-full text-xs font-bold flex items-center gap-1.5">
+                <LayoutDashboard size={14} /> نظرة عامة
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Tab content */}
+        <main className="flex-1 p-4 md:p-6">
+          <div className="max-w-[1280px] mx-auto">
+
+          {/* ═══ OVERVIEW TAB ════════════════════════════════════════════ */}
+          {tab === 'overview' && (
+            <div className="space-y-5">
+              {/* Hero card — active domain summary */}
+              <div className="bg-[#1A1A1E] rounded-[20px] p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-white relative overflow-hidden">
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#C9A96A]/10 rounded-full blur-2xl"/>
+                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#A02A5B]/15 rounded-full blur-2xl"/>
+                <div className="relative flex gap-4 items-center">
+                  <div className="w-14 h-14 rounded-2xl bg-white grid place-items-center shrink-0 overflow-hidden border border-white/10">
+                    {(() => {
+                      const Ico = domainIcons[activeDomain.id] || Store
+                      return <Ico size={22} className="text-[#1A1A1E]"/>
+                    })()}
+                  </div>
+                  <div>
+                    <div className="text-xs tracking-[0.2em] text-[#C9A96A] flex items-center gap-2">المجال النشط <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span></div>
+                    <div className="font-extrabold text-lg leading-tight">{activeDomain.nameAr} <span className="font-normal text-white/60">— {activeDomain.name}</span></div>
+                    <div className="text-xs text-white/60 line-clamp-1 max-w-[520px]">{activeDomain.descriptionAr} • {activeDomain.categories.length} فئات • {stats.inActiveDomain} منتج</div>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {activeDomain.categories.map(c => <span key={c.key} className="bg-white/10 border border-white/15 px-2 py-1 rounded-full text-[11px] font-bold">{c.labelAr}</span>)}
+                    </div>
+                  </div>
+                </div>
+                <div className="relative flex gap-2 shrink-0">
+                  <a href={`/?store=${currentSlug}`} target="_blank" className="bg-white text-[#1A1A1E] px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 hover:bg-[#FFFCF8]"><Eye size={14}/> معاينة</a>
+                  <button onClick={() => setTab('domains')} className="bg-[#C9A96A] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 hover:bg-[#B8945A]"><Globe size={14}/> إدارة</button>
+                </div>
+              </div>
+
+              {/* Stats grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+                <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 relative overflow-hidden card-shadow">
+                  <div className="absolute -top-6 -left-6 w-16 h-16 rounded-full" style={{ background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)' }} />
+                  <div className="relative">
+                    <div className="w-8 h-8 rounded-full grid place-items-center mb-2" style={{ background: 'color-mix(in srgb, var(--color-primary) 14%, white)', color: 'var(--color-primary)' }}><ShoppingBag size={14} /></div>
+                    <div className="text-xs text-[#9A8A6B]">إجمالي الطلبات</div><div className="text-2xl font-extrabold text-[#1A1A1E] mt-0.5">{stats.count}</div>
+                    <div className="text-[11px] text-emerald-600 flex items-center gap-1"><TrendingUp size={10} /> مباشر</div>
+                  </div>
+                </div>
+                <div className="text-white rounded-2xl p-4 relative overflow-hidden card-shadow" style={{ background: 'var(--color-secondary)' }}>
+                  <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full blur-xl" style={{ background: 'color-mix(in srgb, var(--color-primary) 22%, transparent)' }} />
+                  <div className="relative">
+                    <div className="w-8 h-8 rounded-full grid place-items-center mb-2" style={{ background: 'color-mix(in srgb, var(--color-primary) 22%, transparent)', color: 'var(--color-primary)' }}><Award size={14} /></div>
+                    <div className="text-xs text-white/60">إيرادات متوقعة</div><div className="text-lg font-extrabold mt-0.5">{formatDZD(stats.totalRevenue)}</div>
+                    <div className="text-[11px] text-[#C9A96A]">بدون الملغاة</div>
+                  </div>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 card-shadow">
+                  <div className="w-8 h-8 rounded-full grid place-items-center mb-2 bg-amber-100 text-amber-700"><Clock size={14} /></div>
+                  <div className="text-xs text-amber-700">طلبات جديدة</div><div className="text-2xl font-extrabold text-amber-800 mt-0.5">{stats.newCount}</div>
+                  <div className="text-[11px] text-amber-700">تحتاج تأكيد</div>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 card-shadow">
+                  <div className="w-8 h-8 rounded-full grid place-items-center mb-2 bg-emerald-100 text-emerald-700"><CheckCircle size={14} /></div>
+                  <div className="text-xs text-emerald-700">تم التسليم</div><div className="text-2xl font-extrabold text-emerald-800 mt-0.5">{stats.delivered}</div>
+                  <div className="text-[11px] text-emerald-700">نجاح COD</div>
+                </div>
+                <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 card-shadow">
+                  <div className="w-8 h-8 rounded-full grid place-items-center mb-2" style={{ background: 'color-mix(in srgb, var(--color-primary) 14%, white)', color: 'var(--color-primary)' }}><Layers size={14} /></div>
+                  <div className="text-xs text-[#9A8A6B]">المنتجات</div><div className="text-2xl font-extrabold text-[#1A1A1E] mt-0.5">{stats.totalProducts}</div>
+                  <div className="text-[11px] text-[#9A8A6B]">{stats.featured} مميزة</div>
+                </div>
+                <div className={`rounded-2xl p-4 border card-shadow ${stats.lowStock > 0 ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-[#EDE6D8]'}`}>
+                  <div className={`w-8 h-8 rounded-full grid place-items-center mb-2 ${stats.lowStock > 0 ? 'bg-[#FCE7F0] text-[#A02A5B]' : 'bg-gray-100 text-gray-500'}`}><AlertCircle size={14} /></div>
+                  <div className={`text-xs ${stats.lowStock > 0 ? 'text-[#A02A5B]' : 'text-[#9A8A6B]'}`}>مخزون منخفض</div><div className={`text-2xl font-extrabold mt-0.5 ${stats.lowStock > 0 ? 'text-[#A02A5B]' : 'text-[#1A1A1E]'}`}>{stats.lowStock}</div>
+                  <div className="text-[11px] text-[#9A8A6B]">≤ 10 قطع</div>
+                </div>
+              </div>
+
+              {/* Quick actions */}
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+                <h3 className="font-extrabold flex items-center gap-2"><Zap size={18} className="text-[#C9A96A]"/> إجراءات سريعة</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                  <button onClick={() => setTab('products')} className="bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-4 hover:shadow-md transition text-right">
+                    <Package size={20} className="text-[#C9A96A] mb-2" />
+                    <div className="font-bold text-sm">إضافة منتج</div>
+                    <div className="text-[11px] text-[#9A8A6B]">نشر منتج جديد</div>
+                  </button>
+                  <button onClick={() => setTab('orders')} className="bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-4 hover:shadow-md transition text-right">
+                    <ShoppingBag size={20} className="text-[#A02A5B] mb-2" />
+                    <div className="font-bold text-sm">الطلبات الجديدة</div>
+                    <div className="text-[11px] text-[#9A8A6B]">{stats.newCount} بانتظار التأكيد</div>
+                  </button>
+                  <button onClick={() => setTab('delivery')} className="bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-4 hover:shadow-md transition text-right">
+                    <Truck size={20} className="text-[#8D6E3A] mb-2" />
+                    <div className="font-bold text-sm">شركات التوصيل</div>
+                    <div className="text-[11px] text-[#9A8A6B]">10 شركات جزائرية</div>
+                  </button>
+                  <button onClick={handleExport} className="bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-4 hover:shadow-md transition text-right">
+                    <Download size={20} className="text-[#1A1A1E] mb-2" />
+                    <div className="font-bold text-sm">تصدير CSV</div>
+                    <div className="text-[11px] text-[#9A8A6B]">تصدير الطلبات</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ DOMAINS TAB ═════════════════════════════════════════════ */}
+          {tab === 'domains' && (
           <div className="mt-4 space-y-4">
             {/* ─── Custom Domain Section ─────────────────────────────── */}
             <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
@@ -1372,6 +1636,302 @@ export default function Admin() {
             </div>
           )
         })()}
+
+          {/* ═══ ACCOUNT PROFILE TAB ════════════════════════════════════ */}
+          {tab === 'account-profile' && (
+            <div className="mt-4 grid lg:grid-cols-[1fr_320px] gap-4">
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-6">
+                <h3 className="font-extrabold flex items-center gap-2"><User size={18} className="text-[#C9A96A]"/> الملف الشخصي</h3>
+                <p className="text-xs text-[#9A8A6B] mt-1">هذه المعلومات تخصّك أنت (التاجر)، وليست ظاهرة في متجرك.</p>
+
+                <div className="mt-5 space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-[#7A6F5A]">الاسم الكامل *</label>
+                    <input
+                      value={profileForm.fullName}
+                      onChange={e => setProfileForm({ ...profileForm, fullName: e.target.value })}
+                      placeholder="محمد أمين"
+                      className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-[#7A6F5A] flex items-center gap-1.5">
+                      <Mail size={12} /> البريد الإلكتروني (للتسجيل دخول)
+                    </label>
+                    <input
+                      value={user?.email || ''}
+                      disabled
+                      className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-[#FFFCF8] text-[#9A8A6B] cursor-not-allowed"
+                      dir="ltr"
+                    />
+                    <p className="text-[10px] text-[#9A8A6B] mt-1">لا يمكن تغيير البريد الإلكتروني — تواصل مع الدعم إذا احتجت ذلك.</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-[#7A6F5A] flex items-center gap-1.5">
+                      <Phone size={12} /> الهاتف
+                    </label>
+                    <input
+                      value={profileForm.phone}
+                      onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })}
+                      placeholder="0550 12 34 56"
+                      dir="ltr"
+                      className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]"
+                    />
+                  </div>
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={isSavingProfile}
+                    className="bg-[#1A1A1E] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-black transition disabled:opacity-50"
+                  >
+                    {isSavingProfile ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                    {isSavingProfile ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-[#1A1A1E] text-white rounded-2xl p-6 relative overflow-hidden">
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#C9A96A]/10 rounded-full blur-2xl" />
+                <div className="relative">
+                  <h4 className="font-bold flex items-center gap-2"><Crown size={16} className="text-[#C9A96A]"/> معلومات الحساب</h4>
+                  <div className="mt-4 space-y-3 text-xs">
+                    <div className="flex justify-between"><span className="text-white/50">الاسم:</span><span className="font-bold">{user?.fullName || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-white/50">البريد:</span><span className="font-bold truncate max-w-[180px]" dir="ltr">{user?.email || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-white/50">الدور:</span><span className="font-bold">{user?.role === 'super_admin' ? 'مدير عام' : 'تاجر'}</span></div>
+                    <div className="flex justify-between"><span className="text-white/50">عدد المتاجر:</span><span className="font-bold">{myStores.length}</span></div>
+                    <div className="flex justify-between"><span className="text-white/50">أُنشئ في:</span><span className="font-bold">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-DZ') : '—'}</span></div>
+                  </div>
+                  <div className="mt-5 bg-white/5 border border-white/10 rounded-xl p-3">
+                    <div className="text-[10px] text-white/50 mb-1">الإجراءات السريعة</div>
+                    <button onClick={() => setTab('account-security')} className="w-full text-right text-sm py-2 hover:text-[#C9A96A] flex items-center gap-2">
+                      <Lock size={14} /> تغيير كلمة المرور
+                    </button>
+                    <button onClick={() => setTab('account-stores')} className="w-full text-right text-sm py-2 hover:text-[#C9A96A] flex items-center gap-2">
+                      <Building2 size={14} /> إدارة متاجري
+                    </button>
+                    <button onClick={() => setTab('account-billing')} className="w-full text-right text-sm py-2 hover:text-[#C9A96A] flex items-center gap-2">
+                      <CreditCard size={14} /> الفوترة والباقة
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ ACCOUNT SECURITY TAB ════════════════════════════════════ */}
+          {tab === 'account-security' && (
+            <div className="mt-4 grid lg:grid-cols-[1fr_320px] gap-4">
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-6">
+                <h3 className="font-extrabold flex items-center gap-2"><KeyRound size={18} className="text-[#A02A5B]"/> تغيير كلمة المرور</h3>
+                <p className="text-xs text-[#9A8A6B] mt-1">بعد التغيير سيتم تسجيل خروجك من باقي الأجهزة تلقائياً.</p>
+
+                <div className="mt-5 space-y-4 max-w-md">
+                  <div>
+                    <label className="text-xs font-bold text-[#7A6F5A]">كلمة المرور الحالية *</label>
+                    <input
+                      type="password"
+                      value={pwForm.currentPassword}
+                      onChange={e => setPwForm({ ...pwForm, currentPassword: e.target.value })}
+                      placeholder="••••••••"
+                      dir="ltr"
+                      className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#A02A5B]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-[#7A6F5A]">كلمة المرور الجديدة *</label>
+                    <input
+                      type="password"
+                      value={pwForm.newPassword}
+                      onChange={e => setPwForm({ ...pwForm, newPassword: e.target.value })}
+                      placeholder="6 أحرف على الأقل"
+                      dir="ltr"
+                      className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#A02A5B]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-[#7A6F5A]">تأكيد كلمة المرور *</label>
+                    <input
+                      type="password"
+                      value={pwForm.confirmPassword}
+                      onChange={e => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
+                      placeholder="أعد كتابة كلمة المرور"
+                      dir="ltr"
+                      className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#A02A5B]"
+                    />
+                  </div>
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={isSavingPw}
+                    className="bg-[#A02A5B] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-[#7A1F44] transition disabled:opacity-50"
+                  >
+                    {isSavingPw ? <RefreshCw size={16} className="animate-spin" /> : <Lock size={16} />}
+                    {isSavingPw ? 'جاري التغيير...' : 'تغيير كلمة المرور'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-[#FFFBF0] border border-[#F5E6C8] rounded-2xl p-5">
+                <h4 className="font-bold text-[#8D6E3A] flex items-center gap-2"><ShieldCheck size={16}/> نصائح الأمان</h4>
+                <ul className="mt-3 space-y-2 text-xs text-[#7A6F5A] leading-6">
+                  <li>• استخدم 8 أحرف على الأقل (مزيج من حروف + أرقام + رموز).</li>
+                  <li>• لا تُعِد استخدام كلمة مرور من موقع آخر.</li>
+                  <li>• غيّر كلمة المرور كل 3 أشهر كحد أدنى.</li>
+                  <li>• لا تشاركها مع أحد — حتى فريق الدعم.</li>
+                  <li>• بعد التغيير، سجّل الدخول من جديد على باقي أجهزتك.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ MY STORES TAB ════════════════════════════════════════════ */}
+          {tab === 'account-stores' && (
+            <div className="mt-4 space-y-4">
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-extrabold flex items-center gap-2"><Building2 size={18} className="text-[#C9A96A]"/> متاجري</h3>
+                  <p className="text-xs text-[#9A8A6B] mt-1">كل متجر تملكه يظهر هنا. اضغط على متجر للتبديل إليه.</p>
+                </div>
+                <a href="/?onboarding=1" className="bg-[#A02A5B] text-white px-4 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-[#7A1F44] transition shrink-0">
+                  <Plus size={14}/> متجر جديد
+                </a>
+              </div>
+
+              {myStores.length === 0 ? (
+                <div className="bg-[#FFFBF0] border border-[#F5E6C8] rounded-2xl p-8 text-center">
+                  <Store size={32} className="text-[#C9A96A] mx-auto mb-3" />
+                  <div className="font-bold text-[#8D6E3A]">لا تملك أي متجر بعد</div>
+                  <p className="text-xs text-[#9A8A6B] mt-1">أنشئ متجرك الأول لتبدأ البيع.</p>
+                  <a href="/?onboarding=1" className="inline-flex mt-4 bg-[#1A1A1E] text-white px-5 py-2.5 rounded-full text-xs font-bold items-center gap-2">
+                    <Plus size={14}/> إنشاء متجر
+                  </a>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-3">
+                  {myStores.map(s => {
+                    const isActive = s.slug === currentSlug
+                    return (
+                      <div
+                        key={s._id}
+                        className={`bg-white border rounded-2xl p-5 transition ${isActive ? 'border-[#C9A96A] shadow-lg shadow-[#C9A96A]/10' : 'border-[#EDE6D8]'}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-12 h-12 rounded-xl grid place-items-center shrink-0 ${isActive ? 'bg-gradient-to-br from-[#C9A96A] to-[#A02A5B]' : 'bg-[#F5EFE6]'}`}>
+                              <Store size={18} className={isActive ? 'text-white' : 'text-[#9A8A6B]'} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-extrabold truncate">{s.nameAr || s.name}</div>
+                              <div className="text-[11px] text-[#9A8A6B] truncate" dir="ltr">{s.slug}.lumiere.saas</div>
+                            </div>
+                          </div>
+                          {isActive && (
+                            <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-full shrink-0">نشط</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-3 text-[11px]">
+                          <span className={`px-2 py-1 rounded-full font-bold ${s.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            {s.status === 'active' ? 'فعّال' : s.status === 'suspended' ? 'موقوف' : 'منتهي'}
+                          </span>
+                          <span className="bg-[#F5EFE6] text-[#8D6E3A] px-2 py-1 rounded-full font-bold">{s.plan === 'free_trial' ? 'تجريبي' : s.plan}</span>
+                          {s.planExpiresAt && (
+                            <span className="text-[#9A8A6B]">حتى {new Date(s.planExpiresAt).toLocaleDateString('ar-DZ')}</span>
+                          )}
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <a
+                            href={`/?store=${s.slug}`}
+                            target="_blank"
+                            className="flex-1 bg-white border border-[#EDE6D8] text-[#1A1A1E] px-3 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 hover:shadow-md transition"
+                          >
+                            <Eye size={12}/> عرض
+                          </a>
+                          <button
+                            onClick={() => handleSwitchStore(s)}
+                            disabled={isActive}
+                            className="flex-1 bg-[#1A1A1E] text-white px-3 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-black transition disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <RefreshCw size={12}/> {isActive ? 'المتجر الحالي' : 'تبديل'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══ BILLING TAB ══════════════════════════════════════════════ */}
+          {tab === 'account-billing' && (
+            <div className="mt-4 space-y-4">
+              <div className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white rounded-2xl p-6 relative overflow-hidden">
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#C9A96A]/15 rounded-full blur-3xl" />
+                <div className="relative flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <div className="text-xs text-[#C9A96A] tracking-widest mb-1">باقتك الحالية</div>
+                    <div className="text-3xl font-extrabold">
+                      {currentStore?.plan === 'free_trial' ? 'تجريبية'
+                        : currentStore?.plan === 'starter' ? 'ستارتر'
+                        : currentStore?.plan === 'pro' ? 'برو'
+                        : currentStore?.plan === 'vip' ? 'VIP' : '—'}
+                    </div>
+                    <div className="text-xs text-white/60 mt-1">
+                      {currentStore?.status === 'active' ? '✓ الباقة فعّالة' : '⚠ يحتاج تجديد'}
+                      {currentStore?.planExpiresAt && ` • تنتهي في ${new Date(currentStore.planExpiresAt).toLocaleDateString('ar-DZ')}`}
+                    </div>
+                  </div>
+                  <button className="bg-gradient-to-l from-[#C9A96A] to-[#B8945A] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2">
+                    <Crown size={16}/> ترقية الباقة
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { id: 'free_trial', name: 'تجريبية', price: '0', period: '14 يوم', features: ['متجر واحد', 'منتجات غير محدودة', 'الدفع عند الاستلام'] },
+                  { id: 'starter', name: 'ستارتر', price: '2,500', period: 'دج/شهر', features: ['كل مزايا التجريبية', 'نطاق فرعي مخصص', 'تتبع Meta + TikTok'] },
+                  { id: 'pro', name: 'برو', price: '6,900', period: 'دج/شهر', features: ['كل مزايا ستارتر', 'نطاق مخصص', 'متجريات متقدمة'] },
+                  { id: 'vip', name: 'VIP', price: '15,000', period: 'دج/شهر', features: ['كل مزايا برو', 'متاجر متعددة', 'مدير حساب مخصص'] },
+                ].map(p => {
+                  const isCurrent = currentStore?.plan === p.id
+                  return (
+                    <div
+                      key={p.id}
+                      className={`bg-white border rounded-2xl p-5 ${isCurrent ? 'border-[#C9A96A] shadow-lg' : 'border-[#EDE6D8]'}`}
+                    >
+                      {isCurrent && <div className="text-[10px] bg-[#C9A96A] text-white px-2 py-0.5 rounded-full inline-block mb-2 font-bold">باقتك</div>}
+                      <div className="font-bold text-lg">{p.name}</div>
+                      <div className="mt-2">
+                        <span className="text-2xl font-extrabold">{p.price}</span>
+                        <span className="text-xs text-[#9A8A6B]"> {p.period}</span>
+                      </div>
+                      <ul className="mt-3 space-y-1.5 text-xs">
+                        {p.features.map(f => (
+                          <li key={f} className="flex items-start gap-1.5">
+                            <Check size={12} className="text-[#C9A96A] mt-0.5 shrink-0" />
+                            <span className="text-[#7A6F5A]">{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <button
+                        disabled={isCurrent}
+                        className="w-full mt-4 py-2 rounded-full text-xs font-bold transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#1A1A1E] text-white hover:bg-black"
+                      >
+                        {isCurrent ? 'الباقة الحالية' : 'ترقية'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="bg-[#FFFBF0] border border-[#F5E6C8] rounded-2xl p-5">
+                <h4 className="font-bold text-[#8D6E3A] flex items-center gap-2"><CreditCard size={16}/> سجل الفواتير</h4>
+                <p className="text-xs text-[#9A8A6B] mt-1">لا توجد فواتير بعد — أنت في الباقة التجريبية المجانية.</p>
+              </div>
+            </div>
+          )}
+
+          </div>
+        </main>
       </div>
 
       {/* DOMAIN MODAL */}

@@ -395,6 +395,26 @@ export async function authMe(): Promise<{ user: MerchantUser }> {
   return await apiFetch('/api/auth/me')
 }
 
+/** Update the merchant's own profile (fullName, phone). Email is NOT editable. */
+export async function authUpdateProfile(patch: { fullName?: string; phone?: string }): Promise<{ user: MerchantUser }> {
+  return await apiFetch('/api/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  })
+}
+
+/**
+ * Change the merchant's password. Requires the current password to be
+ * correct. On success, returns a fresh token (the old one is invalidated
+ * because it embeds the old password hash).
+ */
+export async function authChangePassword(currentPassword: string, newPassword: string): Promise<{ user: MerchantUser; token: string }> {
+  return await apiFetch('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+}
+
 export async function listMyStores(): Promise<TenantStore[]> {
   const { stores } = await apiFetch<{ stores: TenantStore[] }>('/api/stores')
   return stores || []
