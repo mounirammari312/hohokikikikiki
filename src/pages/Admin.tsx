@@ -158,10 +158,16 @@ export default function Admin() {
    * dashboard renders every provider card.
    */
   function ensureDeliveryProviders(s: any): any {
-    const next = Array.isArray(s.deliveryProviders) ? [...s.deliveryProviders] : []
+    let next = Array.isArray(s.deliveryProviders) ? [...s.deliveryProviders] : []
+    // REMOVE providers that are no longer in the registry (old fabricated
+    // IDs we deleted: 'guesto', 'trackz', 'colisex', 'ecosystem',
+    // 'noestdelay', 'aldjia', 'hisseptik'). This keeps the dashboard
+    // clean for stores that had the old (wrong) registry seeded.
+    const validIds = new Set(ALGERIAN_DELIVERY_PROVIDERS.map(p => p.id))
+    next = next.filter((p: any) => validIds.has(p.id))
     // Ensure every registered provider has an entry
     for (const meta of ALGERIAN_DELIVERY_PROVIDERS) {
-      if (!next.some(p => p.id === meta.id)) {
+      if (!next.some((p: any) => p.id === meta.id)) {
         // Migrate legacy fields on first sight
         const credentials: Record<string, string> = Object.fromEntries(
           meta.credentialFields.map(f => [f.id, ''])
@@ -173,7 +179,6 @@ export default function Admin() {
           enabled = !!(s as any).yalidineEnabled
         } else if (meta.id === 'zrexpress' && (s as any).zrExpressApiKey) {
           credentials.apiKey = (s as any).zrExpressApiKey || ''
-          credentials.apiSecret = (s as any).zrExpressApiSecret || ''
           enabled = !!(s as any).zrExpressEnabled
         }
         next.push({ id: meta.id, enabled, credentials })

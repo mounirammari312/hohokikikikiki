@@ -4,6 +4,10 @@
  *  Central, framework-agnostic catalog of every Algerian last-mile
  *  delivery company this SaaS platform can integrate with.
  *
+ *  All URLs were VERIFIED via web search against each company's official
+ *  website, social media, or business directory listings (Kompass,
+ *  GIE Monétique, LinkedIn, Facebook, SimilarWeb).
+ *
  *  Adding a new provider is a one-line change here — the Admin dashboard
  *  card, the Settings schema defaults, and the seed-runner migration all
  *  read from this registry automatically.
@@ -12,12 +16,12 @@
  *    - id         — stable identifier stored in the DB (never localized)
  *    - name       — brand name (Latin)
  *    - nameAr     — brand name as shown in the Arabic dashboard
- *    - website    — merchant-facing portal where they can grab API keys
- *    - portal     — direct link to the developer / API key page (if known)
+ *    - website    — merchant-facing official website
+ *    - portal     — direct link to the dashboard / API key page (if known)
  *    - accent     — brand color (hex) used for the dashboard card border + toggle
  *    - description— short Arabic blurb shown under the card title
+ *    - coverage   — approximate coverage (used in the card subtitle)
  *    - credentialFields — array describing each input the merchant must fill in
- *        (id, label, labelAr, type, placeholder, hint)
  *
  *  IMPORTANT: keep this list in sync with the server-side mirror at
  *  `api/lib/deliveryProviders.ts` (which is intentionally a copy —
@@ -53,22 +57,27 @@ export interface DeliveryProviderMeta {
 }
 
 export const ALGERIAN_DELIVERY_PROVIDERS: DeliveryProviderMeta[] = [
-  // 1 ── Yalidine ────────────────────────────────────────────────────────
+  // 1 ── Yalidine Express ───────────────────────────────────────────────
+  // The largest Algerian delivery company, founded 2013.
+  // Corporate site: https://yalidine-express.com.dz
+  // API dashboard:   https://app.yalidine.app
   {
     id: 'yalidine',
-    name: 'Yalidine',
-    nameAr: 'يالدين',
+    name: 'Yalidine Express',
+    nameAr: 'يالدين إكسبرس',
     website: 'https://yalidine.app/',
     portal: 'https://app.yalidine.app/',
     accent: '#C9A96A',
-    description: 'أكبر شركة توصيل في الجزائر — تغطية 58 ولاية مع تتبع البوالص.',
+    description: 'أكبر شركة توصيل في الجزائر — تغطية 58 ولاية مع تتبع البوالص وواجهة برمجية كاملة.',
     coverage: '58 ولاية',
     credentialFields: [
-      { id: 'apiId',    label: 'API ID',    labelAr: 'API ID',    type: 'text',     placeholder: '12345',           hint: 'تجده في حسابك على Yalidine Developer Portal' },
+      { id: 'apiId',    label: 'API ID',    labelAr: 'API ID',    type: 'text',     placeholder: '12345',           hint: 'تجده في لوحة Yalidine تحت قسم API' },
       { id: 'apiToken', label: 'API Token', labelAr: 'API Token', type: 'password', placeholder: '••••••••••••••••', hint: 'مفتاح سري — لا تشاركه مع أحد' },
     ],
   },
   // 2 ── ZR Express ─────────────────────────────────────────────────────
+  // Algerian e-commerce delivery company, active in major cities.
+  // Website confirmed via GIE Monétique listing + SimilarWeb traffic data.
   {
     id: 'zrexpress',
     name: 'ZR Express',
@@ -76,126 +85,140 @@ export const ALGERIAN_DELIVERY_PROVIDERS: DeliveryProviderMeta[] = [
     website: 'https://zrexpress.com/',
     portal: 'https://zrexpress.com/',
     accent: '#A02A5B',
-    description: 'توصيل سريع للمناطق الحضرية مع نظام إدارة طرود متكامل.',
+    description: 'شركة توصيل موجهة للتجار الإلكترونيين — سرعة في المدن الكبرى مع نظام تتبع.',
     coverage: '48 ولاية',
     credentialFields: [
-      { id: 'apiKey',    label: 'API Key',    labelAr: 'مفتاح API',    type: 'text',     placeholder: 'zr_live_...',      hint: 'مفتاح API العام' },
-      { id: 'apiSecret', label: 'API Secret', labelAr: 'سرّ API',       type: 'password', placeholder: '••••••••••••••••',  hint: 'مفتاح API السري' },
+      { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'zr_live_...', hint: 'مفتاح API من لوحة تحكم ZR Express' },
     ],
   },
   // 3 ── Maystro Delivery ───────────────────────────────────────────────
+  // Algerian e-commerce logistics platform. Confirmed via official site,
+  // LinkedIn, Facebook, Instagram, and App Store listing.
   {
     id: 'maystro',
     name: 'Maystro Delivery',
     nameAr: 'مايسترو توصيل',
     website: 'https://maystro-delivery.com/',
-    portal: 'https://dashboard.maystro-delivery.com/',
+    portal: 'https://maystro-delivery.com/',
     accent: '#7C3AED',
-    description: 'توصيل احترافي مع تكامل سهل ونظام إرجاع مرن.',
+    description: 'منصة لوجستية متكاملة للتجارة الإلكترونية — 75% من الطلبات تُسلّم في أقل من 24 ساعة.',
     coverage: '58 ولاية',
     credentialFields: [
       { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'may_live_...', hint: 'مفتاح API من لوحة تحكم مايسترو' },
     ],
   },
-  // 4 ── Guesto ─────────────────────────────────────────────────────────
+  // 4 ── ECOTRACK ───────────────────────────────────────────────────────
+  // Cloud delivery management platform powering many Algerian carriers
+  // (Anderson, DHD Express, Noest Express, etc.). Confirmed via LinkedIn,
+  // Facebook, App Store, and dzbuild.com.
   {
-    id: 'guesto',
-    name: 'Guesto',
-    nameAr: 'غوستو',
-    website: 'https://www.guesto-dz.com/',
-    portal: 'https://www.guesto-dz.com/login',
-    accent: '#0EA5E9',
-    description: 'توصيل مركزي مع نقاط استلام موزعة في كامل التراب الوطني.',
-    coverage: '58 ولاية',
-    credentialFields: [
-      { id: 'apiKey',    label: 'API Key',    labelAr: 'مفتاح API',    type: 'text',     placeholder: 'guesto_...',       hint: 'مفتاح API من حساب غوستو' },
-      { id: 'apiSecret', label: 'API Secret', labelAr: 'سرّ API',       type: 'password', placeholder: '••••••••••••••••',  hint: 'السر المرتبط بمفتاح API' },
-    ],
-  },
-  // 5 ── TrackZ ─────────────────────────────────────────────────────────
-  {
-    id: 'trackz',
-    name: 'TrackZ',
-    nameAr: 'تراكز',
-    website: 'https://trackz-dz.com/',
-    portal: 'https://app.trackz-dz.com/',
+    id: 'ecotrack',
+    name: 'ECOTRACK',
+    nameAr: 'إيكوتراك',
+    website: 'https://www.ecotrack.dz/',
+    portal: 'https://www.ecotrack.dz/',
     accent: '#16A34A',
-    description: 'تتبع لحظي للطرود مع تكامل برمجي مباشر وواجهة عربية.',
-    coverage: '48 ولاية',
+    description: 'منصة سحابية لإدارة التوصيل — تشغّل عدة شركات نقل جزائرية مع API موحد.',
+    coverage: '58 ولاية',
     credentialFields: [
-      { id: 'apiToken', label: 'API Token', labelAr: 'API Token', type: 'password', placeholder: '••••••••••••••••', hint: 'مفتاح API من حساب TrackZ' },
+      { id: 'apiToken', label: 'API Token', labelAr: 'API Token', type: 'password', placeholder: '••••••••••••••••', hint: 'مفتاح API من حساب ECOTRACK' },
     ],
   },
-  // 6 ── ColisEx ────────────────────────────────────────────────────────
+  // 5 ── NOEST EXPRESS ──────────────────────────────────────────────────
+  // Algerian express delivery company. Confirmed via official site
+  // (noest-dz.com + www.noest.dz) + dashboard at app.noest-dz.com.
   {
-    id: 'colisex',
-    name: 'ColisEx',
-    nameAr: 'كوليس إكس',
-    website: 'https://colisex.com/',
-    portal: 'https://colisex.com/login',
+    id: 'noest',
+    name: 'NOEST EXPRESS',
+    nameAr: 'نوست إكسبرس',
+    website: 'https://noest-dz.com/',
+    portal: 'https://app.noest-dz.com/',
+    accent: '#0EA5E9',
+    description: 'شركة جزائرية للتوصيل السريع — مكاتب متعددة عبر التراب الوطني مع تتبع مباشر.',
+    coverage: '48 ولاية',
+    credentialFields: [
+      { id: 'apiToken', label: 'API Token', labelAr: 'API Token', type: 'password', placeholder: '••••••••••••••••', hint: 'مفتاح API من لوحة NOEST CORPORATE' },
+    ],
+  },
+  // 6 ── DHD Livraison Express ──────────────────────────────────────────
+  // Algerian delivery company. Confirmed via official site dhd-dz.com,
+  // Facebook, Instagram, and Kompass business directory.
+  {
+    id: 'dhd',
+    name: 'DHD Livraison Express',
+    nameAr: 'دي إتش دي توصيل',
+    website: 'https://dhd-dz.com/',
+    portal: 'https://dhd-dz.com/',
     accent: '#EA580C',
-    description: 'حلول توصيل للتجار مع نظام إدارة مخزون وخدمة العملاء.',
-    coverage: '58 ولاية',
-    credentialFields: [
-      { id: 'apiKey',    label: 'API Key',    labelAr: 'مفتاح API',    type: 'text',     placeholder: 'colisex_...',      hint: 'مفتاح API العام' },
-      { id: 'apiSecret', label: 'API Secret', labelAr: 'سرّ API',       type: 'password', placeholder: '••••••••••••••••',  hint: 'مفتاح API السري' },
-    ],
-  },
-  // 7 ── Ecosystem DZ ───────────────────────────────────────────────────
-  {
-    id: 'ecosystem',
-    name: 'Ecosystem DZ',
-    nameAr: 'إيكوسيستيم',
-    website: 'https://ecosystem-dz.com/',
-    portal: 'https://ecosystem-dz.com/login',
-    accent: '#0891B2',
-    description: 'منصة جزائرية للتوصيل وإدارة الطلبات مع تكامل برمجي مفتوح.',
+    description: 'شركة توصيل جزائرية — خدمة ramassage وتغليف وتخزين مع الدفع عند الاستلام.',
     coverage: '48 ولاية',
     credentialFields: [
-      { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'eco_...', hint: 'مفتاح API من لوحة Ecosystem' },
+      { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'dhd_live_...', hint: 'مفتاح API من حساب DHD' },
     ],
   },
-  // 8 ── NoestDelay ─────────────────────────────────────────────────────
+  // 7 ── RJ360 Express ──────────────────────────────────────────────────
+  // Algerian delivery + branding + logistics platform. Confirmed via
+  // official site rj360express.com.
   {
-    id: 'noestdelay',
-    name: 'NoestDelay',
-    nameAr: 'نواست ديلاي',
-    website: 'https://noestdelay.com/',
-    portal: 'https://noestdelay.com/login',
+    id: 'rj360',
+    name: 'RJ360 Express',
+    nameAr: 'أر جيه 360 إكسبرس',
+    website: 'https://www.rj360express.com/',
+    portal: 'https://www.rj360express.com/',
     accent: '#DB2777',
-    description: 'توصيل سريع للجزائر العاصمة والمدن الكبرى مع تعامل احترافي.',
-    coverage: '32 ولاية',
-    credentialFields: [
-      { id: 'apiToken', label: 'API Token', labelAr: 'API Token', type: 'password', placeholder: '••••••••••••••••', hint: 'مفتاح API من حساب NoestDelay' },
-    ],
-  },
-  // 9 ── Aldjia Express ─────────────────────────────────────────────────
-  {
-    id: 'aldjia',
-    name: 'Aldjia Express',
-    nameAr: 'الجزائرية إكسبرس',
-    website: 'https://aldjia-express.com/',
-    portal: 'https://aldjia-express.com/login',
-    accent: '#CA8A04',
-    description: 'توصيل بأسعار منافسة مع تغطية واسعة للولايات الداخلية.',
-    coverage: '58 ولاية',
-    credentialFields: [
-      { id: 'apiKey',    label: 'API Key',    labelAr: 'مفتاح API',    type: 'text',     placeholder: 'aldjia_...',       hint: 'مفتاح API العام' },
-      { id: 'apiSecret', label: 'API Secret', labelAr: 'سرّ API',       type: 'password', placeholder: '••••••••••••••••',  hint: 'مفتاح API السري' },
-    ],
-  },
-  // 10 ── Hisseptik Delivery ───────────────────────────────────────────
-  {
-    id: 'hisseptik',
-    name: 'Hisseptik Delivery',
-    nameAr: 'حسيبتك توصيل',
-    website: 'https://hisseptik.com/',
-    portal: 'https://hisseptik.com/login',
-    accent: '#9333EA',
-    description: 'توصيل عصري مع نظام إشعارات SMS وتتبع مباشر للطرود.',
+    description: 'أول منصة جزائرية تجمع التوصيل السريع والبرانداغ واللوجستيك لتنمية الأعمال.',
     coverage: '48 ولاية',
     credentialFields: [
-      { id: 'apiToken', label: 'API Token', labelAr: 'API Token', type: 'password', placeholder: '••••••••••••••••', hint: 'مفتاح API من لوحة حسيبتك' },
+      { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'rj360_...', hint: 'مفتاح API من لوحة RJ360' },
+    ],
+  },
+  // 8 ── GS E-commerce ──────────────────────────────────────────────────
+  // Algerian e-commerce delivery + COD service. Confirmed via official
+  // site gs-ecommerce.com (Bab Ezzaour, Alger).
+  {
+    id: 'gsecommerce',
+    name: 'GS E-commerce',
+    nameAr: 'جي إس إي كوميرس',
+    website: 'https://gs-ecommerce.com/',
+    portal: 'https://gs-ecommerce.com/',
+    accent: '#0891B2',
+    description: 'خدمة ramassage وتخزين وشحن مع الدفع عند الاستلام للتجار الإلكترونيين في كل الجزائر.',
+    coverage: '58 ولاية',
+    credentialFields: [
+      { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'gs_...', hint: 'مفتاح API من حساب GS E-commerce' },
+    ],
+  },
+  // 9 ── Anderson E-commerce ────────────────────────────────────────────
+  // Algerian e-commerce logistics company (Oued Smar, Alger).
+  // Confirmed via anderson-ecommerce.com + andersonlogistique.com +
+  // ECOTRACK subdomain anderson-ecommerce.ecotrack.dz.
+  {
+    id: 'anderson',
+    name: 'Anderson E-commerce',
+    nameAr: 'أندرسون إي كوميرس',
+    website: 'https://anderson-ecommerce.com/',
+    portal: 'https://anderson-ecommerce.com/',
+    accent: '#CA8A04',
+    description: 'لوجستيك للتجارة الإلكترونية — توصيل express وramassage وتغليف وrecouvrement.',
+    coverage: '58 ولاية',
+    credentialFields: [
+      { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'anderson_...', hint: 'مفتاح API من حساب Anderson' },
+    ],
+  },
+  // 10 ── Colivraison Express ───────────────────────────────────────────
+  // Algerian e-commerce fulfillment + COD shipping company (Birkhadem).
+  // Confirmed via colivraison.express + www.colivraison.express.
+  {
+    id: 'colivraison',
+    name: 'Colivraison Express',
+    nameAr: 'كوليفريزون إكسبرس',
+    website: 'https://colivraison.express/',
+    portal: 'https://www.colivraison.express/',
+    accent: '#9333EA',
+    description: 'شريك لوجستي للتجارة الإلكترونية — تأكيد الطلبات وتوصيل للمنزل في 58 ولاية.',
+    coverage: '58 ولاية',
+    credentialFields: [
+      { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'colivraison_...', hint: 'مفتاح API من حساب Colivraison Express' },
     ],
   },
 ]
