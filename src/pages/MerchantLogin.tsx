@@ -27,9 +27,22 @@ export default function MerchantLogin() {
     setLoading(true)
     try {
       await login(email, password)
-      // After login, redirect to dashboard (which is the same /admin route,
-      // but now the user is authenticated so the dashboard renders).
-      nav('/admin')
+      // After login, redirect to the dashboard with the merchant's
+      // cached store slug (so the dashboard knows which store to load).
+      // Without the ?store= param, the merchant would land on the
+      // "no tenant context" branch → PlatformLanding, and have to
+      // manually find a way to reach their dashboard.
+      const slug = localStorage.getItem('lumiere_saas_active_slug')
+      const sid = localStorage.getItem('lumiere_saas_active_store')
+      if (slug) {
+        window.location.href = `/admin?store=${encodeURIComponent(slug)}`
+      } else if (sid) {
+        window.location.href = `/admin?storeId=${encodeURIComponent(sid)}`
+      } else {
+        // No cached store — let the dashboard's "no tenant context"
+        // branch handle it (shows PlatformLanding so they can pick one).
+        nav('/admin')
+      }
     } catch (err: any) {
       setError(err?.message === 'INVALID_CREDENTIALS' ? 'البريد أو كلمة المرور غير صحيحة' : (err?.message || 'فشل تسجيل الدخول'))
     } finally {

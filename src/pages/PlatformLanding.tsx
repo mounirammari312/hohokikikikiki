@@ -98,7 +98,7 @@ const faqs = [
 ]
 
 export default function PlatformLanding() {
-  const { login } = useTenant()
+  const { login, user } = useTenant()
   const nav = useNavigate()
   const [showRegister, setShowRegister] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
@@ -111,6 +111,18 @@ export default function PlatformLanding() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // If the merchant is already logged in, show a "go to my dashboard"
+  // button instead of the register/login CTAs. This solves the "where
+  // is my dashboard?" problem — the merchant lands here from a fresh
+  // navigation and sees the direct link to their admin panel.
+  const goToDashboard = () => {
+    const slug = localStorage.getItem('lumiere_saas_active_slug')
+    const sid = localStorage.getItem('lumiere_saas_active_store')
+    if (slug) window.location.href = `/admin?store=${encodeURIComponent(slug)}`
+    else if (sid) window.location.href = `/admin?storeId=${encodeURIComponent(sid)}`
+    else nav('/admin')
+  }
 
   // ─── Auto-slugify ──────────────────────────────────────────────────
   const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
@@ -156,11 +168,24 @@ export default function PlatformLanding() {
       if (cachedUser.role === 'super_admin') {
         nav('/super-admin')
       } else {
+        // IMPORTANT: redirect the merchant to their DASHBOARD (/admin),
+        // not the storefront. The previous code redirected to /?store=slug
+        // which landed the merchant on the customer-facing storefront —
+        // they'd then have to manually find the "manage products" button
+        // to reach their actual dashboard. Now we go straight to /admin
+        // with their store's slug so they land on the overview tab.
         const slug = localStorage.getItem('lumiere_saas_active_slug')
         const sid = localStorage.getItem('lumiere_saas_active_store')
-        if (slug) window.location.href = `/?store=${slug}`
-        else if (sid) window.location.href = `/?storeId=${sid}`
-        else nav('/')
+        if (slug) {
+          window.location.href = `/admin?store=${encodeURIComponent(slug)}`
+        } else if (sid) {
+          window.location.href = `/admin?storeId=${encodeURIComponent(sid)}`
+        } else {
+          // No cached store — go to /admin which will show the
+          // "no tenant context" branch → PlatformLanding, but with
+          // a logged-in user so they can pick a store from "متاجري".
+          nav('/admin')
+        }
       }
     } catch (err: any) {
       setError(err?.message || 'فشل تسجيل الدخول')
@@ -190,8 +215,18 @@ export default function PlatformLanding() {
             <a href="#faq" className="hover:text-[#C9A96A] transition">الأسئلة الشائعة</a>
           </nav>
           <div className="flex items-center gap-2">
-            <button onClick={() => { setShowLogin(true); setShowRegister(false) }} className="text-sm font-bold px-4 py-2 rounded-full hover:bg-[#F5EFE6] transition">دخول</button>
-            <button onClick={() => { setShowRegister(true); setShowLogin(false) }} className="text-sm font-bold px-4 py-2 rounded-full bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white hover:opacity-90 transition shadow-lg">أنشئ متجرك</button>
+            {user ? (
+              <>
+                <button onClick={goToDashboard} className="text-sm font-bold px-4 py-2 rounded-full bg-gradient-to-l from-[#C9A96A] to-[#B8945A] text-white hover:opacity-90 transition shadow-md flex items-center gap-1.5">
+                  <Store size={14} /> لوحة التحكم
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => { setShowLogin(true); setShowRegister(false) }} className="text-sm font-bold px-4 py-2 rounded-full hover:bg-[#F5EFE6] transition">دخول</button>
+                <button onClick={() => { setShowRegister(true); setShowLogin(false) }} className="text-sm font-bold px-4 py-2 rounded-full bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white hover:opacity-90 transition shadow-lg">أنشئ متجرك</button>
+              </>
+            )}
           </div>
         </div>
       </header>

@@ -472,6 +472,22 @@ export async function superAdminStats(): Promise<{
 }
 
 // ─── Cross-tab refresh subscription ─────────────────────────────────────────
+//
+// IMPORTANT (performance fix): we no longer clear the ENTIRE memCache when
+// a `lumiere_*` storage event fires. That was causing cascading refetches:
+//   1. merchant saves settings → primeCache → storage event
+//   2. this listener fires → memCache.clear() + notifyRefresh()
+//   3. every mounted component re-fetches its data from the server
+//   4. this made the storefront + dashboard feel sluggish after any save
+//
+// Now we only notify subscribers (which re-read from the ALREADY-FRESH
+// cache, no network refetch). The cache was just primed by `primeCache`
+// for settings, and for products/orders/etc. the in-memory cache stays
+// valid — only the UI needs to re-read it.
+//
+// Cross-tab changes (real other-tab writes) still trigger a refetch via
+// the `onRefetch` callback inside `cachedGet`, but only for the SPECIFIC
+// key that changed — not the whole cache.
 
 const listeners = new Set<() => void>()
 export function subscribeRefresh(fn: () => void): () => void {
@@ -483,7 +499,10 @@ function notifyRefresh() { listeners.forEach(fn => fn()) }
 if (isBrowser()) {
   window.addEventListener('storage', (e) => {
     if (e.key && e.key.startsWith('lumiere_')) {
-      memCache.clear()
+      // Don't clear the whole cache — just notify subscribers so they
+      // re-read the (already-fresh) cached value. The only key that
+      // actually changed is `e.key`, and its specific module already
+      // updated its own cache via primeCache().
       notifyRefresh()
     }
   })

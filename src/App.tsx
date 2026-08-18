@@ -106,7 +106,7 @@ function MerchantDashboard() {
   if (loading) return <div className="min-h-[60vh] grid place-items-center text-[#9A8A6B]">جاري التحميل…</div>
   if (!user || isLogin) return <MerchantLogin />
 
-  // Authenticated merchant → show the existing Admin page (tenant-scoped
+  // Authenticated merchant → show the Admin dashboard (tenant-scoped
   // via the x-store-id / x-store-slug headers injected by client.ts).
   // We require a tenant context (storeId or storeSlug) — otherwise the
   // dashboard wouldn't know which store to manage.
@@ -120,15 +120,12 @@ function MerchantDashboard() {
     return <PlatformLanding />
   }
 
-  return (
-    <>
-      <Header />
-      <main className="flex-1">
-        <Admin />
-      </main>
-      <Footer />
-    </>
-  )
+  // NOTE: we intentionally do NOT render <Header /> + <Footer /> here.
+  // The merchant dashboard has its OWN sidebar + top bar (inside Admin).
+  // Adding the storefront Header would create a SECOND menu button
+  // (the storefront's mobile menu) on top of the dashboard's sidebar
+  // toggle — confusing UX. The dashboard is a self-contained shell.
+  return <Admin />
 }
 
 function AppRoutes() {

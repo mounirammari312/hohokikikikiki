@@ -32,20 +32,33 @@ function notifySettingsChanged() {
   })
 }
 
-// Listen for cross-tab `storage` events (fired when another tab writes
-// to localStorage). When the settings cache key changes, re-sync from
-// the server so this tab picks up the new value.
+// Listen for cross-tab `storage` events (fired when ANOTHER tab writes
+// to localStorage). When the settings key changes, parse the new value
+// directly from the event's newValue — NO server refetch needed because
+// the other tab already fetched it and we trust its result.
+//
+// IMPORTANT (performance fix): the previous implementation called
+// syncSettings() on every storage event, which triggered a server
+// round-trip. On a slow connection this made the storefront laggy
+// whenever the merchant saved anything. We now parse newValue directly.
+//
+// For SAME-tab saves, see `saveSettings()` below — it updates `cache`
+// synchronously and calls notifySettingsChanged() directly (no event).
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === 'lumiere_settings_v3') {
-      void syncSettings().then(() => notifySettingsChanged())
+    if (e.key === 'lumiere_settings_v3' && e.newValue) {
+      try {
+        const parsed = JSON.parse(e.newValue)
+        if (parsed && parsed.settings) {
+          cache = parsed.settings
+          loaded = true
+          notifySettingsChanged()
+        }
+      } catch {
+        // Malformed value — ignore, the next getSettings() will refetch.
+      }
     }
   })
-  // Also listen for the synthetic same-tab storage event dispatched by
-  // client.ts `primeCache()` after a successful saveSettings. Without
-  // this, the merchant's storefront wouldn't refresh until they reload.
-  // (The native `storage` event does NOT fire in the same tab that
-  // made the change — only in other tabs.)
 }
 
 export async function syncSettings(): Promise<StoreSettings> {
