@@ -1,57 +1,44 @@
 /**
- * Smart Image Optimization Layer
+ * Smart Image Optimization Layer (FIXED v2)
  * ─────────────────────────────────────────────────────────────────────────
  *  THE SECRET #1: Smart Image CDN.
  *
- *  Turns ANY image URL (Unsplash, external, internal) into a responsive,
- *  format-adaptive, lazily-loaded image that:
- *    1. Serves WebP/AVIF to browsers that support them (saves 30-50% bandwidth)
- *    2. Generates the right size for the device (thumb/card/detail/hero)
- *    3. Falls back to original JPEG for old browsers
- *    4. Shows a blur placeholder while loading (no layout shift)
- *    5. Lazy-loads (only fetches when scrolled into view)
+ *  v2 fixes:
+ *    1. Wrapper div no longer forces `relative` — respects the user's
+ *       className (so `absolute inset-0` for hero works correctly).
+ *    2. For Unsplash images, uses Unsplash's built-in CDN params directly
+ *       (?w=400&q=80&fm=webp) instead of proxying through wsrv.nl.
+ *       Unsplash CDN is globally distributed, free, and faster than
+ *       any third-party proxy.
+ *    3. For non-Unsplash images, falls back to wsrv.nl.
+ *    4. If the optimized URL fails to load, automatically retries with
+ *       the original URL (no broken images ever).
+ *    5. Inner imgs use `absolute inset-0 w-full h-full object-cover`
+ *       so they fill ANY positioned parent (relative OR absolute).
  *
- *  Strategy: client-side URL rewriting + Cloudflare Image Resizing (or
- *  wsrv.nl as a free fallback for any image URL).
- *
- *  We use wsrv.nl (free, open-source, no signup) for on-the-fly:
- *    - format conversion (output=webp|avif|jpg)
- *    - resize (w=400, h=400)
- *    - quality (q=80, default for WebP)
- *    - blur placeholder (blur=20)
- *
- *  Example: an Unsplash photo at 1200x800 = 240KB JPEG.
- *    → wsrv.nl?w=400&output=webp&q=80 = 18KB WebP (13x smaller!)
+ *  Strategy: client-side URL rewriting + format detection + lazy loading.
  *
  *  Net effect on a storefront with 20 product cards:
  *    Before: 20 × 240KB = 4.8MB total images (3G: ~15s load)
- *    After:  20 × 18KB  = 360KB total images (3G: ~1.2s load)
- *
- *  That's a 13x improvement — Google's Core Web Vitals go from
- *  "Poor" to "Good" on LCP (Largest Contentful Paint).
+ *    After:  20 × 18KB  = 360KB total images (3G: ~1.2s load) — 13x faster
  */
 
 import { useState, useEffect, useRef } from 'react'
 
-// ─── Image size presets (used by ProductCard, Home, ProductDetail) ──────────
+// ─── Image size presets ────────────────────────────────────────────────────
 export const IMAGE_SIZES = {
-  thumb: 150,    // wishlist, mini cart
-  card: 400,     // product card grid
-  detail: 800,   // product detail page main image
-  hero: 1600,    // home page hero banner
-  og: 1200,      // Open Graph preview (for social sharing)
+  thumb: 150,
+  card: 400,
+  detail: 800,
+  hero: 1600,
+  og: 1200,
 } as const
 
 export type ImageSize = keyof typeof IMAGE_SIZES
 
-// ─── URL builders ───────────────────────────────────────────────────────────
-
-/**
- * Check if the browser supports modern image formats (WebP/AVIF).
- * Cached after first check. Used to decide which format to request.
- */
-let _supportsWebp: boolean | null = null
+// ─── Browser format detection (cached after first call) ──────────────────────
 let _supportsAvif: boolean | null = null
+let _supportsWebp: boolean | null = null
 
 function detectFormatSupport(): 'avif' | 'webp' | 'jpg' {
   if (typeof window === 'undefined') return 'jpg'
@@ -60,23 +47,32 @@ function detectFormatSupport(): 'avif' | 'webp' | 'jpg' {
     const canvas = document.createElement('canvas')
     canvas.width = 1
     canvas.height = 1
-    _supportsAvif = canvas.toDataURL('image/avif').startsWith('data:image/avif')
-    _supportsWebp = canvas.toDataURL('image/webp').startsWith('data:image/webp')
+    try {
+      _supportsAvif = canvas.toDataURL('image/avif').startsWith('data:image/avif')
+    } catch {
+      _supportsAvif = false
+    }
+    try {
+      _supportsWebp = canvas.toDataURL('image/webp').startsWith('data:image/webp')
+    } catch {
+      _supportsWebp = false
+    }
   }
   if (_supportsAvif) return 'avif'
   if (_supportsWebp) return 'webp'
   return 'jpg'
 }
 
+// ─── URL builders ───────────────────────────────────────────────────────────
+
 /**
- * Build a wsrv.nl URL that resizes + reformats any image URL on the fly.
- * wsrv.nl is free, open-source, and requires no signup. It proxies
- * Unsplash, Shopify CDN, Cloudinary, or any HTTPS image URL.
+ * Build an optimized image URL. Strategy:
+ *   1. Unsplash images → use Unsplash CDN params directly (fastest, free)
+ *   2. Other HTTPS images → use wsrv.nl as a proxy
+ *   3. Relative URLs (our own /public images) → return as-is
  *
- * Example:
- *   https://images.unsplash.com/photo-1234?w=1200 → 240KB JPEG
- *   ↓ optimized
- *   https://wsrv.nl/?url=images.unsplash.com/photo-1234&w=400&output=webp&q=80 → 18KB WebP
+ * Unsplash supports: ?w=400&q=80&fm=webp&fit=crop
+ * wsrv.nl supports: ?url=...&w=400&output=webp&q=80
  */
 function buildOptimizedUrl(
   src: string,
@@ -86,27 +82,31 @@ function buildOptimizedUrl(
 ): string {
   if (!src) return ''
   try {
-    // Skip wsrv.nl for relative URLs (our own /public images)
+    // Skip relative URLs (our own /public images)
     if (src.startsWith('/') && !src.startsWith('//')) return src
 
-    // Skip if already a wsrv.nl URL
-    if (src.includes('wsrv.nl/?url=')) return src
-
-    // Strip protocol + query string for the url param
     const url = new URL(src)
-    const cleanUrl = `${url.hostname}${url.pathname}`
 
-    // wsrv.nl params:
-    //   url    — the source image (no protocol)
-    //   w      — target width (height auto-calculated to preserve aspect)
-    //   output — format conversion (webp|avif|jpg|png)
-    //   q      — quality (1-100, default 80 for WebP)
-    //   dpr    — device pixel ratio (auto-detected by wsrv when omitted)
-    return `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=${width}&output=${format}&q=${quality}&we`
-    //                                                                              ^^
-    //                                                                              'we' = enforce webp even when extension is missing
+    // ─── Unsplash: use their CDN directly ─────────────────────────────
+    // Unsplash's images.unsplash.com supports the same params as their
+    // Source API: w, q, fm, fit, crop. This is FASTER than wsrv.nl
+    // because Unsplash has a global CDN (Cloudflare).
+    if (url.hostname === 'images.unsplash.com') {
+      url.searchParams.set('w', String(width))
+      url.searchParams.set('q', String(quality))
+      url.searchParams.set('fm', format === 'jpg' ? 'jpg' : 'webp')
+      url.searchParams.set('fit', 'crop')
+      url.searchParams.set('auto', 'format')
+      return url.toString()
+    }
+
+    // ─── Other HTTPS images: use wsrv.nl proxy ────────────────────────
+    // wsrv.nl is free, open-source, and supports on-the-fly conversion.
+    // We pass the URL WITHOUT encoding (wsrv.nl expects raw URL).
+    const cleanUrl = `${url.hostname}${url.pathname}${url.search}`
+    return `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=${width}&output=${format === 'avif' ? 'webp' : format}&q=${quality}`
   } catch {
-    return src  // Malformed URL — return as-is
+    return src
   }
 }
 
@@ -115,9 +115,17 @@ function buildOptimizedUrl(
  * feedback while the main image loads. ~1KB image = loads in 50ms.
  */
 function buildBlurUrl(src: string): string {
-  if (!src || src.startsWith('/') && !src.startsWith('//')) return ''
+  if (!src) return ''
+  if (src.startsWith('/') && !src.startsWith('//')) return ''
   try {
     const url = new URL(src)
+    if (url.hostname === 'images.unsplash.com') {
+      url.searchParams.set('w', '20')
+      url.searchParams.set('q', '20')
+      url.searchParams.set('fm', 'webp')
+      url.searchParams.set('blur', '5')
+      return url.toString()
+    }
     const cleanUrl = `${url.hostname}${url.pathname}`
     return `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=20&output=webp&q=20&blur=5`
   } catch {
@@ -127,21 +135,20 @@ function buildBlurUrl(src: string): string {
 
 // ─── Smart Image React Component ───────────────────────────────────────────
 //
-// Drop-in replacement for <img> that:
-//   1. Detects browser format support (AVIF > WebP > JPG)
-//   2. Generates a responsive srcset with multiple sizes
-//   3. Shows a blurred placeholder while loading (no layout shift)
-//   4. Lazy-loads (only fetches when scrolled into view)
+// Drop-in replacement for <img>. The wrapper div takes the user's
+// className AS-IS (no forced `relative`) so it works with both:
+//   - absolute positioning (hero: className="absolute inset-0 w-full h-full")
+//   - flow positioning (product card: className="w-full h-full aspect-[4/5]")
 //
-// Usage:
-//   <SmartImage src={product.images[0]} alt={product.nameAr} size="card" />
-//
+// Inner imgs use `absolute inset-0 w-full h-full object-cover` so they
+// fill ANY positioned parent. The wrapper auto-detects if it needs
+// `position: relative` added (when className doesn't already have one).
 interface SmartImageProps {
   src: string
   alt: string
   size?: ImageSize
   className?: string
-  /** When true, image loads immediately (for above-the-fold content like hero). */
+  /** When true, image loads immediately (for above-the-fold content). */
   eager?: boolean
   /** Override width (defaults to size preset). */
   width?: number
@@ -163,6 +170,7 @@ export function SmartImage({
   onClick,
 }: SmartImageProps) {
   const [loaded, setLoaded] = useState(false)
+  const [error, setErrored] = useState(false)
   const [inView, setInView] = useState(eager)
   const ref = useRef<HTMLImageElement>(null)
   const targetWidth = width || IMAGE_SIZES[size]
@@ -182,60 +190,73 @@ export function SmartImage({
           io.disconnect()
         }
       },
-      { rootMargin: '200px' }  // Start loading 200px before it enters viewport
+      { rootMargin: '200px' }
     )
     io.observe(el)
     return () => io.disconnect()
   }, [eager, inView])
 
-  // Build srcset for responsive images:
-  //   - 1x: target width (e.g. 400px for card)
-  //   - 2x: 2x target width (800px) for retina displays
-  //   - 3x: 3x target width (1200px) for high-DPI phones
-  const src1x = buildOptimizedUrl(src, targetWidth, format, 80)
+  // Build srcset for responsive images (1x/2x/3x for retina)
+  const optimizedSrc = buildOptimizedUrl(src, targetWidth, format, 80)
   const src2x = buildOptimizedUrl(src, targetWidth * 2, format, 75)
   const src3x = buildOptimizedUrl(src, targetWidth * 3, format, 70)
   const blurUrl = buildBlurUrl(src)
 
+  // If the optimized URL fails, fall back to the ORIGINAL src.
+  // This ensures images ALWAYS show, even if wsrv.nl is down or blocked.
+  const finalSrc = error ? src : optimizedSrc
+  const finalSrcSet = error
+    ? undefined
+    : `${optimizedSrc} 1x, ${src2x} 2x, ${src3x} 3x`
+
+  // Determine if className already has a position keyword.
+  // If NOT, we add `relative` so the inner absolute imgs are positioned
+  // correctly relative to the wrapper (not some ancestor).
+  const hasPosition = /\b(relative|absolute|fixed|sticky)\b/.test(className)
+  const wrapperClass = `${hasPosition ? '' : 'relative'} overflow-hidden ${className}`.trim()
+
   return (
     <div
-      className={`relative overflow-hidden ${className}`}
+      className={wrapperClass}
       style={{
-        width: width ? `${width}px` : '100%',
+        width: width ? `${width}px` : undefined,
         aspectRatio: height && width ? `${width}/${height}` : undefined,
         ...style,
       }}
       onClick={onClick}
     >
-      {/* Blurred placeholder — loads instantly (1KB), prevents layout shift */}
-      {!loaded && blurUrl && (
+      {/* Blurred placeholder — loads instantly, prevents layout shift */}
+      {!loaded && !error && blurUrl && (
         <img
           src={blurUrl}
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover scale-110"
-          style={{ filter: 'blur(10px)' }}
+          style={{ filter: 'blur(10px)', opacity: style?.opacity }}
         />
       )}
-      {/* Main image — lazy-loaded with responsive srcset */}
+      {/* Main image — lazy-loaded with responsive srcset.
+          style.opacity is applied here too so hero opacity-90 works. */}
       {inView && (
         <img
           ref={ref}
-          src={src1x}
-          srcSet={`${src1x} 1x, ${src2x} 2x, ${src3x} 3x`}
+          src={finalSrc}
+          srcSet={finalSrcSet}
           sizes={`(max-width: 768px) ${targetWidth}px, ${targetWidth}px`}
           alt={alt}
           loading={eager ? 'eager' : 'lazy'}
           decoding="async"
           onLoad={() => setLoaded(true)}
-          className={`relative w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          onError={() => setErrored(true)}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          style={style?.opacity !== undefined ? { opacity: loaded ? style.opacity : 0 } : undefined}
         />
       )}
     </div>
   )
 }
 
-// ─── Helper for non-React usage (e.g. JSON-LD, Open Graph tags) ────────────
+// ─── Helpers for non-React usage ───────────────────────────────────────────
 export function getOptimizedImageUrl(src: string, size: ImageSize = 'card'): string {
   const format = typeof window !== 'undefined' ? detectFormatSupport() : 'webp'
   return buildOptimizedUrl(src, IMAGE_SIZES[size], format, 80)

@@ -82,7 +82,7 @@ export default function Home(){
       <section className="max-w-[1280px] mx-auto px-4 md:px-6 pt-6">
         <motion.div {...fadeUp(0)} className="grid lg:grid-cols-[1.15fr_0.85fr] gap-4">
           <div className="relative rounded-[28px] overflow-hidden min-h-[520px] flex" style={{ background: secondary }}>
-            <SmartImage src={domain.heroImage} alt={domain.heroTitleAr} size="hero" eager className="absolute inset-0 w-full h-full opacity-90" />
+            <SmartImage src={domain.heroImage} alt={domain.heroTitleAr} size="hero" eager className="absolute inset-0 w-full h-full" style={{ opacity: 0.9 }} />
             <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent"/>
             {/* Animated accent gradient overlay — subtle sweeping tint */}
             <div className="hero-overlay-anim absolute inset-0 bg-gradient-to-tr from-[var(--color-accent)]/0 via-[var(--color-accent)]/10 to-[var(--color-primary)]/10 pointer-events-none"/>
