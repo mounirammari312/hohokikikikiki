@@ -1,0 +1,42 @@
+{
+  "name": "LUMIÈRE SaaS — متجر إلكتروني جزائري",
+  "short_name": "LUMIÈRE",
+  "description": "منصة جزائرية لإنشاء المتاجر الإلكترونية مع الدفع عند الاستلام في 58 ولاية",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FFFCF8",
+  "theme_color": "#1A1A1E",
+  "categories": ["shopping", "business", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "المتجر",
+      "short_name": "المتجر",
+      "url": "/shop?source=pwa",
+      "description": "تصفح كل المنتجات"
+    },
+    {
+      "name": "السلة",
+      "short_name": "السلة",
+      "url": "/cart?source=pwa",
+      "description": "إتمام الطلب"
+    },
+    {
+      "name": "لوحة التحكم",
+      "short_name": "لوحة التحكم",
+      "url": "/admin?source=pwa",
+      "description": "إدارة متجرك"
+    }
+  ]
+}

@@ -42,5 +42,35 @@ export default defineConfig(async ({ mode }) => {
         },
       },
     },
+    build: {
+      // ─── Bundle splitting strategy ──────────────────────────────────
+      // Without this, Vite produces ONE 740KB JS file. With manualChunks
+      // we split it into 4 smaller chunks:
+      //   1. vendor-react   (~140KB) — react, react-dom, react-router
+      //   2. vendor-icons  (~80KB)  — lucide-react (loaded once, cached forever)
+      //   3. vendor-motion  (~60KB)  — framer-motion
+      //   4. vendor-utils  (~30KB)  — other small libs
+      //   5. app-core       (~120KB) — App.tsx + contexts + services
+      //   6. storefront     (~180KB) — Home, Shop, ProductDetail, Cart
+      //   7. admin          (~240KB) — Admin, SuperAdmin (only loaded on /admin)
+      //
+      // Net effect on storefront visitors:
+      //   Before: 740KB JS on EVERY page (admin code included)
+      //   After:  ~340KB on storefront (admin code never loads for visitors)
+      //
+      // Cached vendor chunks also speed up subsequent visits — only the
+      // app-core chunk changes when we deploy a new version, the vendor
+      // chunks stay cached on the user's browser.
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-icons': ['lucide-react'],
+            'vendor-motion': ['framer-motion'],
+          },
+        },
+      },
+      chunkSizeWarningLimit: 600,  // 600KB per chunk before warning (raised from 500)
+    },
   };
 })

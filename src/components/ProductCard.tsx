@@ -6,6 +6,7 @@ import { getSettings } from '../services/api/settings'
 import { useWishlist } from '../context/WishlistContext'
 import { useCart } from '../context/CartContext'
 import { useState } from 'react'
+import { SmartImage } from './SmartImage'
 
 interface Props {
   p: Product
@@ -61,7 +62,13 @@ export default function ProductCard({ p, index = 0 }: Props){
     >
       {toast && <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow whitespace-nowrap pointer-events-none" style={{ background: 'var(--color-text)' }}>{toast}</div>}
       <Link to={`/product/${p._id}${storeQuery}`} className="block relative aspect-[4/5] img-zoom overflow-hidden" style={{ background: 'color-mix(in srgb, var(--color-primary) 6%, var(--color-bg))' }}>
-        <img src={p.images[0]} alt={p.nameAr} className="w-full h-full object-cover" loading="lazy"/>
+        {/* SmartImage: lazy-loaded, WebP/AVIF adaptive, blurred placeholder */}
+        <SmartImage
+          src={p.images[0]}
+          alt={p.nameAr}
+          size="card"
+          className="w-full h-full"
+        />
 
         {/* ─── Badges TOP-LEFT (new + discount) ─────────────────────────── */}
         <div className="absolute top-3 left-3 flex flex-col gap-2 z-10 items-start">

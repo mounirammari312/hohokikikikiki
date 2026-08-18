@@ -632,10 +632,10 @@ export default function Admin() {
         <div className="fixed inset-0 z-40 bg-[#1A1A1E]/60 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
       <aside
-        className={`fixed lg:sticky top-0 right-0 z-50 lg:z-0 h-screen lg:h-screen w-[280px] shrink-0 bg-[#1A1A1E] text-white flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}
+        className={`fixed lg:sticky top-0 right-0 z-50 lg:z-0 h-screen lg:h-screen w-[280px] shrink-0 bg-[#1A1A1E] text-white flex flex-col overflow-hidden transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}
       >
         {/* Brand + close (mobile) */}
-        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#C9A96A] to-[#A02A5B] grid place-items-center shadow-md">
               <Crown size={16} className="text-white" />
@@ -651,7 +651,7 @@ export default function Admin() {
         </div>
 
         {/* Store switcher (top of sidebar) */}
-        <div className="px-3 py-3 border-b border-white/10">
+        <div className="px-3 py-3 border-b border-white/10 shrink-0">
           <div className="text-[10px] text-white/40 tracking-widest mb-1.5 px-2">المتجر النشط</div>
           {currentStore ? (
             <button
@@ -672,8 +672,14 @@ export default function Admin() {
           )}
         </div>
 
-        {/* Nav groups (scrollable) */}
-        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+        {/* Nav groups (scrollable).
+            CRITICAL: `min-h-0` is required for the flex item to shrink
+            below its content size, which is what makes `overflow-y-auto`
+            actually show a scrollbar. Without `min-h-0`, flex items get
+            `min-height: auto` by default and expand to fit all their
+            content — the scrollbar never appears and the nav becomes
+            unscrollable. This is a well-known flexbox gotcha. */}
+        <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-4">
           {navGroups.map(group => (
             <div key={group.title}>
               <div className="text-[10px] font-bold text-white/40 tracking-widest px-2 mb-1.5">{group.title}</div>
@@ -701,7 +707,7 @@ export default function Admin() {
         </nav>
 
         {/* User mini-card + logout (bottom of sidebar) */}
-        <div className="border-t border-white/10 p-3">
+        <div className="border-t border-white/10 p-3 shrink-0">
           <div className="bg-white/5 rounded-xl p-3 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#C9A96A] to-[#A02A5B] grid place-items-center font-bold text-white shrink-0">
               {(user?.fullName || user?.email || '?').charAt(0).toUpperCase()}

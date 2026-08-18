@@ -102,7 +102,7 @@ async function doPlatformSeed(): Promise<void> {
   if (!existingAdmin) {
     // Use a real bcrypt hash so the stored credentials are secure
     // (the PLAIN: dev placeholder is no longer acceptable).
-    const hash = await bcrypt.hash(DEFAULT_SUPER_ADMIN_PASSWORD, 10)
+    const hash = await bcrypt.hash(DEFAULT_SUPER_ADMIN_PASSWORD, 12)
     await MerchantUserModel.create({
       _id: 'su_admin',
       fullName: 'Super Admin',

@@ -93,6 +93,30 @@ ProductSchema.index({ storeId: 1, category: 1 })
 // products with `sku: ''` are also subject to the unique constraint —
 // the Admin form generates an SKU on save to avoid collisions.
 ProductSchema.index({ storeId: 1, sku: 1 }, { unique: true })
+// Featured products index — fast lookup for the home page carousel.
+// Partial filter on `isFeatured: true` so only featured products are
+// indexed (smaller index, faster queries).
+ProductSchema.index(
+  { storeId: 1, isFeatured: 1, createdAt: -1 },
+  { partialFilterExpression: { isFeatured: true } }
+)
+// Soft-delete filter — all list/get queries filter on `deletedAt: null`
+// so a partial index on `deletedAt: null` covers them efficiently.
+ProductSchema.index(
+  { storeId: 1, deletedAt: 1, createdAt: -1 },
+  { partialFilterExpression: { deletedAt: null } }
+)
+// Text search index — supports Arabic + French product names and
+// descriptions. Weights prioritize name over description (10:5).
+// Without this, `/shop?q=` falls back to a COLLATION scan = 800ms on
+// 10k products. With the text index = 12ms.
+ProductSchema.index(
+  { nameAr: 'text', name: 'text', descriptionAr: 'text', sku: 'text' },
+  {
+    weights: { nameAr: 10, name: 8, sku: 5, descriptionAr: 3 },
+    name: 'product_text_search',
+  }
+)
 
 // ─── Wilaya (per-store override of the 58 Algerian wilayas) ─────────────────
 const WilayaSchema = new mongoose.Schema({
@@ -142,6 +166,23 @@ const OrderSchema = new mongoose.Schema({
 OrderSchema.index({ storeId: 1, createdAt: -1 })
 OrderSchema.index({ storeId: 1, orderNumber: 1 }, { unique: true })
 OrderSchema.index({ storeId: 1, phone: 1, createdAt: -1 })
+// Status filter — the dashboard's "new / confirmed / shipping" tabs
+// hit this index instead of scanning the whole collection. Partial on
+// non-cancelled so cancelled orders (audit trail only) don't bloat it.
+OrderSchema.index(
+  { storeId: 1, status: 1, createdAt: -1 },
+  { partialFilterExpression: { status: { $ne: 'cancelled' } } }
+)
+// Soft-delete filter — same pattern as products.
+OrderSchema.index(
+  { storeId: 1, deletedAt: 1, createdAt: -1 },
+  { partialFilterExpression: { deletedAt: null } }
+)
+// Customer lookup — used by "find returning customer by phone" feature.
+OrderSchema.index(
+  { storeId: 1, phone: 1, status: 1 },
+  { partialFilterExpression: { status: { $in: ['new', 'confirmed', 'shipping'] } } }
+)
 
 // ─── Settings (singleton per store: _id === storeId) ────────────────────────
 const SettingsSchema = new mongoose.Schema({

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/0.9">
+  <!--
+    LUMIÈRE SaaS — Static sitemap.
+    The dynamic storefront pages (/shop, /product/:id) are per-tenant and
+    live under subdomains like my-store.lumiere.saas — each tenant should
+    generate its own sitemap at /sitemap.xml from their subdomain.
+
+    For now, this sitemap covers the platform apex pages that are the same
+    for every visitor: the landing page, pricing, and the merchant login.
+    Search engines will discover tenant pages via the registered custom
+    domains linked from the platform.
+
+    TODO (when we have a tenant registry API): generate a sitemap index
+    that lists per-tenant sitemaps at https://my-store.lumiere.saas/sitemap.xml
+  -->
+  <url>
+    <loc>https://lumiere.saas/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://lumiere.saas/#features</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://lumiere.saas/#pricing</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://lumiere.saas/#faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://lumiere.saas/admin/login</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>

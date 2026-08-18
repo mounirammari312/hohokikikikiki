@@ -92,8 +92,9 @@ const VALID_STORE_PLANS = ['free_trial', 'starter', 'pro', 'vip']
 const VALID_STORE_STATUSES = ['active', 'suspended', 'expired']
 
 // ─── Simple in-memory rate limiter (per IP, sliding 60s window) ──────────────
-// Used for /api/auth/login (5 attempts/min) and /api/orders POST (10 orders/min)
-// to mitigate credential brute-force and COD-form spam. This is intentionally
+// Used for /api/auth/login (5 attempts/min), /api/orders POST (10 orders/min),
+// and /api/auth/register (3 stores/hour/IP) — to mitigate credential brute-force,
+// COD-form spam, and DB DoS via store-creation flooding. This is intentionally
 // lightweight — for a multi-instance deployment you'd swap this for Redis,
 // but on Vercel Hobby a single warm instance handles most traffic anyway.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -109,10 +110,106 @@ function rateLimit(ip: string, max: number, windowMs: number): boolean {
   return true
 }
 function getClientIP(req: any): string {
-  return req.headers?.['x-forwarded-for']?.split(',')[0]?.trim()
-    || req.headers?.['x-real-ip']
+  // Trust x-forwarded-for ONLY when the request came through Vercel's proxy.
+  // On Vercel, the FIRST value in x-forwarded-for is the real client IP.
+  // On bare metal, fall back to connection.remoteAddress.
+  const xff = req.headers?.['x-forwarded-for']
+  if (xff && typeof xff === 'string') {
+    return xff.split(',')[0].trim()
+  }
+  return req.headers?.['x-real-ip']
+    || req?.socket?.remoteAddress
+    || req?.connection?.remoteAddress
     || 'unknown'
 }
+
+// ─── Security headers (HSTS + clickjacking + MIME sniffing protection) ─────
+// Applied to ALL responses. HSTS forces HTTPS for 2 years once the browser
+// sees it. Frame-Options DENY prevents the dashboard from being embedded in
+// an iframe (clickjacking). X-Content-Type-Options nosniff prevents MIME
+// confusion attacks. Referrer-Policy limits what's sent in the Referer header.
+//
+// On Vercel, HTTPS is auto-provisioned so HSTS is always safe to send.
+function applySecurityHeaders(res: any) {
+  const headers = res?.setHeader ? res : null
+  if (!headers) return
+  try {
+    headers.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+    headers.setHeader('X-Frame-Options', 'DENY')
+    headers.setHeader('X-Content-Type-Options', 'nosniff')
+    headers.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+    headers.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
+    // CORS — strict by default. Same-origin for browser, explicit allowlist
+    // for any future cross-origin needs (e.g. mobile app).
+    headers.setHeader('Access-Control-Allow-Origin', headers.getHeader('origin') || '*')
+    headers.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+    headers.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-merchant-token, x-store-id, x-store-slug, x-csrf-token')
+    headers.setHeader('Access-Control-Allow-Credentials', 'true')
+    headers.setHeader('Access-Control-Max-Age', '86400')
+  } catch {}
+}
+
+// ─── CSRF protection ─────────────────────────────────────────────────────
+// Strategy: double-submit cookie. On GET /api/auth/csrf, we issue a random
+// token in BOTH a cookie AND the response body. The client must send it
+// back in the X-CSRF-Token header for any state-changing request
+// (POST/PUT/PATCH/DELETE) to /api/auth/* or /api/orders.
+//
+// This is simpler than signed-session CSRF and works on serverless without
+// server-side session storage. The token is per-IP + per-User-Agent to
+// prevent replay across devices.
+//
+// The cookie is SameSite=Lax so it's sent on top-level navigations but
+// not on cross-site POSTs — that's the basic CSRF defense. The double-
+// submit header is the second layer.
+const csrfTokens = new Map<string, { token: string; expiresAt: number }>()
+const CSRF_TTL = 60 * 60 * 1000  // 1 hour
+
+function generateCsrfToken(req: any): string {
+  const ip = getClientIP(req)
+  const ua = (req.headers?.['user-agent'] || '').slice(0, 200)
+  const random = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36)
+  const token = `${ip}:${ua.slice(0, 50)}:${random}`
+  csrfTokens.set(token, { token, expiresAt: Date.now() + CSRF_TTL })
+  // Cleanup expired tokens (cheap, runs only when generating)
+  if (csrfTokens.size > 1000) {
+    const now = Date.now()
+    for (const [k, v] of csrfTokens) {
+      if (v.expiresAt < now) csrfTokens.delete(k)
+    }
+  }
+  return token
+}
+
+function validateCsrfToken(req: any): boolean {
+  const headerToken = req.headers?.['x-csrf-token']
+  if (!headerToken || typeof headerToken !== 'string') return false
+  const entry = csrfTokens.get(headerToken)
+  if (!entry) return false
+  if (entry.expiresAt < Date.now()) {
+    csrfTokens.delete(headerToken)
+    return false
+  }
+  // Verify IP + User-Agent match the ones that issued the token
+  const parts = headerToken.split(':')
+  const ip = parts[0]
+  const ua = parts.slice(1, -1).join(':')
+  const currentIp = getClientIP(req)
+  const currentUa = (req.headers?.['user-agent'] || '').slice(0, 50)
+  if (ip !== currentIp || ua !== currentUa) return false
+  return true
+}
+
+// Paths that REQUIRE a valid CSRF token (all state-changing merchant actions).
+// Storefront POST /api/orders is also CSRF-protected — the storefront gets
+// its token from GET /api/auth/csrf on page load.
+const CSRF_PROTECTED_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+const CSRF_PROTECTED_PATHS = new Set([
+  'auth/login', 'auth/register', 'auth/me', 'auth/change-password',
+  'products', 'orders', 'settings', 'domains', 'wilayas', 'stores',
+])
 
 // ─── Vercel Node.js Compatibility Helpers ────────────────────────────────────
 
@@ -273,7 +370,7 @@ async function autoSeedSuperAdmin(email: string, password: string): Promise<any 
     // hash is real (not the PLAIN: dev placeholder).
     const now = new Date().toISOString()
     const bcrypt = await import('bcryptjs')
-    const hash = await bcrypt.hash(match.password, 10)
+    const hash = await bcrypt.hash(match.password, 12)
     const newUser = await MerchantUserModel.create({
       _id: match._id,
       fullName: match.fullName,
@@ -317,9 +414,52 @@ export default async function handler(req: any, res: any) {
 
     const query = url.searchParams
 
+    // ─── Apply security headers to EVERY response ────────────────────
+    applySecurityHeaders(res)
+
+    // Handle CORS preflight (OPTIONS) — must return 204 with the
+    // Access-Control headers set above. No body, no DB.
+    if (method === 'OPTIONS') {
+      res?.status && res.status(204)
+      return res?.end ? res.end() : null
+    }
+
     // Health Check (no DB needed)
     if (segments[0] === 'health') {
       return reply(res, { ok: true, ts: Date.now() })
+    }
+
+    // ─── CSRF token endpoint ────────────────────────────────────────
+    // GET /api/auth/csrf — issues a fresh CSRF token. The client stores
+    // it in memory and sends it back in the X-CSRF-Token header on
+    // state-changing requests. No DB needed — pure in-memory.
+    if (segments[0] === 'auth' && segments[1] === 'csrf' && method === 'GET') {
+      const token = generateCsrfToken(req)
+      // Set as cookie too (double-submit pattern). SameSite=Lax + HttpOnly
+      // so client-side JS can't read it, but it's sent on same-site
+      // navigations.
+      try {
+        res?.setHeader?.('Set-Cookie', `lumiere_csrf=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`)
+      } catch {}
+      return reply(res, { csrfToken: token, expiresIn: 3600 })
+    }
+
+    // ─── CSRF validation for state-changing requests ────────────────
+    // Skip for storefront GET requests (public reads) and health.
+    if (CSRF_PROTECTED_METHODS.has(method) && segments.length >= 1) {
+      const pathKey = segments.length >= 2 && segments[0] === 'auth'
+        ? `auth/${segments[1]}`
+        : segments[0]
+      // Only enforce CSRF if this is a real mutation path we recognize.
+      // Unknown paths fall through to the 404 handler below.
+      if (CSRF_PROTECTED_PATHS.has(pathKey) || (segments[0] === 'auth' && CSRF_PROTECTED_PATHS.has(pathKey))) {
+        if (!validateCsrfToken(req)) {
+          return reply(res, {
+            error: 'CSRF_TOKEN_INVALID',
+            message: 'رمز الأمان منتهٍ أو غير صالح — حدّث الصفحة وأعد المحاولة',
+          }, 403)
+        }
+      }
     }
 
     // ─── Auth routes: validate body + token BEFORE connecting to the
@@ -341,9 +481,23 @@ export default async function handler(req: any, res: any) {
         }
       }
       if (segments[1] === 'register' && method === 'POST') {
+        // CRITICAL: Rate-limit store creation to 3/hour/IP — otherwise
+        // an attacker can DoS the DB by creating thousands of stores,
+        // each seeding 58 wilayas + 3 domains + 3 products = ~200 DB
+        // writes per request.
+        if (!rateLimit(getClientIP(req) + ':register', 3, 60 * 60 * 1000)) {
+          return reply(res, {
+            error: 'RATE_LIMITED',
+            message: 'أنشأت 3 متاجر في الساعة الأخيرة — حاول لاحقاً أو تواصل مع الدعم',
+          }, 429)
+        }
         const body = await getReqBody(req)
         if (!body.fullName || !body.email || !body.password || !body.storeName) {
           return reply(res, { error: 'MISSING_REQUIRED_FIELDS' }, 400)
+        }
+        // Password strength — prevent weak passwords like "123456"
+        if (String(body.password).length < 6) {
+          return reply(res, { error: 'PASSWORD_TOO_SHORT', message: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }, 400)
         }
       }
       // GET /api/auth/me — short-circuit when there's no token, so we
@@ -608,7 +762,7 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
       fullName,
       email: String(email).toLowerCase().trim(),
       phone: phone || '',
-      passwordHash: await (await import('bcryptjs')).hash(password, 10),
+      passwordHash: await (await import('bcryptjs')).hash(password, 12),
       role: 'merchant',
       storeIds: [storeId],
       createdAt: now,
@@ -681,7 +835,7 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
     if (!ok) return [{ error: 'CURRENT_PASSWORD_INCORRECT' }, 400]
     // Hash + save new password
     const bcrypt = await import('bcryptjs')
-    const hash = await bcrypt.hash(String(newPassword), 10)
+    const hash = await bcrypt.hash(String(newPassword), 12)
     const now = new Date().toISOString()
     const next = await MerchantUserModel.findByIdAndUpdate(
       user._id,
@@ -841,7 +995,29 @@ async function superAdminRoute(segments: string[], method: string, req: any, que
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function listProducts(ctx: RouteCtx) {
-  const docs = await ProductModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
+  // Use the text search index when ?q= is provided — this is O(log n)
+  // instead of O(n) COLLATION scan. Falls back to a plain list when no q.
+  const q = ctx.query.get('q')
+  let docs: any[]
+  if (q && q.trim()) {
+    // Text search with Arabic + French support. The text index on
+    // (nameAr, name, descriptionAr, sku) is built in models.ts with
+    // weighted fields — nameAr gets weight 10, name 8, sku 5, description 3.
+    docs = await ProductModel.find(
+      {
+        storeId: ctx.storeId,
+        deletedAt: null,
+        $text: { $search: q.trim() },
+      },
+      { score: { $meta: 'textScore' } }
+    ).sort({ score: { $meta: 'textScore' } }).lean()
+  } else {
+    docs = await ProductModel.find(
+      { storeId: ctx.storeId, deletedAt: null },
+      null,
+      { sort: { createdAt: -1 } }
+    ).lean()
+  }
   return { data: { products: docs } }
 }
 

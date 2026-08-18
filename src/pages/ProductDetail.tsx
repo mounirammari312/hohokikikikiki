@@ -66,6 +66,74 @@ export default function ProductDetail(){
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?._id])
 
+  // ─── SEO: dynamic title + JSON-LD structured data ────────────────────
+  // Updates <title> + injects a <script type="application/ld+json"> with
+  // schema.org Product markup so Google shows rich results (price,
+  // availability, rating) directly in search results.
+  useEffect(() => {
+    if (!product) return
+    // Title
+    document.title = `${product.nameAr} — ${formatDZD(product.price)} | ${product.name}`
+    // Meta description
+    let metaDesc = document.querySelector('meta[name="description"]')
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta')
+      metaDesc.setAttribute('name', 'description')
+      document.head.appendChild(metaDesc)
+    }
+    metaDesc.setAttribute('content', (product.descriptionAr || '').slice(0, 155))
+    // Open Graph
+    let ogTitle = document.querySelector('meta[property="og:title"]')
+    if (ogTitle) ogTitle.setAttribute('content', product.nameAr)
+    let ogDesc = document.querySelector('meta[property="og:description"]')
+    if (ogDesc) ogDesc.setAttribute('content', (product.descriptionAr || '').slice(0, 155))
+    let ogImage = document.querySelector('meta[property="og:image"]')
+    if (!ogImage) {
+      ogImage = document.createElement('meta')
+      ogImage.setAttribute('property', 'og:image')
+      document.head.appendChild(ogImage)
+    }
+    ogImage.setAttribute('content', product.images?.[0] || '')
+    // JSON-LD structured data — schema.org/Product
+    const scriptId = 'product-jsonld'
+    document.getElementById(scriptId)?.remove()
+    const script = document.createElement('script')
+    script.id = scriptId
+    script.type = 'application/ld+json'
+    script.textContent = JSON.stringify({
+      '@context': 'https://schema.org/',
+      '@type': 'Product',
+      'name': product.nameAr,
+      'image': product.images,
+      'description': product.descriptionAr,
+      'sku': product.sku,
+      'brand': { '@type': 'Brand', 'name': 'LUMIÈRE' },
+      'offers': {
+        '@type': 'Offer',
+        'url': window.location.href,
+        'priceCurrency': 'DZD',
+        'price': product.price,
+        'availability': product.stock > 0
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock',
+        'itemCondition': 'https://schema.org/NewCondition',
+      },
+      ...(product.rating ? {
+        'aggregateRating': {
+          '@type': 'AggregateRating',
+          'ratingValue': product.rating,
+          'reviewCount': product.reviewsCount || 1,
+        }
+      } : {}),
+    })
+    document.head.appendChild(script)
+    return () => {
+      // Clean up on unmount
+      document.getElementById(scriptId)?.remove()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?._id])
+
   // handle hash #order scroll — only when the product id actually changes
   useEffect(()=>{
     if(window.location.hash==='#order' && product){
