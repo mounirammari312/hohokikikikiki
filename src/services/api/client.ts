@@ -118,7 +118,47 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
     h['Authorization'] = `Bearer ${token}`
     h['x-merchant-token'] = token
   }
+  // ─── CSRF token (for state-changing requests) ────────────────────
+  // The server requires X-CSRF-Token on POST/PUT/PATCH/DELETE for auth
+  // + product/order/settings/etc. endpoints. We fetch the token once
+  // from GET /api/auth/csrf and cache it in memory for 50 minutes
+  // (server TTL is 60 min, we refresh slightly early to be safe).
+  if (cachedCsrfToken) {
+    h['x-csrf-token'] = cachedCsrfToken
+  }
   return h
+}
+
+// ─── CSRF token cache ───────────────────────────────────────────────────────
+// Fetched once from /api/auth/csrf, cached in memory, refreshed after 50 min.
+// Without this, every POST (login, register, save settings, create order)
+// returns 403 CSRF_TOKEN_INVALID.
+let cachedCsrfToken: string | null = null
+let csrfTokenFetchPromise: Promise<string> | null = null
+const CSRF_REFRESH_MS = 50 * 60 * 1000  // 50 min (server TTL is 60 min)
+
+async function ensureCsrfToken(): Promise<string> {
+  if (cachedCsrfToken) return cachedCsrfToken
+  // Dedup: if a fetch is already in-flight, wait for it (prevents N parallel fetches)
+  if (csrfTokenFetchPromise) return csrfTokenFetchPromise
+  csrfTokenFetchPromise = (async () => {
+    try {
+      const res = await fetch('/api/auth/csrf', { credentials: 'include' })
+      if (!res.ok) throw new Error(`HTTP_${res.status}`)
+      const data = await res.json()
+      cachedCsrfToken = data.csrfToken
+      if (!cachedCsrfToken) throw new Error('NO_TOKEN_IN_RESPONSE')
+      // Schedule a refresh before expiry
+      setTimeout(() => { cachedCsrfToken = null }, CSRF_REFRESH_MS)
+      return cachedCsrfToken
+    } catch (err) {
+      csrfTokenFetchPromise = null  // Allow retry on next call
+      throw err
+    } finally {
+      csrfTokenFetchPromise = null
+    }
+  })()
+  return csrfTokenFetchPromise
 }
 
 // ─── Fetch helpers ──────────────────────────────────────────────────────────
@@ -127,6 +167,20 @@ async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs = 12000):
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
+    // ─── For state-changing requests, ensure we have a CSRF token ──
+    // The server requires X-CSRF-Token on POST/PUT/PATCH/DELETE for
+    // auth + product/order/settings endpoints. Without this, the request
+    // returns 403 CSRF_TOKEN_INVALID.
+    const method = (init?.method || 'GET').toUpperCase()
+    if (method !== 'GET' && method !== 'HEAD') {
+      try {
+        await ensureCsrfToken()
+      } catch {
+        // If CSRF fetch fails (e.g. server down), proceed anyway —
+        // the server will return 403 if it requires the token, and
+        // the error handler below will surface it to the user.
+      }
+    }
     const res = await fetch(path, {
       ...init,
       signal: ctrl.signal,
@@ -134,6 +188,32 @@ async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs = 12000):
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
+      // ─── Auto-retry on CSRF token expiry ──────────────────────────
+      // If the token expired server-side (TTL 60min) but we still have
+      // a stale cached token, the server returns 403 CSRF_TOKEN_INVALID.
+      // Clear the cache and retry ONCE with a fresh token.
+      if (body.error === 'CSRF_TOKEN_INVALID' && method !== 'GET') {
+        cachedCsrfToken = null
+        try {
+          await ensureCsrfToken()
+          // Retry with fresh token (don't infinite-loop — only one retry)
+          const retryRes = await fetch(path, {
+            ...init,
+            signal: ctrl.signal,
+            headers: buildHeaders(init?.headers as Record<string, string> | undefined),
+          })
+          if (retryRes.ok) {
+            return await retryRes.json() as T
+          }
+          const retryBody = await retryRes.json().catch(() => ({}))
+          const retryErr: any = new Error(retryBody.error || `HTTP_${retryRes.status}`)
+          retryErr.status = retryRes.status
+          retryErr.body = retryBody
+          throw retryErr
+        } catch (retryErr: any) {
+          throw retryErr
+        }
+      }
       const err: any = new Error(body.error || `HTTP_${res.status}`)
       err.status = res.status
       err.body = body
