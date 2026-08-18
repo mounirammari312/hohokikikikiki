@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { Star, ShieldCheck, Truck, Gift, Minus, Plus, Check, Phone, MapPin, AlertTriangle, Heart, Share2, Droplet, Ruler, Layers, ChevronLeft, ChevronRight, Expand, X, Copy, CheckCheck, ShoppingBag } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { getProductById } from '../services/api/products'
+import { getProductById, syncProducts } from '../services/api/products'
 import { getWilayas } from '../services/api/wilayas'
 import { getDomainById, getDomains } from '../services/api/domains'
 import { createOrder } from '../services/api/orders'
@@ -10,7 +10,7 @@ import { calcItemTotal, formatDZD, validateDZPhone } from '../lib/utils'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
 import { Tracking } from '../services/tracking'
-import type { Variant } from '../services/api/types'
+import type { Product, Variant } from '../services/api/types'
 
 export default function ProductDetail(){
   const {id} = useParams()
@@ -18,12 +18,47 @@ export default function ProductDetail(){
   const [searchParams, setSearchParams] = useSearchParams()
   const { addToCart } = useCart()
   const { toggle: toggleWish, isWished: checkWished } = useWishlist()
-  // Memoize product lookup so the reference stays stable across renders.
-  // Without this, every keystroke in the order form re-renders the component,
-  // getProductById returns a NEW object reference (because it parses localStorage
-  // and migrates products each call), which then triggers the scroll-to-top
-  // useEffect below — causing the page to jump to the top while typing.
-  const product = useMemo(()=> getProductById(id||''), [id])
+
+  // ─── Product loading — ASYNC with loading state ───────────────────────
+  // CRITICAL FIX: Previously this used `useMemo(() => getProductById(id), [id])`
+  // which is SYNCHRONOUS. On a fresh page load (e.g. user opens a product
+  // URL directly), the in-memory cache contains only seedProducts (default
+  // demo products), NOT the actual store's products from the API. The API
+  // fetch happens in the background via syncProducts() but by the time
+  // it completes, this component already rendered "product not found"
+  // and won't re-render (useMemo with [id] dep doesn't re-run when cache
+  // updates).
+  //
+  // Fix: use useState + useEffect. Try sync first (instant if cache is
+  // warm). If not found, trigger syncProducts() and re-check. Show a
+  // loading spinner while fetching so the user knows something is
+  // happening (not a dead "not found" page).
+  const [product, setProduct] = useState<Product | undefined>(() => getProductById(id || ''))
+  const [loading, setLoading] = useState(!product)
+
+  useEffect(() => {
+    if (!id) return
+    // Try sync first (instant if cache is warm from navigating within the app)
+    const found = getProductById(id)
+    if (found) {
+      setProduct(found)
+      setLoading(false)
+      return
+    }
+    // Cache miss — likely a fresh page load. Fetch from API.
+    setLoading(true)
+    let cancelled = false
+    void syncProducts().then(() => {
+      if (cancelled) return
+      const fresh = getProductById(id)
+      setProduct(fresh)
+      setLoading(false)
+    }).catch(() => {
+      if (cancelled) return
+      setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [id])
   const wilayas = useMemo(()=> getWilayas(), [])
   const [qty, setQty] = useState(1)
   const [selectedImg, setSelectedImg] = useState(0)
@@ -355,6 +390,16 @@ export default function ProductDetail(){
   const closeOrderModal = ()=>{
     setShowOrderModal(false)
   }
+
+  // Loading state — show spinner while fetching product from API.
+  // This happens on direct URL access (e.g. shared link) when the
+  // in-memory cache hasn't been populated yet.
+  if (loading) return (
+    <div className="max-w-[1280px] mx-auto px-4 py-20 text-center">
+      <div className="w-12 h-12 border-4 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin mx-auto mb-4" />
+      <p className="text-sm text-[#9A8A6B]">جاري تحميل المنتج…</p>
+    </div>
+  )
 
   if(!product) return <div className="max-w-[1280px] mx-auto px-4 py-12 text-center">المنتج غير موجود. <Link to="/shop" className="text-[#C9A96A] underline">العودة للمتجر</Link></div>
 

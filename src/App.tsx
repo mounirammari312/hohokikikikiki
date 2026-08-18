@@ -36,6 +36,7 @@ const Wishlist = lazy(() => import('./pages/Wishlist'))
 const PlatformLanding = lazy(() => import('./pages/PlatformLanding'))
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'))
 const MerchantLogin = lazy(() => import('./pages/MerchantLogin'))
+import { PwaInstallBanner } from './components/PwaInstallBanner'
 
 /**
  * ─────────────────────────────────────────────────────────────────────────────
@@ -220,6 +221,7 @@ export default function App() {
         <WishlistProvider>
           <BrowserRouter>
             <AppRoutes />
+            <PwaInstallBanner />
           </BrowserRouter>
         </WishlistProvider>
       </CartProvider>
