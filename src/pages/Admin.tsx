@@ -40,7 +40,7 @@ export default function Admin() {
   const [settings, setSettings] = useState(() => getSettings())
   const [domains, setDomains] = useState<StoreDomain[]>(() => getDomains())
   const [activeDomain, setActiveDomainState] = useState<StoreDomain>(() => getActiveDomain())
-  const [tab, setTab] = useState<'overview' | 'domains' | 'products' | 'orders' | 'wilayas' | 'store' | 'tracking' | 'delivery' | 'account-profile' | 'account-security' | 'account-stores' | 'account-billing'>('overview')
+  const [tab, setTab] = useState<'overview' | 'domains' | 'custom-domain' | 'products' | 'orders' | 'wilayas' | 'store' | 'tracking' | 'delivery' | 'account-profile' | 'account-security' | 'account-stores' | 'account-billing'>('overview')
   // ─── Sidebar (mobile) + my stores list ──────────────────────────────
   // Sidebar slides in on mobile (drawer). On desktop it's always visible.
   // `myStores` is the list of TenantStores the merchant owns — fetched
@@ -595,11 +595,17 @@ export default function Admin() {
       items: [
         { id: 'orders', label: 'الطلبات', icon: ShoppingBag, count: orders.length },
         { id: 'products', label: 'المنتجات', icon: Package, count: products.length },
-        { id: 'domains', label: 'المجالات والنطاق', icon: Globe },
+        { id: 'domains', label: 'مجالات المتجر', icon: Wand2 },
         { id: 'wilayas', label: 'أسعار الشحن', icon: MapPinned, count: wilayas.length },
         { id: 'delivery', label: 'شركات التوصيل', icon: Truck },
         { id: 'store', label: 'إعدادات المتجر', icon: Store },
         { id: 'tracking', label: 'التتبع والإعلانات', icon: BarChart3 },
+      ],
+    },
+    {
+      title: 'النطاق والموقع',
+      items: [
+        { id: 'custom-domain', label: 'النطاق المخصص', icon: Globe },
       ],
     },
     {
@@ -861,109 +867,6 @@ export default function Admin() {
           {/* ═══ DOMAINS TAB ═════════════════════════════════════════════ */}
           {tab === 'domains' && (
           <div className="mt-4 space-y-4">
-            {/* ─── Custom Domain Section ─────────────────────────────── */}
-            <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
-              <h3 className="font-extrabold flex items-center gap-2"><Globe size={18} className="text-[#C9A96A]"/> النطاق المخصص (Custom Domain)</h3>
-              <p className="text-xs text-[#9A8A6B] mt-1 leading-5">اربط نطاقك الخاص (مثل mystore.dz) بمتجرك. سيحصل المتجر على عنوان مستقل مع شهادة SSL مجانية تلقائياً.</p>
-
-              <div className="mt-4 grid md:grid-cols-[1fr_auto] gap-3 items-end">
-                <div>
-                  <label className="text-xs font-bold text-[#7A6F5A]">عنوان النطاق</label>
-                  <input
-                    value={customDomainInput}
-                    onChange={e => setCustomDomainInput(e.target.value)}
-                    placeholder="mystore.dz"
-                    dir="ltr"
-                    className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] font-mono"
-                  />
-                </div>
-                <button
-                  onClick={async () => {
-                    const domain = customDomainInput.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
-                    if (!domain) { showToast('أدخل عنوان النطاق'); return }
-                    // Try to get storeId from localStorage or URL. The
-                    // TenantContext sets storeId to null when the user
-                    // is browsing via ?store=<slug>, so the local `storeId`
-                    // prop is often null here — fall back to the cached
-                    // active store id (set on login) or the ?storeId= URL
-                    // param before giving up.
-                    const sid = (typeof window !== 'undefined'
-                      ? (localStorage.getItem('lumiere_saas_active_store') || new URLSearchParams(window.location.search).get('storeId'))
-                      : null) || storeId || ''
-                    if (!sid) { showToast('تعذّر تحديد معرّف المتجر — سجّل الدخول مجدّداً'); return }
-                    try {
-                      await updateStoreApi(sid, { customDomain: domain } as any)
-                      setSettings(prev => ({ ...prev, storeName: prev.storeName }))
-                      showToast(`تم ربط النطاق ${domain} ✓ — قد يستغرق تفعيل DNS من 5 دقائق إلى 24 ساعة`)
-                    } catch (err: any) {
-                      showToast('فشل ربط النطاق: ' + (err?.message || 'خطأ'))
-                    }
-                  }}
-                  className="bg-[#1A1A1E] text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-black transition flex items-center gap-2 shrink-0"
-                >
-                  <Globe size={14} /> ربط النطاق
-                </button>
-              </div>
-
-              {settings.activeDomainId && (
-                <div className="mt-3 flex items-center gap-2 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span className="text-emerald-700 font-bold">النطاق الفرعي الحالي: {currentSlug}.lumiere.saas</span>
-                  <span className="text-[#9A8A6B]">— النطاق المخصص سيحل محله بعد تفعيل DNS</span>
-                </div>
-              )}
-            </div>
-
-            {/* ─── DNS Instructions ──────────────────────────────────── */}
-            <div className="bg-[#1A1A1E] text-white rounded-2xl p-5 relative overflow-hidden">
-              <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#C9A96A]/10 rounded-full blur-2xl" />
-              <div className="relative">
-                <h4 className="font-bold flex items-center gap-2"><Layers size={16} className="text-[#C9A96A]"/> تعليمات إعداد DNS</h4>
-                <p className="text-xs text-white/60 mt-1">بعد ربط النطاق، أضف السجلات التالية في لوحة تحكم نطاقك (Namecheap / GoDaddy / Hostinger):</p>
-
-                <div className="mt-4 grid md:grid-cols-2 gap-4">
-                  {/* A Record */}
-                  <div className="bg-white/[0.06] border border-white/10 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-[#C9A96A] text-[#1A1A1E] text-[10px] font-extrabold px-2 py-0.5 rounded-full">A Record</span>
-                      <span className="text-xs text-white/70">يوجه النطاق الجذري (mystore.dz)</span>
-                    </div>
-                    <div className="font-mono text-xs space-y-1 text-white/80">
-                      <div>Type: <span className="text-[#C9A96A]">A</span></div>
-                      <div>Name: <span className="text-[#C9A96A]">@</span></div>
-                      <div>Value: <span className="text-[#C9A96A]">76.76.21.21</span></div>
-                    </div>
-                    <p className="text-[10px] text-white/40 mt-2">عنوان IP الخاص بـ Vercel</p>
-                  </div>
-
-                  {/* CNAME Record */}
-                  <div className="bg-white/[0.06] border border-white/10 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-[#A02A5B] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">CNAME</span>
-                      <span className="text-xs text-white/70">يوجه النطاق الفرعي (www)</span>
-                    </div>
-                    <div className="font-mono text-xs space-y-1 text-white/80">
-                      <div>Type: <span className="text-[#A02A5B]">CNAME</span></div>
-                      <div>Name: <span className="text-[#A02A5B]">www</span></div>
-                      <div>Value: <span className="text-[#A02A5B]">cname.vercel-dns.com</span></div>
-                    </div>
-                    <p className="text-[10px] text-white/40 mt-2">سجل CNAME لـ Vercel</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 bg-white/[0.04] border border-white/10 rounded-xl p-3 text-xs text-white/60 leading-5">
-                  <b className="text-[#C9A96A]">خطوات:</b>
-                  <ol className="list-decimal list-inside mt-1 space-y-0.5">
-                    <li>سجّلي الدخول إلى لوحة تحكم نطاقك</li>
-                    <li>ابحث عن قسم DNS / Zone Management</li>
-                    <li>أضف سجلي A و CNAME كما هو موضح أعلاه</li>
-                    <li>انتظري من 5 دقائق إلى 24 ساعة حتى ينتشر الـ DNS</li>
-                    <li>سيتم تفعيل شهادة SSL تلقائياً بمجرد عمل النطاق</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-
             {/* ─── Domains Management (full cards + create custom) ─────── */}
             <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
@@ -1047,6 +950,130 @@ export default function Admin() {
             </div>
           </div>
         )}
+
+          {/* ═══ CUSTOM DOMAIN TAB (مفصول عن مجالات المتجر) ════════════════
+              هذا التبويب مخصص فقط لربط النطاق المخصص (mystore.dz) —
+              لا علاقة له بمجالات المتجر (jewelry/fashion/beauty). */}
+          {tab === 'custom-domain' && (
+            <div className="mt-4 space-y-4">
+              {/* ─── Custom Domain Section ─────────────────────────────── */}
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+                <h3 className="font-extrabold flex items-center gap-2"><Globe size={18} className="text-[#C9A96A]"/> النطاق المخصص (Custom Domain)</h3>
+                <p className="text-xs text-[#9A8A6B] mt-1 leading-5">اربط نطاقك الخاص (مثل mystore.dz) بمتجرك. سيحصل المتجر على عنوان مستقل مع شهادة SSL مجانية تلقائياً.</p>
+
+                <div className="mt-4 grid md:grid-cols-[1fr_auto] gap-3 items-end">
+                  <div>
+                    <label className="text-xs font-bold text-[#7A6F5A]">عنوان النطاق</label>
+                    <input
+                      value={customDomainInput}
+                      onChange={e => setCustomDomainInput(e.target.value)}
+                      placeholder="mystore.dz"
+                      dir="ltr"
+                      className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] font-mono"
+                    />
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const domain = customDomainInput.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
+                      if (!domain) { showToast('أدخل عنوان النطاق'); return }
+                      // Try to get storeId from localStorage or URL. The
+                      // TenantContext sets storeId to null when the user
+                      // is browsing via ?store=<slug>, so the local `storeId`
+                      // prop is often null here — fall back to the cached
+                      // active store id (set on login) or the ?storeId= URL
+                      // param before giving up.
+                      const sid = (typeof window !== 'undefined'
+                        ? (localStorage.getItem('lumiere_saas_active_store') || new URLSearchParams(window.location.search).get('storeId'))
+                        : null) || storeId || ''
+                      if (!sid) { showToast('تعذّر تحديد معرّف المتجر — سجّل الدخول مجدّداً'); return }
+                      try {
+                        await updateStoreApi(sid, { customDomain: domain } as any)
+                        setSettings(prev => ({ ...prev, storeName: prev.storeName }))
+                        showToast(`تم ربط النطاق ${domain} ✓ — قد يستغرق تفعيل DNS من 5 دقائق إلى 24 ساعة`)
+                      } catch (err: any) {
+                        showToast('فشل ربط النطاق: ' + (err?.message || 'خطأ'))
+                      }
+                    }}
+                    className="bg-[#1A1A1E] text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-black transition flex items-center gap-2 shrink-0"
+                  >
+                    <Globe size={14} /> ربط النطاق
+                  </button>
+                </div>
+
+                {settings.activeDomainId && (
+                  <div className="mt-3 flex items-center gap-2 text-xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span className="text-emerald-700 font-bold">النطاق الفرعي الحالي: {currentSlug}.lumiere.saas</span>
+                    <span className="text-[#9A8A6B]">— النطاق المخصص سيحل محله بعد تفعيل DNS</span>
+                  </div>
+                )}
+              </div>
+
+              {/* ─── DNS Instructions ──────────────────────────────────── */}
+              <div className="bg-[#1A1A1E] text-white rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#C9A96A]/10 rounded-full blur-2xl" />
+                <div className="relative">
+                  <h4 className="font-bold flex items-center gap-2"><Layers size={16} className="text-[#C9A96A]"/> تعليمات إعداد DNS</h4>
+                  <p className="text-xs text-white/60 mt-1">بعد ربط النطاق، أضف السجلات التالية في لوحة تحكم نطاقك (Namecheap / GoDaddy / Hostinger):</p>
+
+                  <div className="mt-4 grid md:grid-cols-2 gap-4">
+                    {/* A Record */}
+                    <div className="bg-white/[0.06] border border-white/10 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="bg-[#C9A96A] text-[#1A1A1E] text-[10px] font-extrabold px-2 py-0.5 rounded-full">A Record</span>
+                        <span className="text-xs text-white/70">يوجه النطاق الجذري (mystore.dz)</span>
+                      </div>
+                      <div className="font-mono text-xs space-y-1 text-white/80">
+                        <div>Type: <span className="text-[#C9A96A]">A</span></div>
+                        <div>Name: <span className="text-[#C9A96A]">@</span></div>
+                        <div>Value: <span className="text-[#C9A96A]">76.76.21.21</span></div>
+                      </div>
+                      <p className="text-[10px] text-white/40 mt-2">عنوان IP الخاص بـ Vercel</p>
+                    </div>
+
+                    {/* CNAME Record */}
+                    <div className="bg-white/[0.06] border border-white/10 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="bg-[#A02A5B] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">CNAME</span>
+                        <span className="text-xs text-white/70">يوجه النطاق الفرعي (www)</span>
+                      </div>
+                      <div className="font-mono text-xs space-y-1 text-white/80">
+                        <div>Type: <span className="text-[#A02A5B]">CNAME</span></div>
+                        <div>Name: <span className="text-[#A02A5B]">www</span></div>
+                        <div>Value: <span className="text-[#A02A5B]">cname.vercel-dns.com</span></div>
+                      </div>
+                      <p className="text-[10px] text-white/40 mt-2">سجل CNAME لـ Vercel</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 bg-white/[0.04] border border-white/10 rounded-xl p-3 text-xs text-white/60 leading-5">
+                    <b className="text-[#C9A96A]">خطوات:</b>
+                    <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                      <li>سجّل الدخول إلى لوحة تحكم نطاقك</li>
+                      <li>ابحث عن قسم DNS / Zone Management</li>
+                      <li>أضف سجلي A و CNAME كما هو موضح أعلاه</li>
+                      <li>انتظر من 5 دقائق إلى 24 ساعة حتى ينتشر الـ DNS</li>
+                      <li>سيتم تفعيل شهادة SSL تلقائياً بمجرد عمل النطاق</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Clarification box: distinguishes this from store domains ── */}
+              <div className="bg-[#FFFBF0] border border-[#F5E6C8] rounded-2xl p-4 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#C9A96A] text-white grid place-items-center shrink-0">
+                  <Globe size={16} />
+                </div>
+                <div className="text-xs leading-6 text-[#7A6F5A]">
+                  <span className="font-bold text-[#8D6E3A]">الفرق بين "النطاق المخصص" و "مجالات المتجر":</span>
+                  <ul className="mt-1.5 space-y-1 list-disc list-inside">
+                    <li><b>النطاق المخصص</b> (هذه الصفحة): عنوان موقعك على الإنترنت مثل <span className="font-mono" dir="ltr">mystore.dz</span> — ما يكتبه الزبون في المتصفح.</li>
+                    <li><b>مجالات المتجر</b> (تبويب منفصل): تخصص متجرك (مجوهرات، ملابس، إلكترونيات) — يحدد الفئات والحقول والمتغيرات.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
 
         {tab === 'products' && (
           <div className="mt-4 space-y-4">

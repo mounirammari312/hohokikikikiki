@@ -82,10 +82,13 @@ export default function Home(){
       <section className="max-w-[1280px] mx-auto px-4 md:px-6 pt-6">
         <motion.div {...fadeUp(0)} className="grid lg:grid-cols-[1.15fr_0.85fr] gap-4">
           <div className="relative rounded-[28px] overflow-hidden min-h-[520px] flex" style={{ background: secondary }}>
-            <SmartImage src={domain.heroImage} alt={domain.heroTitleAr} size="hero" eager className="absolute inset-0 w-full h-full" style={{ opacity: 0.9 }} />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent"/>
+            <SmartImage src={domain.heroImage} alt={domain.heroTitleAr} size="hero" eager className="absolute inset-0 w-full h-full" style={{ opacity: 0.95, zIndex: 0 }} />
+            {/* Gradient overlay — softened so the image is more visible.
+                Before: from-black/70 via-black/30 (too dark, hid the image)
+                After:  from-black/50 via-black/15 (subtle darkening for text contrast) */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/15 to-transparent" style={{ zIndex: 1 }}/>
             {/* Animated accent gradient overlay — subtle sweeping tint */}
-            <div className="hero-overlay-anim absolute inset-0 bg-gradient-to-tr from-[var(--color-accent)]/0 via-[var(--color-accent)]/10 to-[var(--color-primary)]/10 pointer-events-none"/>
+            <div className="hero-overlay-anim absolute inset-0 bg-gradient-to-tr from-[var(--color-accent)]/0 via-[var(--color-accent)]/5 to-[var(--color-primary)]/5 pointer-events-none" style={{ zIndex: 1 }}/>
 
             {/* Floating trust badge */}
             <div className="absolute top-5 right-5 z-20 hidden md:flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold shadow-md border border-white/40" style={{ color: textColor }}>

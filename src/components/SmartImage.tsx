@@ -225,18 +225,21 @@ export function SmartImage({
       }}
       onClick={onClick}
     >
-      {/* Blurred placeholder — loads instantly, prevents layout shift */}
-      {!loaded && !error && blurUrl && (
-        <img
-          src={blurUrl}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover scale-110"
-          style={{ filter: 'blur(10px)', opacity: style?.opacity }}
-        />
-      )}
-      {/* Main image — lazy-loaded with responsive srcset.
-          style.opacity is applied here too so hero opacity-90 works. */}
+      {/* Subtle background tint while loading — drawn FIRST so the
+          main image renders ON TOP of it once it loads.
+          No separate <img> blur placeholder — it caused a stacking bug
+          where the 1KB blurred version covered the main image. */}
+      <div
+        className="absolute inset-0"
+        aria-hidden="true"
+        style={{
+          background: 'linear-gradient(135deg, color-mix(in srgb, var(--color-primary, #C9A96A) 8%, white), color-mix(in srgb, var(--color-accent, #A02A5B) 4%, white))',
+          opacity: loaded ? 0 : 1,
+          transition: 'opacity 0.4s ease',
+          zIndex: 0,
+        }}
+      />
+      {/* Main image — lazy-loaded, on TOP of the tint via zIndex: 1 */}
       {inView && (
         <img
           ref={ref}
@@ -248,8 +251,11 @@ export function SmartImage({
           decoding="async"
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-          style={style?.opacity !== undefined ? { opacity: loaded ? style.opacity : 0 } : undefined}
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500"
+          style={{
+            opacity: loaded ? (style?.opacity !== undefined ? style.opacity : 1) : 0,
+            zIndex: 1,
+          }}
         />
       )}
     </div>
