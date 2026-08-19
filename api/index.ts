@@ -508,9 +508,18 @@ export default async function handler(req: any, res: any) {
         }
       }
       // Login + register + authenticated /me all need the DB
-      await connectDB()
-      await ensureSeeded()
-      return reply(res, ...(await authRoute(segments, method, req)))
+      try {
+        await connectDB()
+        await ensureSeeded()
+        return reply(res, ...(await authRoute(segments, method, req)))
+      } catch (dbErr: any) {
+        console.error('AUTH_ROUTE_ERROR:', dbErr)
+        return reply(res, {
+          error: 'AUTH_FAILED',
+          message: dbErr?.message || String(dbErr),
+          detail: process.env.NODE_ENV === 'production' ? undefined : (dbErr?.stack || '').split('\n').slice(0, 5).join('\n'),
+        }, 500)
+      }
     }
 
     // ─── Marketplace routes (PUBLIC — no auth, no tenant context) ──────
@@ -617,6 +626,7 @@ export default async function handler(req: any, res: any) {
     return reply(res, {
       error: 'SERVERLESS_CRASH',
       message: err?.message || String(err),
+      stack: process.env.NODE_ENV === 'production' ? undefined : (err?.stack || '').split('\n').slice(0, 8).join('\n'),
     }, 500)
   }
 }
