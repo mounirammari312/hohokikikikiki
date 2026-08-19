@@ -75,47 +75,53 @@ async function doPlatformSeed(): Promise<void> {
   }
 
   // ─── Default demo TenantStore ──────────────────────────────────────
-  const existingStore = await TenantStoreModel.findById(DEFAULT_STORE_ID).lean()
-  if (!existingStore) {
-    await TenantStoreModel.create({
-      _id: DEFAULT_STORE_ID,
-      slug: DEFAULT_STORE_SLUG,
-      // NOTE: customDomain intentionally omitted — see models.ts comment.
-      // Setting it to null would trigger E11000 on the unique index when
-      // other stores without custom domains are created.
-      ownerId: 'su_admin',
-      name: 'Amugar Demo',
-      nameAr: 'أموغار تجريبي',
-      status: 'active',
-      plan: 'vip',
-      planExpiresAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })
-    console.log(`[seed] created default TenantStore ${DEFAULT_STORE_ID} (slug=${DEFAULT_STORE_SLUG})`)
-    // Seed the demo store's catalog
-    await seedStoreData(DEFAULT_STORE_ID)
-  }
+  // Use findOneAndUpdate + upsert (atomic) to avoid E11000 duplicate key
+  // on serverless when multiple instances run ensureSeeded() simultaneously.
+  await TenantStoreModel.findOneAndUpdate(
+    { _id: DEFAULT_STORE_ID },
+    {
+      $setOnInsert: {
+        slug: DEFAULT_STORE_SLUG,
+        ownerId: 'su_admin',
+        name: 'Amugar Demo',
+        nameAr: 'أموغار تجريبي',
+        status: 'active',
+        plan: 'vip',
+        planExpiresAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    },
+    { upsert: true, new: true }
+  ).lean()
+
+  // Always seed the demo store's catalog (idempotent — only inserts if empty)
+  await seedStoreData(DEFAULT_STORE_ID)
 
   // ─── Super admin account ───────────────────────────────────────────
-  const existingAdmin = await MerchantUserModel.findOne({ email: DEFAULT_SUPER_ADMIN_EMAIL }).lean()
-  if (!existingAdmin) {
-    // Use a real bcrypt hash so the stored credentials are secure
-    // (the PLAIN: dev placeholder is no longer acceptable).
-    const hash = await bcrypt.hash(DEFAULT_SUPER_ADMIN_PASSWORD, 12)
-    await MerchantUserModel.create({
-      _id: 'su_admin',
-      fullName: 'Super Admin',
-      email: DEFAULT_SUPER_ADMIN_EMAIL,
-      phone: '0550 12 34 56',
-      passwordHash: hash,
-      role: 'super_admin',
-      storeIds: [DEFAULT_STORE_ID],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })
-    console.log(`[seed] created super admin ${DEFAULT_SUPER_ADMIN_EMAIL}`)
-  }
+  // CRITICAL: Check by BOTH email AND _id to avoid E11000 duplicate key
+  // error on serverless. On Vercel, multiple instances can run
+  // ensureSeeded() simultaneously — both check "existingAdmin" = null,
+  // both try to create su_admin, the second one crashes with E11000.
+  // Fix: use findOneAndUpdate with upsert (atomic) instead of find+create.
+  const hash = await bcrypt.hash(DEFAULT_SUPER_ADMIN_PASSWORD, 12)
+  await MerchantUserModel.findOneAndUpdate(
+    { $or: [{ email: DEFAULT_SUPER_ADMIN_EMAIL }, { _id: 'su_admin' }] },
+    {
+      $setOnInsert: {
+        _id: 'su_admin',
+        fullName: 'Super Admin',
+        email: DEFAULT_SUPER_ADMIN_EMAIL,
+        phone: '0550 12 34 56',
+        passwordHash: hash,
+        role: 'super_admin',
+        storeIds: [DEFAULT_STORE_ID],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    },
+    { upsert: true, new: true }
+  ).lean()
 }
 
 /**

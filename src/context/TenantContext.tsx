@@ -251,9 +251,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
         throw new Error('انتهت مهلة الاتصال — حاول مرة أخرى')
       }
-      // apiFetch errors already have a .message from the server response
-      // (e.g. 'INVALID_CREDENTIALS', 'RATE_LIMITED'). Pass them through.
-      throw new Error(err?.body?.error || err?.message || 'LOGIN_FAILED')
+      // apiFetch errors have a .body with the server response.
+      // Show the actual message (not just the error code) so the user
+      // knows what went wrong.
+      const errMsg = err?.body?.message || err?.body?.error || err?.message || 'LOGIN_FAILED'
+      throw new Error(errMsg)
     }
   }, [storeId])
 

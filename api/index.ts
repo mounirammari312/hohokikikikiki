@@ -214,16 +214,30 @@ const CSRF_PROTECTED_PATHS = new Set([
 // ─── Vercel Node.js Compatibility Helpers ────────────────────────────────────
 
 async function getReqBody(req: any) {
+  // CRITICAL: On Vercel serverless, the request body can only be read ONCE.
+  // If getReqBody is called twice (e.g. once for validation + once in
+  // the route handler), the second call would fail with
+  // "Body has already been consumed". To prevent this, we cache the
+  // parsed body on req.__parsedBody after the first read.
+  if (req.__parsedBody !== undefined) {
+    return req.__parsedBody
+  }
+  let body: any
   if (req.body !== undefined && req.body !== null) {
     if (typeof req.body === 'string') {
-      try { return JSON.parse(req.body) } catch { return {} }
+      try { body = JSON.parse(req.body) } catch { body = {} }
+    } else {
+      body = req.body
     }
-    return req.body
+  } else if (typeof req.json === 'function') {
+    try { body = await req.json() } catch { body = {} }
+  } else {
+    body = {}
   }
-  if (typeof req.json === 'function') {
-    try { return await req.json() } catch { return {} }
-  }
-  return {}
+  // Cache the parsed body so subsequent calls return the same object
+  // without trying to re-read the (already consumed) request stream.
+  req.__parsedBody = body
+  return body
 }
 
 function reply(res: any, data: any, status = 200) {
