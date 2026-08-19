@@ -517,7 +517,7 @@ export default async function handler(req: any, res: any) {
         return reply(res, {
           error: 'AUTH_FAILED',
           message: dbErr?.message || String(dbErr),
-          detail: process.env.NODE_ENV === 'production' ? undefined : (dbErr?.stack || '').split('\n').slice(0, 5).join('\n'),
+          stack: (dbErr?.stack || '').split('\n').slice(0, 8).join('\n'),
         }, 500)
       }
     }
