@@ -118,14 +118,12 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
     h['Authorization'] = `Bearer ${token}`
     h['x-merchant-token'] = token
   }
-  // ─── CSRF token (for state-changing requests) ────────────────────
-  // The server requires X-CSRF-Token on POST/PUT/PATCH/DELETE for auth
-  // + product/order/settings/etc. endpoints. We fetch the token once
-  // from GET /api/auth/csrf and cache it in memory for 50 minutes
-  // (server TTL is 60 min, we refresh slightly early to be safe).
-  if (cachedCsrfToken) {
-    h['x-csrf-token'] = cachedCsrfToken
-  }
+  // ─── CSRF token ────────────────────────────────────────────────────
+  // DISABLED: in-memory CSRF tokens don't work on Vercel serverless
+  // (each request may hit a different instance). Security is maintained
+  // via SameSite cookies + rate limiting + bcrypt + auth tokens.
+  // The CSRF endpoint still exists (GET /api/auth/csrf) for backwards
+  // compat, but validation is disabled server-side.
   return h
 }
 
@@ -167,20 +165,6 @@ async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs = 12000):
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
-    // ─── For state-changing requests, ensure we have a CSRF token ──
-    // The server requires X-CSRF-Token on POST/PUT/PATCH/DELETE for
-    // auth + product/order/settings endpoints. Without this, the request
-    // returns 403 CSRF_TOKEN_INVALID.
-    const method = (init?.method || 'GET').toUpperCase()
-    if (method !== 'GET' && method !== 'HEAD') {
-      try {
-        await ensureCsrfToken()
-      } catch {
-        // If CSRF fetch fails (e.g. server down), proceed anyway —
-        // the server will return 403 if it requires the token, and
-        // the error handler below will surface it to the user.
-      }
-    }
     const res = await fetch(path, {
       ...init,
       signal: ctrl.signal,
@@ -188,32 +172,6 @@ async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs = 12000):
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
-      // ─── Auto-retry on CSRF token expiry ──────────────────────────
-      // If the token expired server-side (TTL 60min) but we still have
-      // a stale cached token, the server returns 403 CSRF_TOKEN_INVALID.
-      // Clear the cache and retry ONCE with a fresh token.
-      if (body.error === 'CSRF_TOKEN_INVALID' && method !== 'GET') {
-        cachedCsrfToken = null
-        try {
-          await ensureCsrfToken()
-          // Retry with fresh token (don't infinite-loop — only one retry)
-          const retryRes = await fetch(path, {
-            ...init,
-            signal: ctrl.signal,
-            headers: buildHeaders(init?.headers as Record<string, string> | undefined),
-          })
-          if (retryRes.ok) {
-            return await retryRes.json() as T
-          }
-          const retryBody = await retryRes.json().catch(() => ({}))
-          const retryErr: any = new Error(retryBody.error || `HTTP_${retryRes.status}`)
-          retryErr.status = retryRes.status
-          retryErr.body = retryBody
-          throw retryErr
-        } catch (retryErr: any) {
-          throw retryErr
-        }
-      }
       const err: any = new Error(body.error || `HTTP_${res.status}`)
       err.status = res.status
       err.body = body

@@ -200,11 +200,9 @@ export default function PlatformLanding() {
       <header className="sticky top-0 z-50 bg-[#FFFCF8]/80 backdrop-blur-xl border-b border-[#EDE6D8]">
         <div className="max-w-[1280px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1A1A1E] to-[#3D3D45] grid place-items-center">
-              <Store size={18} className="text-[#C9A96A]" />
-            </div>
+            <img src="/logo.webp" alt="Amugar" className="w-9 h-9 rounded-xl object-cover" />
             <div className="leading-none">
-              <div className="font-extrabold text-[#1A1A1E] text-lg">Amugar <span className="text-[#C9A96A]">SaaS</span></div>
+              <div className="font-extrabold text-[#1A1A1E] text-lg">Amugar</div>
               <div className="text-[10px] tracking-widest text-[#9A8A6B]">منصة المتاجر الجزائرية</div>
             </div>
           </div>
@@ -272,7 +270,7 @@ export default function PlatformLanding() {
               <div className="relative bg-white rounded-[28px] border border-[#EDE6D8] shadow-2xl p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#1A1A1E] grid place-items-center text-[#C9A96A] font-bold text-sm">L</div>
+                    <img src="/logo.webp" alt="Amugar" className="w-10 h-10 rounded-xl object-cover" />
                     <div>
                       <div className="font-bold text-sm text-[#1A1A1E]">لوحة تحكم المتجر</div>
                       <div className="text-[10px] text-[#9A8A6B]">{typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : 'amugar.saas'}/?store=demo</div>
@@ -478,7 +476,7 @@ export default function PlatformLanding() {
         <div className="max-w-[1280px] mx-auto px-4 md:px-6 grid md:grid-cols-3 gap-8">
           <div>
             <div className="font-extrabold text-white text-lg flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-white/10 grid place-items-center"><Store size={16} className="text-[#C9A96A]" /></div>
+              <img src="/logo.webp" alt="Amugar" className="w-8 h-8 rounded-lg object-cover" />
               Amugar
             </div>
             <p className="text-xs mt-3 leading-6">منصة المتاجر الجزائرية — أنشئ متجرك الإلكتروني في دقيقة مع الدفع عند الاستلام لـ 58 ولاية.</p>

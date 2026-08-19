@@ -132,9 +132,7 @@ export function PwaInstallBanner() {
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[#C9A96A]/10 to-transparent rounded-full blur-2xl pointer-events-none" />
 
         {/* App icon */}
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#1A1A1E] to-[#3D3D45] grid place-items-center shrink-0 shadow-md">
-          <Crown size={20} className="text-[#C9A96A]" />
-        </div>
+        <img src="/logo.webp" alt="Amugar" className="w-12 h-12 rounded-2xl object-cover shrink-0 shadow-md" />
 
         {/* Text content (RTL: name + tagline) */}
         <div className="flex-1 min-w-0">

@@ -232,7 +232,7 @@ export default function Marketplace() {
         <div className="px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-between shrink-0">
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1A1A1E] to-[#3D3D45] grid place-items-center">
-              <span className="cormorant text-[#C9A96A] text-lg font-bold">L</span>
+              <img src="/logo.webp" alt="Amugar" className="w-7 h-7 object-contain" />
             </div>
             <div>
               <div className="font-extrabold text-sm leading-tight text-[#1A1A1E]">Amugar</div>
@@ -562,7 +562,7 @@ export default function Marketplace() {
           <div className="max-w-[1200px] mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-white/10 grid place-items-center">
-                <span className="cormorant text-[#C9A96A] text-sm font-bold">L</span>
+                <img src="/logo.webp" alt="Amugar" className="w-5 h-5 object-contain" />
               </div>
               <span className="text-white/60 font-bold">Amugar Marketplace</span>
             </div>

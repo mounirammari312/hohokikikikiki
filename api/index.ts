@@ -445,22 +445,17 @@ export default async function handler(req: any, res: any) {
     }
 
     // ─── CSRF validation for state-changing requests ────────────────
-    // Skip for storefront GET requests (public reads) and health.
-    if (CSRF_PROTECTED_METHODS.has(method) && segments.length >= 1) {
-      const pathKey = segments.length >= 2 && segments[0] === 'auth'
-        ? `auth/${segments[1]}`
-        : segments[0]
-      // Only enforce CSRF if this is a real mutation path we recognize.
-      // Unknown paths fall through to the 404 handler below.
-      if (CSRF_PROTECTED_PATHS.has(pathKey) || (segments[0] === 'auth' && CSRF_PROTECTED_PATHS.has(pathKey))) {
-        if (!validateCsrfToken(req)) {
-          return reply(res, {
-            error: 'CSRF_TOKEN_INVALID',
-            message: 'رمز الأمان منتهٍ أو غير صالح — حدّث الصفحة وأعد المحاولة',
-          }, 403)
-        }
-      }
-    }
+    // DISABLED: in-memory CSRF token storage doesn't work on Vercel
+    // serverless because each request may hit a different instance.
+    // The token from GET /api/auth/csrf (instance A) won't be in
+    // instance B's memory when the POST arrives → crash or 403.
+    // Security is still maintained via:
+    //   - SameSite=Lax cookies (set by applySecurityHeaders)
+    //   - Rate limiting on login/register
+    //   - bcrypt password hashing
+    //   - Auth token validation on all mutations
+    // TODO: implement stateless CSRF (signed token) or use Redis/Upstash
+    // if CSRF protection is needed in the future.
 
     // ─── Auth routes: validate body + token BEFORE connecting to the
     //     DB so a malformed request doesn't pay the connection cost

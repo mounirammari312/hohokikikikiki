@@ -658,9 +658,7 @@ export default function Admin() {
         {/* Brand + close (mobile) */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#C9A96A] to-[#A02A5B] grid place-items-center shadow-md">
-              <Crown size={16} className="text-white" />
-            </div>
+            <img src="/logo.webp" alt="Amugar" className="w-9 h-9 rounded-xl object-cover shadow-md" />
             <div>
               <div className="font-extrabold text-sm leading-tight">Amugar</div>
               <div className="text-[10px] text-white/50">لوحة تحكم التاجر</div>
