@@ -285,25 +285,25 @@ export default function PlatformLanding() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-[#FFFCF8] border border-[#EDE6D8] rounded-2xl p-4 text-center">
                     <ShoppingBag size={18} className="mx-auto text-[#C9A96A]" />
-                    <div className="font-extrabold text-2xl text-[#1A1A1E] mt-2">18</div>
-                    <div className="text-[10px] text-[#9A8A6B]">منتج</div>
+                    <div className="font-extrabold text-2xl text-[#1A1A1E] mt-2">∞</div>
+                    <div className="text-[10px] text-[#9A8A6B]">منتجات</div>
                   </div>
                   <div className="bg-[#FDF2F6] border border-[#F6C0D4] rounded-2xl p-4 text-center">
-                    <TrendingUp size={18} className="mx-auto text-[#A02A5B]" />
-                    <div className="font-extrabold text-2xl text-[#A02A5B] mt-2">42</div>
-                    <div className="text-[10px] text-[#7A1F44]">طلب</div>
+                    <Truck size={18} className="mx-auto text-[#A02A5B]" />
+                    <div className="font-extrabold text-2xl text-[#A02A5B] mt-2">58</div>
+                    <div className="text-[10px] text-[#7A1F44]">ولاية</div>
                   </div>
                   <div className="bg-[#FFFBF0] border border-[#F0D9A8] rounded-2xl p-4 text-center">
-                    <Star size={18} className="mx-auto text-[#8D6E3A]" />
-                    <div className="font-extrabold text-2xl text-[#8D6E3A] mt-2">4.9</div>
-                    <div className="text-[10px] text-[#9A8A6B]">تقييم</div>
+                    <ShieldCheck size={18} className="mx-auto text-[#8D6E3A]" />
+                    <div className="font-extrabold text-2xl text-[#8D6E3A] mt-2">COD</div>
+                    <div className="text-[10px] text-[#9A8A6B]">دفع عند الاستلام</div>
                   </div>
                 </div>
                 <div className="mt-4 bg-gradient-to-br from-[#1A1A1E] to-[#2D2D35] rounded-2xl p-4 text-white">
-                  <div className="text-[10px] text-white/50 mb-1">آخر طلب</div>
-                  <div className="text-sm font-bold">LUM-A4F2X — سارة من الجزائر</div>
+                  <div className="text-[10px] text-white/50 mb-1">جاهز للإطلاق</div>
+                  <div className="text-sm font-bold">أنشئ متجرك في أقل من دقيقة</div>
                   <div className="text-[11px] text-[#C9A96A] mt-1 flex items-center gap-1">
-                    <Check size={12} /> +6,800 د.ج • الدفع عند الاستلام ✓
+                    <Check size={12} /> لوحة تحكم احترافية + شحن 58 ولاية ✓
                   </div>
                 </div>
               </div>

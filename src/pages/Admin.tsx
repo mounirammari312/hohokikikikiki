@@ -1197,7 +1197,22 @@ export default function Admin() {
                 </div>
               )})}
             </div>
-            {filteredProducts.length === 0 && (
+            {filteredProducts.length === 0 && products.length === 0 && (
+              <div className="bg-gradient-to-br from-[#FFFBF0] to-[#FDF2F6] border-2 border-dashed border-[#C9A96A]/30 rounded-2xl p-12 text-center">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#C9A96A] to-[#A02A5B] grid place-items-center mx-auto text-white shadow-lg">
+                  <Plus size={28} />
+                </div>
+                <div className="font-extrabold text-xl mt-4 text-[#1A1A1E]">أهلاً بك في متجرك الجديد! 🎉</div>
+                <p className="text-sm text-[#7A6F5A] mt-2 max-w-md mx-auto leading-6">
+                  متجرك جاهز لكنه فارغ. ابدأ بإضافة منتجك الأول ليظهر في واجهة متجرك.
+                  لا تقلق — كل ما تضيفه هنا سيكون منتجاتك أنت، بدون أي بيانات تجريبية.
+                </p>
+                <button onClick={openAddModal} className="mt-5 bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white px-7 py-3 rounded-full font-bold text-sm flex items-center gap-2 mx-auto hover:shadow-xl transition">
+                  <Plus size={16} /> أضف منتجك الأول
+                </button>
+              </div>
+            )}
+            {filteredProducts.length === 0 && products.length > 0 && (
               <div className="bg-white border-2 border-dashed border-[#EDE6D8] rounded-2xl p-10 text-center">
                 <div className="w-14 h-14 rounded-full bg-[#FDF2F6] border border-[#F6C0D4] grid place-items-center mx-auto text-[#A02A5B]"><Search size={20} /></div>
                 <div className="font-bold mt-3">لا توجد منتجات مطابقة</div>

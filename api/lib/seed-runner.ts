@@ -132,55 +132,26 @@ async function doPlatformSeed(): Promise<void> {
  * existing deployment, so this is a no-op for production).
  */
 export async function seedStoreData(storeId: string): Promise<void> {
-  // ─── Generic starter pack ──────────────────────────────────────────
-  // 3 neutral sample products. The merchant will replace these with
-  // their real catalog. Using a fixed `_id` namespace (`prod_starter_*`)
-  // and `STARTER-*` SKUs keeps them easy to identify + delete.
-  const genericStarterProducts = [
-    {
-      _id: 'prod_starter_1', sku: 'STARTER-001',
-      name: 'Sample Product 1', nameAr: 'منتج تجريبي 1',
-      description: 'Edit this product or delete it and add your own.',
-      descriptionAr: 'عدّل هذا المنتج أو احذفه وأضف منتجاتك الخاصة.',
-      price: 1000, compareAtPrice: 1500,
-      images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80'],
-      category: 'general', material: 'Sample', materialAr: 'تجريبي',
-      rating: 4.8, reviewsCount: 0, stock: 50, isFeatured: true, isNew: true,
-      tierPricing: [{minQty:2,discountPercent:10,label:"Duo",labelAr:"عرض الثنائي"}],
-      createdAt: new Date().toISOString()
-    },
-    {
-      _id: 'prod_starter_2', sku: 'STARTER-002',
-      name: 'Sample Product 2', nameAr: 'منتج تجريبي 2',
-      description: 'Another sample — replace with your own products.',
-      descriptionAr: 'منتج تجريبي آخر — استبدله بمنتجاتك.',
-      price: 2500,
-      images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80'],
-      category: 'general', material: 'Sample', materialAr: 'تجريبي',
-      rating: 4.9, reviewsCount: 0, stock: 30, isFeatured: false, isNew: true,
-      tierPricing: [],
-      createdAt: new Date().toISOString()
-    },
-    {
-      _id: 'prod_starter_3', sku: 'STARTER-003',
-      name: 'Sample Product 3', nameAr: 'منتج تجريبي 3',
-      description: 'Third sample product for your new store.',
-      descriptionAr: 'ثالث منتج تجريبي لمتجرك الجديد.',
-      price: 5000, compareAtPrice: 6500,
-      images: ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80'],
-      category: 'general', material: 'Sample', materialAr: 'تجريبي',
-      rating: 4.7, reviewsCount: 0, stock: 20, isFeatured: true, isNew: false,
-      tierPricing: [{minQty:3,discountPercent:15,label:"Trio",labelAr:"عرض الثلاثي"}],
-      createdAt: new Date().toISOString()
-    },
-  ]
+  // ─── Empty store (no demo products) ──────────────────────────────────
+  // Previously we seeded 3 sample products ("منتج تجريبي 1/2/3") with
+  // Unsplash photos. This caused major merchant confusion: they'd open
+  // their store and find someone else's products + images, then spend
+  // time deleting them. NOT professional.
+  //
+  // Now: the store starts EMPTY. The dashboard shows a friendly
+  // "أضف منتجك الأول" empty state (handled in the Admin UI). The
+  // merchant adds their OWN products from the start — no cleanup needed.
+  //
+  // Wilayas (58 shipping rates) + domains (jewelry/fashion/beauty
+  // presets) + settings ARE still seeded because those are infrastructure
+  // the merchant needs immediately, not content they need to replace.
 
-  // ─── Products ──────────────────────────────────────────────────────
+  // ─── Products — EMPTY (no demo products) ────────────────────────────
+  // The merchant's store starts with 0 products. The Admin dashboard
+  // shows an empty state with a "أضف منتجك الأول" CTA.
   const productCount = await ProductModel.countDocuments({ storeId })
   if (productCount === 0) {
-    const stamped = genericStarterProducts.map(p => ({ ...p, storeId }))
-    await ProductModel.insertMany(stamped, { ordered: false }).catch(() => {})
-    console.log(`[seed] inserted ${genericStarterProducts.length} generic starter products for store ${storeId}`)
+    console.log(`[seed] store ${storeId} starts empty (no demo products) — merchant will add their own`)
   }
 
   // ─── Wilayas ───────────────────────────────────────────────────────

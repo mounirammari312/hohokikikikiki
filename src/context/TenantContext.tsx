@@ -224,41 +224,36 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   // ─── Auth ──────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, password: string) => {
-    let res: Response
+    // IMPORTANT: use authLogin() from client.ts (not raw fetch) so the
+    // CSRF token is auto-fetched + sent. The raw fetch was bypassing
+    // the CSRF layer entirely, causing "CSRF_TOKEN_INVALID" on every login.
     try {
-      res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        signal: AbortSignal.timeout(10000),
-      })
+      const { authLogin } = await import('../services/api/client')
+      const { user, token, storeIds } = await authLogin(email, password)
+      // Save the token under the canonical key only. The legacy
+      // `lumiere_saas_token` key is no longer written (it was the source
+      // of stale-token bugs where one code path cleared it and another
+      // didn't).
+      try {
+        localStorage.setItem(TOKEN_KEY, token)
+        localStorage.setItem(USER_KEY, JSON.stringify(user))
+      } catch {}
+      setUser(user)
+      // If the merchant has stores, attach the first one as the active
+      // storeId so subsequent dashboard calls are scoped correctly.
+      if (storeIds && storeIds.length && !storeId) {
+        setStoreId(storeIds[0])
+        try { localStorage.setItem(ACTIVE_STORE_KEY, storeIds[0]) } catch {}
+      }
     } catch (err: any) {
       // Network error / timeout — throw a clear error so the login form
       // can display a helpful message instead of hanging forever.
       if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
         throw new Error('انتهت مهلة الاتصال — حاول مرة أخرى')
       }
-      throw new Error('LOGIN_FAILED')
-    }
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      throw new Error(body.error || 'LOGIN_FAILED')
-    }
-    const { user, token, storeIds } = await res.json()
-    // Save the token under the canonical key only. The legacy
-    // `lumiere_saas_token` key is no longer written (it was the source
-    // of stale-token bugs where one code path cleared it and another
-    // didn't).
-    try {
-      localStorage.setItem(TOKEN_KEY, token)
-      localStorage.setItem(USER_KEY, JSON.stringify(user))
-    } catch {}
-    setUser(user)
-    // If the merchant has stores, attach the first one as the active
-    // storeId so subsequent dashboard calls are scoped correctly.
-    if (storeIds && storeIds.length && !storeId) {
-      setStoreId(storeIds[0])
-      try { localStorage.setItem(ACTIVE_STORE_KEY, storeIds[0]) } catch {}
+      // apiFetch errors already have a .message from the server response
+      // (e.g. 'INVALID_CREDENTIALS', 'RATE_LIMITED'). Pass them through.
+      throw new Error(err?.body?.error || err?.message || 'LOGIN_FAILED')
     }
   }, [storeId])
 
