@@ -16,7 +16,7 @@ function logPixel(provider: string, payload: PixelEventPayload) {
   console.log(`%c[PIXEL ${provider}]`, 'color:#E6007E;font-weight:bold', payload)
   // In production would call fbq('track', ...) and ttq.track(...)
   // Persist event to localStorage for audit
-  const key = 'lumiere_pixel_logs'
+  const key = 'amugar_pixel_logs'
   const logs = JSON.parse(localStorage.getItem(key) || '[]')
   logs.unshift({ provider, ...payload, at: new Date().toISOString() })
   localStorage.setItem(key, JSON.stringify(logs.slice(0,100)))

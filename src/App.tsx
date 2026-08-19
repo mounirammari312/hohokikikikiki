@@ -46,12 +46,12 @@ import { PwaInstallBanner } from './components/PwaInstallBanner'
  *
  *  Three-tier routing based on hostname + path:
  *
- *  1. PLATFORM APEX (lumiere.saas)
+ *  1. PLATFORM APEX (amugar.saas)
  *     - /                  → PlatformLanding (SaaS marketing + register)
  *     - /super-admin       → SuperAdmin dashboard (super_admin role only)
  *     - /super-admin/login → SuperAdmin login (handled inside SuperAdmin)
  *
- *  2. TENANT SUBDOMAIN (slug.lumiere.saas) or custom domain
+ *  2. TENANT SUBDOMAIN (slug.amugar.saas) or custom domain
  *     - /                  → Home (tenant storefront)
  *     - /shop              → Shop
  *     - /product/:id       → ProductDetail

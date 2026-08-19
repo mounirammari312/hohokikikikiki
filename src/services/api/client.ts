@@ -65,7 +65,7 @@ function getActiveStoreId(): string | undefined {
   if (slugFromUrl) return undefined  // let the server resolve via x-store-slug
   // 3) No URL tenant → use cached storeId from previous dashboard login
   try {
-    const cached = localStorage.getItem('lumiere_saas_active_store')
+    const cached = localStorage.getItem('amugar_saas_active_store')
     if (cached) return cached
   } catch {}
   // 4) Fall back to undefined — the server will resolve via hostname
@@ -90,7 +90,7 @@ function getActiveStoreSlug(): string | undefined {
   const explicitStoreId = urlParams.get('storeId')
   if (explicitStoreId) return undefined
   try {
-    const cached = localStorage.getItem('lumiere_saas_active_slug')
+    const cached = localStorage.getItem('amugar_saas_active_slug')
     if (cached) return cached
   } catch {}
   return undefined
@@ -293,7 +293,7 @@ const PRODUCTS_PATH = '/api/products'
 
 export async function fetchProducts(): Promise<Product[]> {
   const { products } = await cachedGet<{ products: Product[] }>(
-    PRODUCTS_PATH, 'lumiere_products_v3', { products: seedProducts as Product[] }
+    PRODUCTS_PATH, 'amugar_products_v3', { products: seedProducts as Product[] }
   )
   return products || []
 }
@@ -336,7 +336,7 @@ export async function toggleProductFlagApi(id: string, flag: 'isFeatured' | 'isN
 }
 
 /**
- * Toggle a product's visibility in the public LUMIÈRE Marketplace.
+ * Toggle a product's visibility in the public Amugar Marketplace.
  * When true, the product appears at /marketplace for anyone to browse.
  * When false, it only appears in the merchant's own store.
  */
@@ -412,7 +412,7 @@ export async function trackMarketplaceView(productId: string): Promise<void> {
 const ORDERS_PATH = '/api/orders'
 
 export async function fetchOrders(): Promise<Order[]> {
-  const { orders } = await cachedGet<{ orders: Order[] }>(ORDERS_PATH, 'lumiere_orders_v3', { orders: [] as Order[] })
+  const { orders } = await cachedGet<{ orders: Order[] }>(ORDERS_PATH, 'amugar_orders_v3', { orders: [] as Order[] })
   return orders || []
 }
 export async function fetchOrderByNumber(orderNumber: string): Promise<Order | undefined> {
@@ -446,7 +446,7 @@ export async function deleteOrderApi(id: string): Promise<Order[]> {
 const WILAYAS_PATH = '/api/wilayas'
 
 export async function fetchWilayas(): Promise<WilayaRate[]> {
-  const { wilayas } = await cachedGet<{ wilayas: WilayaRate[] }>(WILAYAS_PATH, 'lumiere_wilayas_v3', { wilayas: seedWilayas as WilayaRate[] })
+  const { wilayas } = await cachedGet<{ wilayas: WilayaRate[] }>(WILAYAS_PATH, 'amugar_wilayas_v3', { wilayas: seedWilayas as WilayaRate[] })
   return wilayas || []
 }
 export async function updateWilayaRateApi(code: string, data: Partial<WilayaRate>): Promise<WilayaRate[]> {
@@ -467,7 +467,7 @@ export async function addWilayaApi(data: WilayaRate): Promise<WilayaRate[]> {
 const SETTINGS_PATH = '/api/settings'
 
 export async function fetchSettings(): Promise<StoreSettings> {
-  const { settings } = await cachedGet<{ settings: StoreSettings }>(SETTINGS_PATH, 'lumiere_settings_v3', { settings: defaultSettings })
+  const { settings } = await cachedGet<{ settings: StoreSettings }>(SETTINGS_PATH, 'amugar_settings_v3', { settings: defaultSettings })
   return settings || defaultSettings
 }
 export async function saveSettingsApi(data: StoreSettings): Promise<StoreSettings> {
@@ -481,14 +481,14 @@ export async function saveSettingsApi(data: StoreSettings): Promise<StoreSetting
   // after saving in /admin" — the old code only invalidated the cache,
   // leaving the stale localStorage entry as the fallback for any later
   // failed fetch.
-  primeCache(SETTINGS_PATH, 'lumiere_settings_v3', { settings })
+  primeCache(SETTINGS_PATH, 'amugar_settings_v3', { settings })
   return settings
 }
 export async function updateSettingsApi(patch: Partial<StoreSettings>): Promise<StoreSettings> {
   const { settings } = await apiFetch<{ settings: StoreSettings }>(SETTINGS_PATH, {
     method: 'PATCH', body: JSON.stringify(patch),
   })
-  primeCache(SETTINGS_PATH, 'lumiere_settings_v3', { settings })
+  primeCache(SETTINGS_PATH, 'amugar_settings_v3', { settings })
   return settings
 }
 
@@ -497,7 +497,7 @@ export async function updateSettingsApi(patch: Partial<StoreSettings>): Promise<
 const DOMAINS_PATH = '/api/domains'
 
 export async function fetchDomains(): Promise<StoreDomain[]> {
-  const { domains } = await cachedGet<{ domains: StoreDomain[] }>(DOMAINS_PATH, 'lumiere_domains_v3', { domains: presetDomains as StoreDomain[] })
+  const { domains } = await cachedGet<{ domains: StoreDomain[] }>(DOMAINS_PATH, 'amugar_domains_v3', { domains: presetDomains as StoreDomain[] })
   return domains || (presetDomains as StoreDomain[])
 }
 export async function createCustomDomainApi(data: Omit<StoreDomain, 'id'>): Promise<StoreDomain[]> {
@@ -587,7 +587,7 @@ export async function updateStoreApi(id: string, patch: Partial<TenantStore>): P
 // super-admin functions will still send the token.
 function authHeader(): Record<string, string> {
   if (!isBrowser()) return {}
-  const token = localStorage.getItem('lumiere_token')
+  const token = localStorage.getItem('amugar_token')
   if (!token) return {}
   return {
     'Authorization': `Bearer ${token}`,
@@ -626,7 +626,7 @@ export async function superAdminStats(): Promise<{
 // ─── Cross-tab refresh subscription ─────────────────────────────────────────
 //
 // IMPORTANT (performance fix): we no longer clear the ENTIRE memCache when
-// a `lumiere_*` storage event fires. That was causing cascading refetches:
+// a `amugar_*` storage event fires. That was causing cascading refetches:
 //   1. merchant saves settings → primeCache → storage event
 //   2. this listener fires → memCache.clear() + notifyRefresh()
 //   3. every mounted component re-fetches its data from the server
@@ -650,7 +650,7 @@ function notifyRefresh() { listeners.forEach(fn => fn()) }
 
 if (isBrowser()) {
   window.addEventListener('storage', (e) => {
-    if (e.key && e.key.startsWith('lumiere_')) {
+    if (e.key && e.key.startsWith('amugar_')) {
       // Don't clear the whole cache — just notify subscribers so they
       // re-read the (already-fresh) cached value. The only key that
       // actually changed is `e.key`, and its specific module already

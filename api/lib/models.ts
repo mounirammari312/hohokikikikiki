@@ -84,7 +84,7 @@ const ProductSchema = new mongoose.Schema({
   // from the storefront + dashboard without losing historical order data.
   deletedAt: { type: String, default: null },
   // ─── Marketplace fields ───────────────────────────────────────────────
-  // When true, this product appears in the public LUMIÈRE Marketplace
+  // When true, this product appears in the public Amugar Marketplace
   // (browseable at /marketplace). The merchant toggles this per-product
   // from their dashboard. When false, the product only appears in the
   // merchant's own store (/<slug>).
@@ -224,8 +224,8 @@ const SettingsSchema = new mongoose.Schema({
   storeId: { type: String, required: true, unique: true, index: true },
   metaPixelId: { type: String, default: '' },
   tiktokPixelId: { type: String, default: '' },
-  storeName: { type: String, default: 'LUMIÈRE' },
-  storeNameAr: { type: String, default: 'لوميير' },
+  storeName: { type: String, default: 'Amugar' },
+  storeNameAr: { type: String, default: 'أموغار' },
   currency: { type: String, default: 'د.ج' },
   enableCod: { type: Boolean, default: true },
   phone: { type: String, default: '' },

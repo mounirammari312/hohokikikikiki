@@ -1,13 +1,13 @@
 /**
  * CartContext — fully per-store scoped.
  *
- * The cart is stored under `lumiere_cart__<storeSlug>` so that items
+ * The cart is stored under `amugar_cart__<storeSlug>` so that items
  * added in Store A NEVER appear in Store B's cart. When the user
  * navigates to a different store (?store=xxx changes), the cart is
  * reloaded from the new store's key.
  *
  * IMPORTANT: We do NOT write to any legacy global key. The old
- * `lumiere_cart` key is only read ONCE on first load (migration for
+ * `amugar_cart` key is only read ONCE on first load (migration for
  * the default store) and then never touched again. This prevents
  * cross-store cart leakage which was causing wrong-store orders.
  */
@@ -48,9 +48,9 @@ function getCartKey(): string {
   try {
     const params = new URLSearchParams(window.location.search)
     const slug = params.get('store') || params.get('storeId') || 'default'
-    return `lumiere_cart__${slug}`
+    return `amugar_cart__${slug}`
   } catch {
-    return 'lumiere_cart__default'
+    return 'amugar_cart__default'
   }
 }
 
@@ -70,8 +70,8 @@ export function CartProvider({children}:{children:React.ReactNode}){
         }
         // One-time migration: if the per-store key doesn't exist but
         // the legacy global key does, copy it (ONLY for 'default' store).
-        if (key === 'lumiere_cart__default') {
-          const legacy = localStorage.getItem('lumiere_cart')
+        if (key === 'amugar_cart__default') {
+          const legacy = localStorage.getItem('amugar_cart')
           if (legacy) {
             const parsed = JSON.parse(legacy)
             setItems(parsed)

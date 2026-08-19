@@ -24,7 +24,7 @@ export { seedProducts, seedWilayas, presetDomains, defaultSettings }
 /** Default tenant id used by the demo store + super admin. */
 export const DEFAULT_STORE_ID = 'store_default'
 export const DEFAULT_STORE_SLUG = 'demo'
-export const DEFAULT_SUPER_ADMIN_EMAIL = 'admin@lumiere.saas'
+export const DEFAULT_SUPER_ADMIN_EMAIL = 'admin@amugar.saas'
 export const DEFAULT_SUPER_ADMIN_PASSWORD = 'admin12345'
 
 /** Settings doc _id === storeId (singleton per store). */
@@ -84,8 +84,8 @@ async function doPlatformSeed(): Promise<void> {
       // Setting it to null would trigger E11000 on the unique index when
       // other stores without custom domains are created.
       ownerId: 'su_admin',
-      name: 'LUMIÈRE Demo',
-      nameAr: 'لوميير تجريبي',
+      name: 'Amugar Demo',
+      nameAr: 'أموغار تجريبي',
       status: 'active',
       plan: 'vip',
       planExpiresAt: null,

@@ -8,7 +8,7 @@
  *   1. ?store=<slug> query param   (used on vercel.app + localhost
  *                                    where subdomains aren't available)
  *   2. ?storeId=<id> query param   (used by dashboard + super-admin)
- *   3. Subdomain `slug.lumiere.saas` (production with wildcard DNS)
+ *   3. Subdomain `slug.amugar.saas` (production with wildcard DNS)
  *   4. Custom domain `mystore.com`  (production with custom domains)
  *
  * If none match, we treat the page as the bare platform host (SaaS landing).
@@ -25,7 +25,7 @@ import { getSettings } from '../services/api/settings'
 // are treated as tenant slugs. Configure via VITE_PLATFORM_APEX env.
 const PLATFORM_APEX = (
   (import.meta as any).env?.VITE_PLATFORM_APEX ||
-  'lumiere.saas'
+  'amugar.saas'
 ).toLowerCase()
 
 const PLATFORM_HOSTS = new Set([
@@ -58,15 +58,15 @@ interface TenantCtx {
 const Ctx = createContext<TenantCtx>(null as any)
 
 // We keep the token under a SINGLE canonical localStorage key
-// (`lumiere_token`). The legacy `lumiere_saas_token` key is migrated
+// (`amugar_token`). The legacy `amugar_saas_token` key is migrated
 // away once on app mount (see TenantProvider initializer below) and
 // then removed — keeping both keys in sync caused confusion when one
 // got cleared but not the other.
-const TOKEN_KEY = 'lumiere_token'
-const TOKEN_KEY_LEGACY = 'lumiere_saas_token'
-const USER_KEY = 'lumiere_saas_user'
-const ACTIVE_STORE_KEY = 'lumiere_saas_active_store'
-const ACTIVE_SLUG_KEY = 'lumiere_saas_active_slug'
+const TOKEN_KEY = 'amugar_token'
+const TOKEN_KEY_LEGACY = 'amugar_saas_token'
+const USER_KEY = 'amugar_saas_user'
+const ACTIVE_STORE_KEY = 'amugar_saas_active_store'
+const ACTIVE_SLUG_KEY = 'amugar_saas_active_slug'
 
 /** Read the stored session token (or null).
  *  Only the canonical key is checked — the legacy key is migrated
@@ -90,9 +90,9 @@ function getCachedUser(): MerchantUser | null {
  * Returns null when on the platform apex (no tenant).
  *
  * Examples:
- *   demo.lumiere.saas → 'demo'
+ *   demo.amugar.saas → 'demo'
  *   mystore.com       → null (custom domain — handled separately)
- *   lumiere.saas      → null (platform apex)
+ *   amugar.saas      → null (platform apex)
  *   localhost         → null (no subdomain)
  */
 function detectTenantSlugFromHost(): string | null {
@@ -146,8 +146,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<MerchantUser | null>(() => getCachedUser())
 
-  // One-time migration: copy the legacy `lumiere_saas_token` to the
-  // canonical `lumiere_token` key if the canonical key is empty. This
+  // One-time migration: copy the legacy `amugar_saas_token` to the
+  // canonical `amugar_token` key if the canonical key is empty. This
   // keeps existing logged-in sessions working after the key cleanup.
   useEffect(() => {
     try {
@@ -162,7 +162,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   // Resolution order (mirrors the server's resolveTenant in api/lib/tenant.ts):
   //   1. ?storeId= explicit query → use directly
   //   2. ?store=slug query → cache slug, server resolves it via x-store-slug header
-  //   3. subdomain slug.lumiere.saas → cache slug
+  //   3. subdomain slug.amugar.saas → cache slug
   //   4. cached active slug from localStorage (from previous registration)
   //   5. nothing → platform host (SaaS landing)
   const resolveTenant = useCallback(async () => {
@@ -231,7 +231,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       const { authLogin } = await import('../services/api/client')
       const { user, token, storeIds } = await authLogin(email, password)
       // Save the token under the canonical key only. The legacy
-      // `lumiere_saas_token` key is no longer written (it was the source
+      // `amugar_saas_token` key is no longer written (it was the source
       // of stale-token bugs where one code path cleared it and another
       // didn't).
       try {

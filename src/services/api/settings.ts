@@ -46,7 +46,7 @@ function notifySettingsChanged() {
 // synchronously and calls notifySettingsChanged() directly (no event).
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === 'lumiere_settings_v3' && e.newValue) {
+    if (e.key === 'amugar_settings_v3' && e.newValue) {
       try {
         const parsed = JSON.parse(e.newValue)
         if (parsed && parsed.settings) {

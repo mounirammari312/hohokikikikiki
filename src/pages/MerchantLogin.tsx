@@ -32,8 +32,8 @@ export default function MerchantLogin() {
       // Without the ?store= param, the merchant would land on the
       // "no tenant context" branch → PlatformLanding, and have to
       // manually find a way to reach their dashboard.
-      const slug = localStorage.getItem('lumiere_saas_active_slug')
-      const sid = localStorage.getItem('lumiere_saas_active_store')
+      const slug = localStorage.getItem('amugar_saas_active_slug')
+      const sid = localStorage.getItem('amugar_saas_active_store')
       if (slug) {
         window.location.href = `/admin?store=${encodeURIComponent(slug)}`
       } else if (sid) {

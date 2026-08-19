@@ -47,7 +47,7 @@ export interface ResolvedTenant {
 // Configure your apex/platform domain here. Anything that ends with
 // `.${PLATFORM_APEX}` is treated as a tenant subdomain: `<slug>.platform.com`.
 // In production this should be a Vercel env var.
-const PLATFORM_APEX = (process.env.PLATFORM_APEX || 'lumiere.saas').toLowerCase()
+const PLATFORM_APEX = (process.env.PLATFORM_APEX || 'amugar.saas').toLowerCase()
 
 // Hosts that are definitely the platform itself (not a tenant).
 const PLATFORM_HOSTS = new Set([
@@ -110,7 +110,7 @@ export async function resolveTenant(req: any): Promise<ResolvedTenant> {
 
   // 4) ?store=slug query param — same as #3 but in the URL. Useful for
   //    shareable preview links like
-  //    https://lumiere-saas.vercel.app/?store=my-shop
+  //    https://amugar-saas.vercel.app/?store=my-shop
   const queryStoreSlug = query.get('store')
   if (queryStoreSlug) {
     const slug = String(queryStoreSlug).toLowerCase().trim()

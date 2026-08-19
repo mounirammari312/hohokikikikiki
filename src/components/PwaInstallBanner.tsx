@@ -33,7 +33,7 @@
 import { useEffect, useState } from 'react'
 import { X, Download, Crown } from 'lucide-react'
 
-const DISMISS_KEY = 'lumiere_pwa_install_dismissed_until'
+const DISMISS_KEY = 'amugar_pwa_install_dismissed_until'
 const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000  // 7 days
 
 interface BeforeInstallPromptEvent extends Event {
@@ -138,7 +138,7 @@ export function PwaInstallBanner() {
 
         {/* Text content (RTL: name + tagline) */}
         <div className="flex-1 min-w-0">
-          <div className="font-extrabold text-sm text-[#1A1A1E] truncate">LUMIÈRE SaaS</div>
+          <div className="font-extrabold text-sm text-[#1A1A1E] truncate">Amugar</div>
           <div className="text-xs text-[#7A6F5A] leading-tight mt-0.5">
             <span className="font-bold">أضف المتجر لشاشتك الرئيسية</span>
             <span className="text-[#9A8A6B]"> — للوصول السريع</span>

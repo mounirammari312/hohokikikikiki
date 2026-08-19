@@ -67,7 +67,7 @@ export default function Cart(){
       // `productId:qty` for each cart line; variants are intentionally
       // excluded so re-ordering the same product in a different color
       // still triggers the warning.
-      const lastOrderKey = `lumiere_last_order__${new URLSearchParams(window.location.search).get('store') || 'default'}`
+      const lastOrderKey = `amugar_last_order__${new URLSearchParams(window.location.search).get('store') || 'default'}`
       let lastOrder: { sig?: string; ts?: number } | null = null
       try { lastOrder = JSON.parse(localStorage.getItem(lastOrderKey) || 'null') } catch { lastOrder = null }
       const currentSig = items.map(i => i.product._id + ':' + i.qty).join(',')

@@ -1,7 +1,7 @@
 // @ts-nocheck — serverless function; type-checked by Vercel at deploy time
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- *  LUMIÈRE SaaS — single catch-all API route (multi-tenant)
+ *  Amugar — single catch-all API route (multi-tenant)
  * ─────────────────────────────────────────────────────────────────────────────
  *
  *  Every /api/* request hits this one Serverless Function. Routing is
@@ -259,7 +259,7 @@ function makeToken(user: any) {
  *    3. `x-auth-token: <token>`           (alternative header)
  *    4. `?token=<token>` query param      (fallback for testing)
  *    5. `Authorization: <token>`          (raw token without "Bearer" prefix)
- *    6. Cookie `lumiere_token=<token>`    (if cookies are used)
+ *    6. Cookie `amugar_token=<token>`    (if cookies are used)
  */
 function extractToken(req: any): string | null {
   // 1) Authorization: Bearer <token>
@@ -280,10 +280,10 @@ function extractToken(req: any): string | null {
     const qToken = url.searchParams.get('token')
     if (qToken) return qToken
   } catch {}
-  // 5) Cookie: lumiere_token=<token>
+  // 5) Cookie: amugar_token=<token>
   const cookieHeader = req.headers?.['cookie'] || req.headers?.['Cookie']
   if (cookieHeader && typeof cookieHeader === 'string') {
-    const match = cookieHeader.match(/(?:^|;\s*)lumiere_token=([^;]+)/)
+    const match = cookieHeader.match(/(?:^|;\s*)amugar_token=([^;]+)/)
     if (match) return match[1]
   }
   return null
@@ -341,15 +341,15 @@ async function userFromToken(req: any) {
  * DB connection where the cold-start seed was skipped).
  *
  * Accepted email/password combinations:
- *   - admin@lumiere.saas  /  admin12345   (production default)
- *   - admin@lumiere.com   /  admin123     (alias for convenience)
+ *   - admin@amugar.saas  /  admin12345   (production default)
+ *   - admin@amugar.com   /  admin123     (alias for convenience)
  *
  * Returns the user document (as a plain object) or null if the
  * credentials don't match any default.
  */
 const SUPER_ADMIN_AUTOSEED_CREDENTIALS = [
-  { email: 'admin@lumiere.saas', password: 'admin12345', fullName: 'Super Admin', _id: 'su_admin' },
-  { email: 'admin@lumiere.com', password: 'admin123', fullName: 'Super Admin', _id: 'su_admin' },
+  { email: 'admin@amugar.saas', password: 'admin12345', fullName: 'Super Admin', _id: 'su_admin' },
+  { email: 'admin@amugar.com', password: 'admin123', fullName: 'Super Admin', _id: 'su_admin' },
 ]
 
 async function autoSeedSuperAdmin(email: string, password: string): Promise<any | null> {
@@ -439,7 +439,7 @@ export default async function handler(req: any, res: any) {
       // so client-side JS can't read it, but it's sent on same-site
       // navigations.
       try {
-        res?.setHeader?.('Set-Cookie', `lumiere_csrf=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`)
+        res?.setHeader?.('Set-Cookie', `amugar_csrf=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`)
       } catch {}
       return reply(res, { csrfToken: token, expiresIn: 3600 })
     }
@@ -1263,7 +1263,7 @@ async function productAction(ctx: RouteCtx, id: string) {
     const flag = action === 'toggleFeatured' ? 'isFeatured' : 'isNew'
     await ProductModel.updateOne({ _id: id, storeId: ctx.storeId, deletedAt: null }, { $set: { [flag]: !orig[flag] } })
   } else if (action === 'toggleMarketplace') {
-    // Publish / unpublish the product in the LUMIÈRE Marketplace.
+    // Publish / unpublish the product in the Amugar Marketplace.
     // When publishing for the first time, set marketplacePublishedAt so
     // it appears as a "new arrival" in the marketplace. When unpublishing,
     // keep the publishedAt + views (so re-publishing doesn't reset stats).

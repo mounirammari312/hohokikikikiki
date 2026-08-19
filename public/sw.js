@@ -1,4 +1,4 @@
-// LUMIÈRE SaaS Service Worker
+// Amugar Service Worker
 // ─────────────────────────────────────────────────────────────────────────
 // Caching strategy:
 //   - App shell (HTML, CSS, JS bundles) → StaleWhileRevalidate (instant from cache,
@@ -13,7 +13,7 @@
 //   2. Work partially offline (browse cached products, view cart)
 //   3. Installable as a PWA on mobile home screen
 
-const CACHE_VERSION = 'lumiere-v1'
+const CACHE_VERSION = 'amugar-v1'
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`
 const API_CACHE = `${CACHE_VERSION}-api`
 const IMAGE_CACHE = `${CACHE_VERSION}-images`
@@ -150,13 +150,13 @@ self.addEventListener('fetch', (event) => {
 
 // ─── Message handler: allow pages to trigger cache cleanup ───────────────
 self.addEventListener('message', (event) => {
-  if (event.data === 'lumiere:clear-cache') {
+  if (event.data === 'amugar:clear-cache') {
     Promise.all([
       caches.delete(APP_SHELL_CACHE),
       caches.delete(API_CACHE),
       caches.delete(IMAGE_CACHE),
     ]).then(() => {
-      event.source?.postMessage({ type: 'lumiere:cache-cleared' })
+      event.source?.postMessage({ type: 'amugar:cache-cleared' })
     })
   }
 })

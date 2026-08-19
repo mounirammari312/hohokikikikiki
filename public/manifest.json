@@ -1,6 +1,6 @@
 {
-  "name": "LUMIÈRE SaaS — متجر إلكتروني جزائري",
-  "short_name": "LUMIÈRE",
+  "name": "Amugar — منصة المتاجر الجزائرية",
+  "short_name": "Amugar",
   "description": "منصة جزائرية لإنشاء المتاجر الإلكترونية مع الدفع عند الاستلام في 58 ولاية",
   "lang": "ar",
   "dir": "rtl",
@@ -12,6 +12,12 @@
   "theme_color": "#1A1A1E",
   "categories": ["shopping", "business", "productivity"],
   "icons": [
+    {
+      "src": "/logo.webp",
+      "sizes": "any",
+      "type": "image/webp",
+      "purpose": "any"
+    },
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",

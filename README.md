@@ -1,7 +1,7 @@
-# LUMIÈRE SaaS — منصة المتاجر الجزائرية متعددة المتاجر (Multi-Tenant)
+# Amugar — منصة المتاجر الجزائرية متعددة المتاجر (Multi-Tenant)
 
 تحويل المتجر الفردي إلى **منصة SaaS متعددة المتاجر جاهزة للإنتاج**. كل تاجر
-يحصل على متجره الخاص بنطاق فرعي `slug.lumiere.saas` (أو نطاق مخصص)، مع عزل
+يحصل على متجره الخاص بنطاق فرعي `slug.amugar.saas` (أو نطاق مخصص)، مع عزل
 كامل للبيانات عبر حقل `storeId` في كل مستند.
 
 ## 🏗️ البنية التقنية
@@ -41,16 +41,16 @@
 
 | المستوى | النطاق | المسار | الوصف |
 |---------|--------|--------|-------|
-| المنصة | `lumiere.saas` | `/` | صفحة هبوط SaaS + نموذج التسجيل |
-| المنصة | `lumiere.saas` | `/super-admin` | لوحة المدير العام (super_admin فقط) |
-| المتجر | `slug.lumiere.saas` | `/` | واجهة المتجر (Home, Shop, Product, Cart) |
-| المتجر | `slug.lumiere.saas` | `/admin` | لوحة تحكم التاجر (مصادقة بريد + كلمة سر) |
+| المنصة | `amugar.saas` | `/` | صفحة هبوط SaaS + نموذج التسجيل |
+| المنصة | `amugar.saas` | `/super-admin` | لوحة المدير العام (super_admin فقط) |
+| المتجر | `slug.amugar.saas` | `/` | واجهة المتجر (Home, Shop, Product, Cart) |
+| المتجر | `slug.amugar.saas` | `/admin` | لوحة تحكم التاجر (مصادقة بريد + كلمة سر) |
 
 ### 4. التهيئة التلقائية (Auto-Seed)
 
 عند أول طلب، يُنشئ `seed-runner.ts` تلقائياً:
 - متجر افتراضي `store_default` (slug `demo`)
-- حساب مدير عام `admin@lumiere.saas` / `admin12345`
+- حساب مدير عام `admin@amugar.saas` / `admin12345`
 - بيانات افتراضية للمتجر: 8 منتجات، 28 ولاية، 3 مجالات، إعدادات
 
 عند إنشاء متجر جديد (POST `/api/auth/register` أو `/api/stores`)، يُستدعى
@@ -102,8 +102,8 @@ hohokikikikiki-main/
 | Name | Value | Description |
 |------|-------|-------------|
 | `MONGODB_URI` | `mongodb+srv://...` | رابط MongoDB Atlas |
-| `PLATFORM_APEX` | `lumiere.saas` | النطاق الأساسي للمنصة |
-| `VITE_PLATFORM_APEX` | `lumiere.saas` | نفس القيمة للعميل |
+| `PLATFORM_APEX` | `amugar.saas` | النطاق الأساسي للمنصة |
+| `VITE_PLATFORM_APEX` | `amugar.saas` | نفس القيمة للعميل |
 
 ### 2. النشر
 
@@ -114,15 +114,15 @@ vercel --prod
 ### 3. إعداد النطاقات الفرعية
 
 في Vercel → Project → Settings → Domains، أضف:
-- `lumiere.saas` (المنصة الرئيسية)
-- `*.lumiere.saas` (wildcard لكل متاجر التجار)
+- `amugar.saas` (المنصة الرئيسية)
+- `*.amugar.saas` (wildcard لكل متاجر التجار)
 
 Vercel سيُصدر شهادات SSL تلقائياً لكل نطاق فرعي.
 
 ## 🔑 الحساب الافتراضي
 
 عند أول نشر، يُنشأ حساب المدير العام تلقائياً:
-- **البريد**: `admin@lumiere.saas`
+- **البريد**: `admin@amugar.saas`
 - **كلمة المرور**: `admin12345`
 - **الدور**: `super_admin`
 

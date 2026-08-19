@@ -259,7 +259,7 @@ export default function Home(){
           <div className="absolute -top-16 -left-16 w-48 h-48 rounded-full blur-3xl opacity-30" style={{ background: 'var(--color-primary)' }}/>
           <div className="relative">
             <div className="font-extrabold text-lg" style={{ color: textColor }}>تابعنا على إنستغرام <span style={{ color: 'var(--color-primary)' }}>{store.instagram}</span> {store.enableRoseEdition && <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] px-2 py-0.5 rounded-full ms-2">♥ ÉDITION ROSE</span>}</div>
-            <div className="text-xs mt-1" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>شارك صور منتجاتك بـ #LumiereDz • {store.phone}</div>
+            <div className="text-xs mt-1" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>شارك صور منتجاتك بـ #AmugarDz • {store.phone}</div>
           </div>
           <div className="relative flex gap-2 overflow-x-auto thumb-scroll scrollbar-hide">
             {[1,2,3,4].map(i=> <img key={i} src={`https://images.unsplash.com/photo-${['1515562141207-7a88fb7ce338','1599643477877-530eb83abc8e','1535632066927-ab7c9ab60908','1611591437281-460bfbe1220a'][i-1]}?w=200&q=80`} className={`w-16 h-16 rounded-xl object-cover shrink-0 hover:scale-105 transition ${i===2 && store.enableRoseEdition ? 'ring-2 ring-[#A02A5B]/30 ring-offset-2' : ''}`}/> )}

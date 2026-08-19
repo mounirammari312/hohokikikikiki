@@ -26,7 +26,7 @@ import {
   Package, BarChart3, Phone, Mail, Lock, User, Eye, EyeOff,
 } from 'lucide-react'
 
-const PLATFORM_APEX = ((import.meta as any).env?.VITE_PLATFORM_APEX || 'lumiere.saas').toLowerCase()
+const PLATFORM_APEX = ((import.meta as any).env?.VITE_PLATFORM_APEX || 'amugar.saas').toLowerCase()
 
 const plans = [
   {
@@ -93,7 +93,7 @@ const faqs = [
   { q: 'كم تكلفة إنشاء متجر؟', a: 'الخطة التجريبية مجانية لمدة 14 يوماً بدون بطاقة بنكية. بعدها تختار الخطة المناسبة: ستارتر (2,500 دج/شهر)، برو (6,900 دج/شهر)، أو VIP (15,000 دج/شهر).' },
   { q: 'هل يدعم الدفع عند الاستلام (COD)؟', a: 'نعم، نظام COD كامل مدمج في كل المتاجر. كل طلب يأتيك في لوحة التحكم مع كشف الطلبات المكررة تلقائياً وحماية من الإرسال المزدوج.' },
   { q: 'كيف يعمل الشحن للولايات؟', a: 'حاسبة شحن مدمجة لكل 58 ولاية جزائرية مع أسعار قابلة للتخصيص. يمكنك أيضاً ربط متجرك بـ Yalidine و ZR Express لإنشاء بوالص الشحن تلقائياً.' },
-  { q: 'هل يمكنني ربط نطاقي الخاص؟', a: 'نعم، في خطة برو وما فوق. يمكنك ربط نطاق مخصص مثل mystore.dz مع شهادة SSL مجانية. في الخطة المجانية تحصل على نطاق فرعي slug.lumiere.saas.' },
+  { q: 'هل يمكنني ربط نطاقي الخاص؟', a: 'نعم، في خطة برو وما فوق. يمكنك ربط نطاق مخصص مثل mystore.dz مع شهادة SSL مجانية. في الخطة المجانية تحصل على نطاق فرعي slug.amugar.saas.' },
   { q: 'هل المنصة تدعم Meta Pixel و TikTok Pixel؟', a: 'نعم، مدمجان تلقائياً مع أحداث ViewContent، AddToCart، InitiateCheckout، Purchase. تُسجل المفاتيح من لوحة التحكم في تبويب "التتبع".' },
 ]
 
@@ -117,8 +117,8 @@ export default function PlatformLanding() {
   // is my dashboard?" problem — the merchant lands here from a fresh
   // navigation and sees the direct link to their admin panel.
   const goToDashboard = () => {
-    const slug = localStorage.getItem('lumiere_saas_active_slug')
-    const sid = localStorage.getItem('lumiere_saas_active_store')
+    const slug = localStorage.getItem('amugar_saas_active_slug')
+    const sid = localStorage.getItem('amugar_saas_active_store')
     if (slug) window.location.href = `/admin?store=${encodeURIComponent(slug)}`
     else if (sid) window.location.href = `/admin?storeId=${encodeURIComponent(sid)}`
     else nav('/admin')
@@ -138,12 +138,12 @@ export default function PlatformLanding() {
     try {
       const res = await authRegister(form)
       try {
-        localStorage.setItem('lumiere_token', res.token)
-        localStorage.setItem('lumiere_saas_user', JSON.stringify(res.user))
-        localStorage.setItem('lumiere_saas_active_store', res.storeId)
+        localStorage.setItem('amugar_token', res.token)
+        localStorage.setItem('amugar_saas_user', JSON.stringify(res.user))
+        localStorage.setItem('amugar_saas_active_store', res.storeId)
       } catch {}
       const slug = form.slug || slugify(form.storeName)
-      localStorage.setItem('lumiere_saas_active_slug', slug)
+      localStorage.setItem('amugar_saas_active_slug', slug)
 
       const hostname = window.location.hostname.replace(/^www\./, '')
       const isVercelFree = hostname.includes('vercel.app') || hostname.includes('localhost') || hostname === '127.0.0.1'
@@ -164,7 +164,7 @@ export default function PlatformLanding() {
     setLoading(true)
     try {
       await login(form.email, form.password)
-      const cachedUser = JSON.parse(localStorage.getItem('lumiere_saas_user') || '{}')
+      const cachedUser = JSON.parse(localStorage.getItem('amugar_saas_user') || '{}')
       if (cachedUser.role === 'super_admin') {
         nav('/super-admin')
       } else {
@@ -174,8 +174,8 @@ export default function PlatformLanding() {
         // they'd then have to manually find the "manage products" button
         // to reach their actual dashboard. Now we go straight to /admin
         // with their store's slug so they land on the overview tab.
-        const slug = localStorage.getItem('lumiere_saas_active_slug')
-        const sid = localStorage.getItem('lumiere_saas_active_store')
+        const slug = localStorage.getItem('amugar_saas_active_slug')
+        const sid = localStorage.getItem('amugar_saas_active_store')
         if (slug) {
           window.location.href = `/admin?store=${encodeURIComponent(slug)}`
         } else if (sid) {
@@ -204,7 +204,7 @@ export default function PlatformLanding() {
               <Store size={18} className="text-[#C9A96A]" />
             </div>
             <div className="leading-none">
-              <div className="font-extrabold text-[#1A1A1E] text-lg">LUMIÈRE <span className="text-[#C9A96A]">SaaS</span></div>
+              <div className="font-extrabold text-[#1A1A1E] text-lg">Amugar <span className="text-[#C9A96A]">SaaS</span></div>
               <div className="text-[10px] tracking-widest text-[#9A8A6B]">منصة المتاجر الجزائرية</div>
             </div>
           </div>
@@ -275,7 +275,7 @@ export default function PlatformLanding() {
                     <div className="w-10 h-10 rounded-xl bg-[#1A1A1E] grid place-items-center text-[#C9A96A] font-bold text-sm">L</div>
                     <div>
                       <div className="font-bold text-sm text-[#1A1A1E]">لوحة تحكم المتجر</div>
-                      <div className="text-[10px] text-[#9A8A6B]">{typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : 'lumiere.saas'}/?store=demo</div>
+                      <div className="text-[10px] text-[#9A8A6B]">{typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : 'amugar.saas'}/?store=demo</div>
                     </div>
                   </div>
                   <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
@@ -466,7 +466,7 @@ export default function PlatformLanding() {
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#A02A5B]/8 rounded-full blur-3xl" />
         <div className="relative max-w-[800px] mx-auto px-4 text-center">
           <h2 className="text-[32px] font-extrabold text-white">جاهز تبدأ؟</h2>
-          <p className="text-white/50 mt-3">انضم لعشرات التجار الجزائريين الذين يبيعون عبر LUMIÈRE SaaS</p>
+          <p className="text-white/50 mt-3">انضم لعشرات التجار الجزائريين الذين يبيعون عبر Amugar</p>
           <button onClick={() => setShowRegister(true)} className="mt-8 bg-gradient-to-l from-[#C9A96A] to-[#B8945A] text-white px-10 py-4 rounded-full font-bold flex items-center gap-2 mx-auto hover:opacity-90 transition shadow-xl">
             <Rocket size={20} /> أنشئ متجرك الآن — مجاناً
           </button>
@@ -479,7 +479,7 @@ export default function PlatformLanding() {
           <div>
             <div className="font-extrabold text-white text-lg flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-white/10 grid place-items-center"><Store size={16} className="text-[#C9A96A]" /></div>
-              LUMIÈRE SaaS
+              Amugar
             </div>
             <p className="text-xs mt-3 leading-6">منصة المتاجر الجزائرية — أنشئ متجرك الإلكتروني في دقيقة مع الدفع عند الاستلام لـ 58 ولاية.</p>
           </div>
@@ -495,14 +495,14 @@ export default function PlatformLanding() {
           <div>
             <div className="font-bold text-white text-sm mb-3">تواصل معنا</div>
             <div className="space-y-2 text-xs">
-              <div className="flex items-center gap-2"><Mail size={12} /> support@lumiere.saas</div>
+              <div className="flex items-center gap-2"><Mail size={12} /> support@amugar.saas</div>
               <div className="flex items-center gap-2"><Phone size={12} /> 0550 12 34 56</div>
               <div className="flex items-center gap-2"><Globe size={12} /> الجزائر العاصمة</div>
             </div>
           </div>
         </div>
         <div className="border-t border-white/5 mt-8 pt-6 text-center text-xs">
-          © 2026 LUMIÈRE SaaS — منصة المتاجر الجزائرية. جميع الحقوق محفوظة.
+          © 2026 Amugar — منصة المتاجر الجزائرية. جميع الحقوق محفوظة.
         </div>
       </footer>
 

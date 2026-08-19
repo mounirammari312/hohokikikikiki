@@ -12,11 +12,11 @@
 export type ID = string
 
 export const STORAGE_KEYS = {
-  PRODUCTS: 'lumiere_products_v3',
-  ORDERS: 'lumiere_orders_v3',
-  WILAYAS: 'lumiere_wilayas_v3',
-  SETTINGS: 'lumiere_settings_v3',
-  DOMAINS: 'lumiere_domains_v3',
+  PRODUCTS: 'amugar_products_v3',
+  ORDERS: 'amugar_orders_v3',
+  WILAYAS: 'amugar_wilayas_v3',
+  SETTINGS: 'amugar_settings_v3',
+  DOMAINS: 'amugar_domains_v3',
 } as const
 
 export function load<T>(key: string, fallback: T): T {

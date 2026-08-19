@@ -63,7 +63,7 @@ export default function Admin() {
   })
   const currentSlug = (() => {
     try {
-      return localStorage.getItem('lumiere_saas_active_slug') || 'demo'
+      return localStorage.getItem('amugar_saas_active_slug') || 'demo'
     } catch { return 'demo' }
   })()
   const [q, setQ] = useState('')
@@ -115,6 +115,7 @@ export default function Admin() {
     stock: 10,
     isFeatured: false,
     isNew: true,
+    isPublishedInMarketplace: false,
     attributes: {},
     variants: [],
     tierPricing: [{ minQty: 2, discountPercent: 10, label: 'Duo', labelAr: 'عرض الثنائي' }],
@@ -226,7 +227,7 @@ export default function Admin() {
       const res = await authChangePassword(pwForm.currentPassword, pwForm.newPassword)
       // Update the stored token (the old one is now invalid because the
       // password hash changed).
-      try { localStorage.setItem('lumiere_token', res.token) } catch {}
+      try { localStorage.setItem('amugar_token', res.token) } catch {}
       setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
       await refreshUser()
       showToast('تم تغيير كلمة المرور ✓ — استخدمها في المرة القادمة')
@@ -244,8 +245,8 @@ export default function Admin() {
     url.searchParams.delete('storeId')
     window.history.replaceState(null, '', url.toString())
     try {
-      localStorage.setItem('lumiere_saas_active_slug', store.slug)
-      localStorage.removeItem('lumiere_saas_active_store')
+      localStorage.setItem('amugar_saas_active_slug', store.slug)
+      localStorage.removeItem('amugar_saas_active_store')
     } catch {}
     // Reload so the whole app re-syncs data for the new tenant
     window.location.reload()
@@ -255,8 +256,8 @@ export default function Admin() {
     logout()
     // Clear cached active store + navigate to landing
     try {
-      localStorage.removeItem('lumiere_saas_active_slug')
-      localStorage.removeItem('lumiere_saas_active_store')
+      localStorage.removeItem('amugar_saas_active_slug')
+      localStorage.removeItem('amugar_saas_active_store')
     } catch {}
     window.location.href = '/'
   }
@@ -426,7 +427,7 @@ export default function Admin() {
     const csv = exportOrdersCsv(filteredOrders)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `lumiere-orders-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url)
+    const a = document.createElement('a'); a.href = url; a.download = `amugar-orders-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url)
     showToast('تم تصدير الطلبات بنجاح')
   }
 
@@ -498,6 +499,13 @@ export default function Admin() {
       const cleanImages = prodForm.images.filter(Boolean)
       const payload: any = { ...prodForm, images: cleanImages, price: Number(prodForm.price), compareAtPrice: prodForm.compareAtPrice ? Number(prodForm.compareAtPrice) : undefined, stock: Number(prodForm.stock), rating: Number(prodForm.rating), reviewsCount: Number(prodForm.reviewsCount), attributes: prodForm.attributes || {}, variants: prodForm.variants || [] }
       if (!payload.domainId) payload.domainId = currentDomainForForm.id
+      // Ensure isPublishedInMarketplace is explicitly set (not undefined)
+      // so the server stores it correctly. When creating a new product
+      // with the "نشر في السوق العام" checkbox checked, also set
+      // marketplacePublishedAt so it appears as a "new arrival".
+      if (payload.isPublishedInMarketplace && !payload.marketplacePublishedAt) {
+        payload.marketplacePublishedAt = new Date().toISOString()
+      }
       if (editingProd) {
         const updated = await updateProduct(editingProd._id, payload)
         setProducts([...updated])
@@ -654,7 +662,7 @@ export default function Admin() {
               <Crown size={16} className="text-white" />
             </div>
             <div>
-              <div className="font-extrabold text-sm leading-tight">LUMIÈRE SaaS</div>
+              <div className="font-extrabold text-sm leading-tight">Amugar</div>
               <div className="text-[10px] text-white/50">لوحة تحكم التاجر</div>
             </div>
           </div>
@@ -676,7 +684,7 @@ export default function Admin() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-sm truncate">{currentStore.nameAr || currentStore.name}</div>
-                <div className="text-[10px] text-white/40 truncate dir-ltr text-left" dir="ltr">{currentStore.slug}.lumiere.saas</div>
+                <div className="text-[10px] text-white/40 truncate dir-ltr text-left" dir="ltr">{currentStore.slug}.amugar.saas</div>
               </div>
               <ChevronDown size={14} className="text-white/40 shrink-0" />
             </button>
@@ -990,7 +998,7 @@ export default function Admin() {
                       // active store id (set on login) or the ?storeId= URL
                       // param before giving up.
                       const sid = (typeof window !== 'undefined'
-                        ? (localStorage.getItem('lumiere_saas_active_store') || new URLSearchParams(window.location.search).get('storeId'))
+                        ? (localStorage.getItem('amugar_saas_active_store') || new URLSearchParams(window.location.search).get('storeId'))
                         : null) || storeId || ''
                       if (!sid) { showToast('تعذّر تحديد معرّف المتجر — سجّل الدخول مجدّداً'); return }
                       try {
@@ -1010,7 +1018,7 @@ export default function Admin() {
                 {settings.activeDomainId && (
                   <div className="mt-3 flex items-center gap-2 text-xs">
                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span className="text-emerald-700 font-bold">النطاق الفرعي الحالي: {currentSlug}.lumiere.saas</span>
+                    <span className="text-emerald-700 font-bold">النطاق الفرعي الحالي: {currentSlug}.amugar.saas</span>
                     <span className="text-[#9A8A6B]">— النطاق المخصص سيحل محله بعد تفعيل DNS</span>
                   </div>
                 )}
@@ -1358,7 +1366,7 @@ export default function Admin() {
                     <div><label className="text-xs font-bold">واتساب (بدون +)</label><input value={storeForm.whatsapp} onChange={e => setStoreForm({ ...storeForm, whatsapp: e.target.value })} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm" dir="ltr" placeholder="213550123456" /></div>
                     <div><label className="text-xs font-bold flex gap-1"><Mail size={12} /> البريد</label><input value={storeForm.email} onChange={e => setStoreForm({ ...storeForm, email: e.target.value })} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm" dir="ltr" /></div>
                   </div>
-                  <div><label className="text-xs font-bold flex gap-1"><Instagram size={12} className="text-[#A02A5B]" /> إنستغرام</label><input value={storeForm.instagram} onChange={e => setStoreForm({ ...storeForm, instagram: e.target.value })} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm" placeholder="@lumiere.dz" /></div>
+                  <div><label className="text-xs font-bold flex gap-1"><Instagram size={12} className="text-[#A02A5B]" /> إنستغرام</label><input value={storeForm.instagram} onChange={e => setStoreForm({ ...storeForm, instagram: e.target.value })} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm" placeholder="@amugar.dz" /></div>
                   <div><label className="text-xs font-bold">وصف الفوتر</label><textarea value={storeForm.footerDescriptionAr} onChange={e => setStoreForm({ ...storeForm, footerDescriptionAr: e.target.value })} rows={2} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
                 </div>
               </div>
@@ -1529,11 +1537,11 @@ export default function Admin() {
             <div className="bg-[#1A1A1E] rounded-2xl p-5 text-white relative overflow-hidden">
               <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#C9A96A]/10 rounded-full blur-2xl" />
               <h3 className="font-bold">سجل الأحداث (Live Pixel Logs)</h3>
-              <p className="text-xs text-white/60">آخر 100 حدث محفوظة في localStorage — lumiere_pixel_logs</p>
+              <p className="text-xs text-white/60">آخر 100 حدث محفوظة في localStorage — amugar_pixel_logs</p>
               <div className="mt-3 bg-white/5 border border-white/10 rounded-xl p-3 max-h-[320px] overflow-auto text-xs font-mono space-y-1">
-                {(() => { try { const logs = JSON.parse(localStorage.getItem('lumiere_pixel_logs') || '[]'); if (logs.length === 0) return <span className="text-white/40">لا توجد أحداث بعد — تصفحي المنتجات لإنشاء أحداث</span>; return logs.slice(0, 20).map((l: any, i: number) => <div key={i} className="border-b border-white/10 pb-1"><span className="text-[#C9A96A]">[{new Date(l.at).toLocaleTimeString()}]</span> {l.provider} • {l.event} {l.value ? `• ${l.value} DZD` : ''}</div>) } catch { return '—' } })()}
+                {(() => { try { const logs = JSON.parse(localStorage.getItem('amugar_pixel_logs') || '[]'); if (logs.length === 0) return <span className="text-white/40">لا توجد أحداث بعد — تصفحي المنتجات لإنشاء أحداث</span>; return logs.slice(0, 20).map((l: any, i: number) => <div key={i} className="border-b border-white/10 pb-1"><span className="text-[#C9A96A]">[{new Date(l.at).toLocaleTimeString()}]</span> {l.provider} • {l.event} {l.value ? `• ${l.value} DZD` : ''}</div>) } catch { return '—' } })()}
               </div>
-              <button onClick={() => { localStorage.removeItem('lumiere_pixel_logs'); showToast('تم مسح السجل') }} className="mt-3 w-full bg-white/10 border border-white/20 rounded-full py-2 text-xs font-bold hover:bg-white hover:text-[#1A1A1E] transition">مسح السجل</button>
+              <button onClick={() => { localStorage.removeItem('amugar_pixel_logs'); showToast('تم مسح السجل') }} className="mt-3 w-full bg-white/10 border border-white/20 rounded-full py-2 text-xs font-bold hover:bg-white hover:text-[#1A1A1E] transition">مسح السجل</button>
             </div>
           </div>
         )}
@@ -1695,7 +1703,7 @@ export default function Admin() {
           {/* ═══ MARKETPLACE TAB (نشر المنتجات في السوق العام) ═══════════════
               This is the merchant's marketplace publishing dashboard.
               They can toggle which of their products appear in the public
-              LUMIÈRE Marketplace (browseable at /marketplace).
+              Amugar Marketplace (browseable at /marketplace).
 
               Features:
               - Bulk publish/unpublish toggle
@@ -1711,7 +1719,7 @@ export default function Admin() {
                 <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#A02A5B]/15 rounded-full blur-3xl" />
                 <div className="relative flex items-center justify-between gap-4 flex-wrap">
                   <div>
-                    <h3 className="font-extrabold flex items-center gap-2"><Globe size={18} className="text-[#C9A96A]" /> السوق العام LUMIÈRE Marketplace</h3>
+                    <h3 className="font-extrabold flex items-center gap-2"><Globe size={18} className="text-[#C9A96A]" /> السوق العام Amugar Marketplace</h3>
                     <p className="text-xs text-white/70 mt-1">انشر منتجاتك في السوق العام ليصل إليها آلاف الزبائن. كل منتج منشور يظهر في <a href="/marketplace" target="_blank" className="text-[#C9A96A] underline font-bold">/marketplace</a></p>
                   </div>
                   <div className="flex gap-3">
@@ -2065,7 +2073,7 @@ export default function Admin() {
                             </div>
                             <div className="min-w-0">
                               <div className="font-extrabold truncate">{s.nameAr || s.name}</div>
-                              <div className="text-[11px] text-[#9A8A6B] truncate" dir="ltr">{s.slug}.lumiere.saas</div>
+                              <div className="text-[11px] text-[#9A8A6B] truncate" dir="ltr">{s.slug}.amugar.saas</div>
                             </div>
                           </div>
                           {isActive && (
@@ -2193,8 +2201,8 @@ export default function Admin() {
             </div>
             <div className="overflow-auto p-5 space-y-4 flex-1">
               <div className="grid md:grid-cols-2 gap-3">
-                <div><label className="text-xs font-bold">اسم المجال FR *</label><input value={domainForm.name} onChange={e=> setDomainForm({...domainForm, name:e.target.value})} placeholder="LUMIÈRE MODE" className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white outline-none" dir="ltr"/></div>
-                <div><label className="text-xs font-bold">اسم المجال عربي *</label><input value={domainForm.nameAr} onChange={e=> setDomainForm({...domainForm, nameAr:e.target.value})} placeholder="لوميير موضة" className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white"/></div>
+                <div><label className="text-xs font-bold">اسم المجال FR *</label><input value={domainForm.name} onChange={e=> setDomainForm({...domainForm, name:e.target.value})} placeholder="Amugar MODE" className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white outline-none" dir="ltr"/></div>
+                <div><label className="text-xs font-bold">اسم المجال عربي *</label><input value={domainForm.nameAr} onChange={e=> setDomainForm({...domainForm, nameAr:e.target.value})} placeholder="أموغار موضة" className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white"/></div>
               </div>
               <div><label className="text-xs font-bold">وصف المجال (يظهر في الرئيسية)</label><textarea value={domainForm.descriptionAr} onChange={e=> setDomainForm({...domainForm, descriptionAr:e.target.value})} rows={2} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white"/></div>
               <div className="grid md:grid-cols-2 gap-3">
@@ -2312,6 +2320,9 @@ export default function Admin() {
                 </label>
                 <label className={`px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5 cursor-pointer ${prodForm.isFeatured ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#9A8A6B] border-[#EDE6D8]'}`}>
                   <input type="checkbox" checked={prodForm.isFeatured} onChange={e => setProdForm({ ...prodForm, isFeatured: e.target.checked })} className="hidden" /> <Crown size={12} className={prodForm.isFeatured ? 'text-[#C9A96A]' : ''} /> مميز (الرئيسية)
+                </label>
+                <label className={`px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5 cursor-pointer ${(prodForm as any).isPublishedInMarketplace ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-[#9A8A6B] border-[#EDE6D8]'}`}>
+                  <input type="checkbox" checked={(prodForm as any).isPublishedInMarketplace || false} onChange={e => setProdForm({ ...prodForm, isPublishedInMarketplace: e.target.checked } as any)} className="hidden" /> <Globe size={12} /> نشر في السوق العام
                 </label>
                 <span className="ms-auto text-xs bg-white border border-[#EDE6D8] px-3 py-1.5 rounded-full">{editingProd ? editingProd._id : 'سيتم إنشاء ID تلقائياً'}</span>
               </div>

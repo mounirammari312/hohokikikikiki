@@ -73,10 +73,10 @@ export default function SuperAdmin() {
         return
       }
       // If there's no token, there's nothing to validate — show the login form.
-      // Only check the canonical key (`lumiere_token`); the legacy key has
+      // Only check the canonical key (`amugar_token`); the legacy key has
       // been retired (migrated once on app mount by TenantProvider).
       const token = typeof window !== 'undefined'
-        ? localStorage.getItem('lumiere_token')
+        ? localStorage.getItem('amugar_token')
         : null
       if (!token) {
         if (!cancelled) setAuthChecked(true)
@@ -193,7 +193,7 @@ export default function SuperAdmin() {
               <Crown size={18} className="text-white" />
             </div>
             <div>
-              <div className="font-extrabold text-sm">LUMIÈRE SaaS — Super Admin</div>
+              <div className="font-extrabold text-sm">Amugar — Super Admin</div>
               <div className="text-[10px] text-white/50">لوحة تحكم المنصة</div>
             </div>
           </div>
@@ -467,7 +467,7 @@ function SuperAdminLogin({
             <Crown size={24} className="text-white" />
           </div>
           <h1 className="text-2xl font-extrabold text-[#1A1A1E] mt-3">دخول المدير العام</h1>
-          <p className="text-sm text-[#7A6F5A] mt-1">لوحة تحكم منصة LUMIÈRE SaaS</p>
+          <p className="text-sm text-[#7A6F5A] mt-1">لوحة تحكم منصة Amugar</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border border-[#EDE6D8] shadow-lg space-y-3">

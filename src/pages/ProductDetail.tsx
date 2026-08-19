@@ -142,7 +142,7 @@ export default function ProductDetail(){
       'image': product.images,
       'description': product.descriptionAr,
       'sku': product.sku,
-      'brand': { '@type': 'Brand', 'name': 'LUMIÈRE' },
+      'brand': { '@type': 'Brand', 'name': 'Amugar' },
       'offers': {
         '@type': 'Offer',
         'url': window.location.href,

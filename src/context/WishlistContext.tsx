@@ -1,13 +1,13 @@
 /**
  * WishlistContext — fully per-store scoped.
  *
- * The wishlist is stored under `lumiere_wishlist__<storeSlug>` so that
+ * The wishlist is stored under `amugar_wishlist__<storeSlug>` so that
  * items added in Store A NEVER appear in Store B. When the user
  * navigates to a different store (?store=xxx changes), the wishlist
  * is reloaded from the new store's key.
  *
  * IMPORTANT: We do NOT write to any legacy global key. The old
- * `lumiere_wishlist` key is only read ONCE on first load (migration)
+ * `amugar_wishlist` key is only read ONCE on first load (migration)
  * and then never touched again. This prevents cross-store leakage.
  */
 
@@ -32,9 +32,9 @@ function getWishlistKey(): string {
   try {
     const params = new URLSearchParams(window.location.search)
     const slug = params.get('store') || params.get('storeId') || 'default'
-    return `lumiere_wishlist__${slug}`
+    return `amugar_wishlist__${slug}`
   } catch {
-    return 'lumiere_wishlist__default'
+    return 'amugar_wishlist__default'
   }
 }
 
@@ -54,8 +54,8 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         }
         // One-time migration: if the per-store key doesn't exist but
         // the legacy global key does, copy it (ONLY for 'default' store).
-        if (key === 'lumiere_wishlist__default') {
-          const legacy = localStorage.getItem('lumiere_wishlist')
+        if (key === 'amugar_wishlist__default') {
+          const legacy = localStorage.getItem('amugar_wishlist')
           if (legacy) {
             const parsed = JSON.parse(legacy)
             setItems(parsed)

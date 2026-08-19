@@ -235,7 +235,7 @@ export default function Marketplace() {
               <span className="cormorant text-[#C9A96A] text-lg font-bold">L</span>
             </div>
             <div>
-              <div className="font-extrabold text-sm leading-tight text-[#1A1A1E]">LUMIÈRE</div>
+              <div className="font-extrabold text-sm leading-tight text-[#1A1A1E]">Amugar</div>
               <div className="text-[10px] tracking-widest text-[#9A8A6B]">MARKETPLACE</div>
             </div>
           </Link>
@@ -564,7 +564,7 @@ export default function Marketplace() {
               <div className="w-7 h-7 rounded-lg bg-white/10 grid place-items-center">
                 <span className="cormorant text-[#C9A96A] text-sm font-bold">L</span>
               </div>
-              <span className="text-white/60 font-bold">LUMIÈRE Marketplace</span>
+              <span className="text-white/60 font-bold">Amugar Marketplace</span>
             </div>
             <div className="flex gap-4">
               <Link to="/" className="hover:text-white transition">المنصة</Link>

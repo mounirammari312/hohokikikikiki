@@ -13,4 +13,4 @@ Disallow: /*?store=
 Disallow: /*?storeId=
 
 # Sitemap
-Sitemap: https://lumiere.saas/sitemap.xml
+Sitemap: https://amugar.saas/sitemap.xml
