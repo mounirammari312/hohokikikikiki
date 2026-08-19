@@ -518,6 +518,17 @@ export default async function handler(req: any, res: any) {
       return reply(res, ...(await authRoute(segments, method, req)))
     }
 
+    // ─── Marketplace routes (PUBLIC — no auth, no tenant context) ──────
+    // These serve the /marketplace browse page. They aggregate products
+    // from ALL stores that have `isPublishedInMarketplace: true`.
+    // No auth required (anyone can browse the marketplace).
+    // No tenant context required (marketplace is cross-tenant by design).
+    if (segments[0] === 'marketplace') {
+      await connectDB()
+      await ensureSeeded()
+      return reply(res, ...(await marketplaceRoute(segments, method, req, query)))
+    }
+
     // ─── Match the route FIRST so unknown routes 404 without touching
     //     the DB. ─
     if (segments[0] === 'stores' || segments[0] === 'super-admin') {
@@ -851,6 +862,145 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  MARKETPLACE ROUTES (public — no auth, no tenant context)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+//  The marketplace is a PUBLIC browse page that aggregates products from
+//  ALL stores that have `isPublishedInMarketplace: true`. Think of it as
+//  the "AliExpress / Temu" experience — a customer browses products from
+//  multiple merchants in one place.
+//
+//  Routes:
+//    GET /api/marketplace/products
+//      Query params: ?q=text&category=cat&minPrice=100&maxPrice=5000
+//                    &sort=newest|popular|price_low|price_high
+//                    &page=1&limit=24&storeId=xxx (filter by store)
+//      Returns: { products: [...], total, page, totalPages, stores: [...] }
+//
+//    GET /api/marketplace/stores
+//      Returns: { stores: [...] } — list of stores with published products
+//
+//    GET /api/marketplace/store/:slug
+//      Returns: { store, products: [...] } — a specific merchant's marketplace page
+//
+//    POST /api/marketplace/product/:id/view
+//      Increments the product's marketplaceViews counter (for "trending" sorting)
+
+async function marketplaceRoute(segments: string[], method: string, req: any, query: URLSearchParams): Promise<[any, number]> {
+
+  // GET /api/marketplace/products — browse all published products
+  if (segments.length === 2 && segments[1] === 'products' && method === 'GET') {
+    const q = query.get('q')?.trim() || ''
+    const category = query.get('category') || ''
+    const minPrice = Number(query.get('minPrice')) || 0
+    const maxPrice = Number(query.get('maxPrice')) || 0
+    const sort = query.get('sort') || 'newest'
+    const page = Math.max(1, Number(query.get('page')) || 1)
+    const limit = Math.min(60, Math.max(1, Number(query.get('limit')) || 24))
+    const storeId = query.get('storeId') || ''
+
+    // Build the filter
+    const filter: any = {
+      isPublishedInMarketplace: true,
+      deletedAt: null,
+    }
+    if (category && category !== 'all') filter.category = category
+    if (storeId) filter.storeId = storeId
+    if (minPrice > 0 || maxPrice > 0) {
+      filter.price = {}
+      if (minPrice > 0) filter.price.$gte = minPrice
+      if (maxPrice > 0) filter.price.$lte = maxPrice
+    }
+    // Text search uses the compound text index (nameAr, name, descriptionAr, sku)
+    if (q) {
+      filter.$text = { $search: q }
+    }
+
+    // Build the sort
+    let sortSpec: any = { marketplacePublishedAt: -1 }  // default: newest
+    if (sort === 'popular') sortSpec = { marketplaceViews: -1 }
+    else if (sort === 'price_low') sortSpec = { price: 1 }
+    else if (sort === 'price_high') sortSpec = { price: -1 }
+
+    // Execute query with pagination
+    const skip = (page - 1) * limit
+    const [products, total] = await Promise.all([
+      ProductModel.find(filter, null, { sort: sortSpec, skip, limit }).lean(),
+      ProductModel.countDocuments(filter),
+    ])
+
+    // Also fetch the stores that have published products (for the sidebar)
+    // Only fetch on first page to avoid repeating the query
+    let stores: any[] = []
+    if (page === 1) {
+      const storeIds = [...new Set(products.map(p => p.storeId).filter(Boolean))]
+      if (storeIds.length > 0) {
+        stores = await TenantStoreModel.find({ _id: { $in: storeIds }, status: 'active' }).lean()
+      }
+    }
+
+    const totalPages = Math.ceil(total / limit)
+    return [{
+      products,
+      total,
+      page,
+      totalPages,
+      stores,  // only populated on page 1
+    }, 200]
+  }
+
+  // GET /api/marketplace/stores — list all stores with published products
+  if (segments.length === 2 && segments[1] === 'stores' && method === 'GET') {
+    // Find distinct storeIds that have at least one published product
+    const storeIds = await ProductModel.distinct('storeId', {
+      isPublishedInMarketplace: true,
+      deletedAt: null,
+    })
+    const stores = await TenantStoreModel.find({
+      _id: { $in: storeIds },
+      status: 'active',
+    }).lean()
+    // Attach product count per store
+    const storesWithCounts = await Promise.all(
+      stores.map(async (s) => {
+        const count = await ProductModel.countDocuments({
+          storeId: s._id,
+          isPublishedInMarketplace: true,
+          deletedAt: null,
+        })
+        return { ...s, productCount: count }
+      })
+    )
+    return [{ stores: storesWithCounts }, 200]
+  }
+
+  // GET /api/marketplace/store/:slug — a specific merchant's marketplace page
+  if (segments.length === 3 && segments[1] === 'store' && method === 'GET') {
+    const slug = segments[2]
+    const store = await TenantStoreModel.findOne({ slug, status: 'active' }).lean()
+    if (!store) return [{ error: 'STORE_NOT_FOUND' }, 404]
+
+    const products = await ProductModel.find({
+      storeId: store._id,
+      isPublishedInMarketplace: true,
+      deletedAt: null,
+    }, null, { sort: { marketplacePublishedAt: -1 } }).lean()
+
+    return [{ store, products }, 200]
+  }
+
+  // POST /api/marketplace/product/:id/view — increment view counter
+  // (called when a marketplace visitor opens a product detail page)
+  if (segments.length === 4 && segments[1] === 'product' && segments[3] === 'view' && method === 'POST') {
+    const productId = segments[2]
+    await ProductModel.findByIdAndUpdate(productId, { $inc: { marketplaceViews: 1 } })
+    return [{ ok: true }, 200]
+  }
+
+  return [{ error: 'NOT_FOUND' }, 404]
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  STORES ROUTES (merchant's own store management)
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1112,6 +1262,17 @@ async function productAction(ctx: RouteCtx, id: string) {
   } else if (action === 'toggleFeatured' || action === 'toggleNew') {
     const flag = action === 'toggleFeatured' ? 'isFeatured' : 'isNew'
     await ProductModel.updateOne({ _id: id, storeId: ctx.storeId, deletedAt: null }, { $set: { [flag]: !orig[flag] } })
+  } else if (action === 'toggleMarketplace') {
+    // Publish / unpublish the product in the LUMIÈRE Marketplace.
+    // When publishing for the first time, set marketplacePublishedAt so
+    // it appears as a "new arrival" in the marketplace. When unpublishing,
+    // keep the publishedAt + views (so re-publishing doesn't reset stats).
+    const newPublishState = !orig.isPublishedInMarketplace
+    const update: any = { isPublishedInMarketplace: newPublishState }
+    if (newPublishState && !orig.marketplacePublishedAt) {
+      update.marketplacePublishedAt = new Date().toISOString()
+    }
+    await ProductModel.updateOne({ _id: id, storeId: ctx.storeId, deletedAt: null }, { $set: update })
   } else {
     return { data: { error: 'UNKNOWN_ACTION' }, status: 400 }
   }

@@ -36,6 +36,7 @@ const Wishlist = lazy(() => import('./pages/Wishlist'))
 const PlatformLanding = lazy(() => import('./pages/PlatformLanding'))
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'))
 const MerchantLogin = lazy(() => import('./pages/MerchantLogin'))
+const Marketplace = lazy(() => import('./pages/Marketplace'))
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 
 /**
@@ -170,7 +171,10 @@ function AppRoutes() {
   // previous visit would make "/" show the old storefront instead of
   // the SaaS landing page.
   const isRoot = location.pathname === '/'
-  const tenantMode = !isPlatformHost || (hasStoreParam || (!!(storeId || storeSlug) && !isRoot))
+  const isMarketplace = location.pathname === '/marketplace' || location.pathname.startsWith('/marketplace/')
+  // Marketplace is ALWAYS accessible regardless of tenant context — it's
+  // a public page that aggregates products from ALL stores.
+  const tenantMode = !isPlatformHost || (hasStoreParam || (!!(storeId || storeSlug) && !isRoot)) || isMarketplace
 
   return (
     <>
@@ -178,6 +182,10 @@ function AppRoutes() {
       <div className="min-h-screen bg-[#FFFCF8] flex flex-col">
         <Suspense fallback={<PageFallback />}>
         <Routes>
+          {/* ─── Marketplace (public, always available) ─────────────────── */}
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/marketplace/store/:slug" element={<Marketplace />} />
+
           {/* ─── Platform apex routes (no tenant context) ─────────────── */}
           {!tenantMode && (
             <>

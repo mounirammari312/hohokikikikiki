@@ -3,10 +3,11 @@ import { getOrders, updateOrderStatus, deleteOrder, exportOrdersCsv } from '../s
 import { getWilayas, updateWilayaRate, addWilaya } from '../services/api/wilayas'
 import { getProducts, addProduct, updateProduct, deleteProduct, duplicateProduct, toggleProductFlag } from '../services/api/products'
 import { getSettings, saveSettings } from '../services/api/settings'
-import { updateStoreApi, authUpdateProfile, authChangePassword, listMyStores } from '../services/api/client'
+import { updateStoreApi, authUpdateProfile, authChangePassword, listMyStores, toggleMarketplacePublishApi } from '../services/api/client'
 import { useTenant } from '../context/TenantContext'
 import { getDomains, getActiveDomain, setActiveDomain, createCustomDomain, updateDomain, deleteDomain, duplicateDomain } from '../services/api/domains'
 import { ALGERIAN_DELIVERY_PROVIDERS, defaultDeliveryProviders } from '../services/api/deliveryProviders'
+import { SmartImage } from '../components/SmartImage'
 import type { Order, OrderStatus, WilayaRate, Product, StoreDomain, DomainCategory, AttributeDef, Variant, DeliveryProviderConfig, TenantStore } from '../services/api/types'
 import { formatDZD } from '../lib/utils'
 import {
@@ -40,7 +41,7 @@ export default function Admin() {
   const [settings, setSettings] = useState(() => getSettings())
   const [domains, setDomains] = useState<StoreDomain[]>(() => getDomains())
   const [activeDomain, setActiveDomainState] = useState<StoreDomain>(() => getActiveDomain())
-  const [tab, setTab] = useState<'overview' | 'domains' | 'custom-domain' | 'products' | 'orders' | 'wilayas' | 'store' | 'tracking' | 'delivery' | 'account-profile' | 'account-security' | 'account-stores' | 'account-billing'>('overview')
+  const [tab, setTab] = useState<'overview' | 'domains' | 'custom-domain' | 'products' | 'orders' | 'wilayas' | 'store' | 'tracking' | 'delivery' | 'marketplace' | 'account-profile' | 'account-security' | 'account-stores' | 'account-billing'>('overview')
   // ─── Sidebar (mobile) + my stores list ──────────────────────────────
   // Sidebar slides in on mobile (drawer). On desktop it's always visible.
   // `myStores` is the list of TenantStores the merchant owns — fetched
@@ -600,6 +601,12 @@ export default function Admin() {
         { id: 'delivery', label: 'شركات التوصيل', icon: Truck },
         { id: 'store', label: 'إعدادات المتجر', icon: Store },
         { id: 'tracking', label: 'التتبع والإعلانات', icon: BarChart3 },
+      ],
+    },
+    {
+      title: 'السوق العام (Marketplace)',
+      items: [
+        { id: 'marketplace', label: 'نشر المنتجات', icon: Globe, count: products.filter(p => (p as any).isPublishedInMarketplace).length },
       ],
     },
     {
@@ -1684,6 +1691,196 @@ export default function Admin() {
             </div>
           )
         })()}
+
+          {/* ═══ MARKETPLACE TAB (نشر المنتجات في السوق العام) ═══════════════
+              This is the merchant's marketplace publishing dashboard.
+              They can toggle which of their products appear in the public
+              LUMIÈRE Marketplace (browseable at /marketplace).
+
+              Features:
+              - Bulk publish/unpublish toggle
+              - Per-product toggle switch
+              - Stats: total products, published count, total views
+              - Link to view the marketplace page
+              - Link to view the merchant's own marketplace store page */}
+          {tab === 'marketplace' && (
+            <div className="mt-4 space-y-4">
+              {/* Header with stats */}
+              <div className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#C9A96A]/15 rounded-full blur-3xl" />
+                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#A02A5B]/15 rounded-full blur-3xl" />
+                <div className="relative flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <h3 className="font-extrabold flex items-center gap-2"><Globe size={18} className="text-[#C9A96A]" /> السوق العام LUMIÈRE Marketplace</h3>
+                    <p className="text-xs text-white/70 mt-1">انشر منتجاتك في السوق العام ليصل إليها آلاف الزبائن. كل منتج منشور يظهر في <a href="/marketplace" target="_blank" className="text-[#C9A96A] underline font-bold">/marketplace</a></p>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="bg-white/10 border border-white/15 rounded-xl px-4 py-2 text-center">
+                      <div className="text-[10px] text-white/50">منشورة</div>
+                      <div className="text-2xl font-extrabold text-[#C9A96A]">{products.filter(p => (p as any).isPublishedInMarketplace).length}</div>
+                    </div>
+                    <div className="bg-white/10 border border-white/15 rounded-xl px-4 py-2 text-center">
+                      <div className="text-[10px] text-white/50">إجمالي المنتجات</div>
+                      <div className="text-2xl font-extrabold">{products.length}</div>
+                    </div>
+                    <div className="bg-white/10 border border-white/15 rounded-xl px-4 py-2 text-center">
+                      <div className="text-[10px] text-white/50">مشاهدات</div>
+                      <div className="text-2xl font-extrabold text-[#A02A5B]">{products.reduce((sum, p) => sum + ((p as any).marketplaceViews || 0), 0)}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Info box */}
+              <div className="bg-[#FFFBF0] border border-[#F5E6C8] rounded-2xl p-4 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#C9A96A] text-white grid place-items-center shrink-0">
+                  <Globe size={16} />
+                </div>
+                <div className="text-xs leading-6 text-[#7A6F5A]">
+                  <span className="font-bold text-[#8D6E3A]">كيف يعمل السوق العام؟</span>
+                  <ul className="mt-1.5 space-y-1 list-disc list-inside">
+                    <li>فعّل زر "نشر" بجانب أي منتج ليظهر في صفحة <a href="/marketplace" target="_blank" className="text-[#A02A5B] underline font-bold">/marketplace</a></li>
+                    <li>الزبائن يتصفحون منتجاتك ويشترون مباشرة — الطلب يصلك في لوحة التحكم</li>
+                    <li>بدون عمولة في البداية — مجاني تماماً لجذب التجار</li>
+                    <li>يمكنك إلغاء النشر في أي وقت — المنتج يختفي فوراً من السوق</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Products list with publish toggles */}
+              {products.length === 0 ? (
+                <div className="bg-gradient-to-br from-[#FFFBF0] to-[#FDF2F6] border-2 border-dashed border-[#C9A96A]/30 rounded-2xl p-12 text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#C9A96A] to-[#A02A5B] grid place-items-center mx-auto text-white shadow-lg">
+                    <Package size={28} />
+                  </div>
+                  <div className="font-extrabold text-xl mt-4 text-[#1A1A1E]">لا توجد منتجات بعد</div>
+                  <p className="text-sm text-[#7A6F5A] mt-2 max-w-md mx-auto leading-6">
+                    أضف منتجات أولاً من تبويب "المنتجات"، ثم عُد هنا لنشرها في السوق العام.
+                  </p>
+                  <button onClick={() => setTab('products')} className="mt-5 bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white px-7 py-3 rounded-full font-bold text-sm flex items-center gap-2 mx-auto hover:shadow-xl transition">
+                    <Plus size={16} /> إضافة منتجات
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-white border border-[#EDE6D8] rounded-2xl overflow-hidden">
+                  {/* Bulk actions header */}
+                  <div className="bg-[#FFFCF8] border-b border-[#EDE6D8] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+                    <div className="text-sm font-bold text-[#1A1A1E]">منتجاتك ({products.length})</div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          // Publish ALL products
+                          for (const p of products) {
+                            if (!(p as any).isPublishedInMarketplace) {
+                              try {
+                                const updated = await toggleMarketplacePublishApi(p._id)
+                                setProducts([...updated])
+                              } catch (err: any) {
+                                showToast(describeSaveError(err))
+                                return
+                              }
+                            }
+                          }
+                          showToast('تم نشر كل المنتجات في السوق العام ✓')
+                        }}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-1.5"
+                      >
+                        <Check size={14} /> نشر الكل
+                      </button>
+                      <button
+                        onClick={async () => {
+                          // Unpublish ALL products
+                          for (const p of products) {
+                            if ((p as any).isPublishedInMarketplace) {
+                              try {
+                                const updated = await toggleMarketplacePublishApi(p._id)
+                                setProducts([...updated])
+                              } catch (err: any) {
+                                showToast(describeSaveError(err))
+                                return
+                              }
+                            }
+                          }
+                          showToast('تم إخفاء كل المنتجات من السوق العام')
+                        }}
+                        className="bg-white border border-[#EDE6D8] text-[#9A8A6B] hover:bg-[#FFFCF8] px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-1.5"
+                      >
+                        <X size={14} /> إخفاء الكل
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Product rows with toggle switches */}
+                  <div className="divide-y divide-[#F5EFE6]">
+                    {products.map(p => {
+                      const published = !!(p as any).isPublishedInMarketplace
+                      const views = (p as any).marketplaceViews || 0
+                      const discount = p.compareAtPrice ? Math.round((1 - p.price / p.compareAtPrice) * 100) : 0
+                      return (
+                        <div key={p._id} className="p-4 flex items-center gap-3 hover:bg-[#FFFCF8] transition">
+                          {/* Product image */}
+                          <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#F5EFE6] shrink-0">
+                            <SmartImage src={p.images[0] || ''} alt={p.nameAr} size="thumb" className="w-full h-full" />
+                          </div>
+                          {/* Product info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-sm text-[#1A1A1E] truncate">{p.nameAr}</div>
+                            <div className="flex items-center gap-2 text-xs text-[#9A8A6B] mt-1">
+                              <span className="font-mono">{p.sku}</span>
+                              <span>•</span>
+                              <span className="font-bold text-[#1A1A1E]">{formatDZD(p.price)}</span>
+                              {discount > 0 && <span className="bg-[#FDF2F6] text-[#A02A5B] px-1.5 py-0.5 rounded-full font-bold">-{discount}%</span>}
+                              {published && views > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-[#8D6E3A]">{views} مشاهدة</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          {/* Published status badge */}
+                          {published ? (
+                            <span className="bg-emerald-100 text-emerald-700 text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> منشور
+                            </span>
+                          ) : (
+                            <span className="bg-[#F5EFE6] text-[#9A8A6B] text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0">غير منشور</span>
+                          )}
+                          {/* Toggle switch */}
+                          <button
+                            onClick={async () => {
+                              try {
+                                const updated = await toggleMarketplacePublishApi(p._id)
+                                setProducts([...updated])
+                                showToast(published ? 'تم إخفاء المنتج من السوق' : 'تم نشر المنتج في السوق العام ✓')
+                              } catch (err: any) {
+                                showToast(describeSaveError(err))
+                              }
+                            }}
+                            className={`relative w-12 h-6 rounded-full transition shrink-0 ${published ? 'bg-emerald-500' : 'bg-[#EDE6D8]'}`}
+                            aria-label={published ? 'إخفاء من السوق' : 'نشر في السوق'}
+                          >
+                            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${published ? 'left-0.5' : 'left-6'}`} />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Link to marketplace */}
+              <a href="/marketplace" target="_blank" className="block bg-gradient-to-l from-[#A02A5B] to-[#7A1F44] text-white rounded-2xl p-5 hover:shadow-xl transition">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-extrabold flex items-center gap-2"><Globe size={18} /> مشاهدة السوق العام</div>
+                    <p className="text-xs text-white/70 mt-1">تصفّح كيف تظهر منتجاتك للزبائن في صفحة Marketplace</p>
+                  </div>
+                  <Eye size={24} className="shrink-0" />
+                </div>
+              </a>
+            </div>
+          )}
 
           {/* ═══ ACCOUNT PROFILE TAB ════════════════════════════════════ */}
           {tab === 'account-profile' && (

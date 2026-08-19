@@ -83,6 +83,18 @@ const ProductSchema = new mongoose.Schema({
   // queries filter on `deletedAt: null` so soft-deleted products disappear
   // from the storefront + dashboard without losing historical order data.
   deletedAt: { type: String, default: null },
+  // ─── Marketplace fields ───────────────────────────────────────────────
+  // When true, this product appears in the public LUMIÈRE Marketplace
+  // (browseable at /marketplace). The merchant toggles this per-product
+  // from their dashboard. When false, the product only appears in the
+  // merchant's own store (/<slug>).
+  isPublishedInMarketplace: { type: Boolean, default: false },
+  // When the product was published to the marketplace (for sorting by
+  // "newest arrivals" in the marketplace). Null = never published.
+  marketplacePublishedAt: { type: String, default: null },
+  // View count in the marketplace (for "trending" / "popular" sorting).
+  // Incremented each time a marketplace visitor views the product.
+  marketplaceViews: { type: Number, default: 0 },
 }, { _id: false, versionKey: false, strict: false })
 ProductSchema.index({ storeId: 1, createdAt: -1 })
 ProductSchema.index({ storeId: 1, category: 1 })
@@ -116,6 +128,28 @@ ProductSchema.index(
     weights: { nameAr: 10, name: 8, sku: 5, descriptionAr: 3 },
     name: 'product_text_search',
   }
+)
+// ─── Marketplace indexes ─────────────────────────────────────────────────
+// These power the /marketplace browse page. Partial filter on
+// `isPublishedInMarketplace: true` so only published products are indexed
+// (smaller index, faster queries). The marketplace page typically
+// filters + sorts by these fields:
+//   - by category (jewelry, fashion, electronics, etc.)
+//   - by storeId (when viewing a specific merchant's marketplace page)
+//   - by marketplacePublishedAt (newest arrivals)
+//   - by marketplaceViews (trending / popular)
+//   - by price (low to high, high to low)
+ProductSchema.index(
+  { isPublishedInMarketplace: 1, deletedAt: 1, category: 1, marketplacePublishedAt: -1 },
+  { partialFilterExpression: { isPublishedInMarketplace: true, deletedAt: null } }
+)
+ProductSchema.index(
+  { isPublishedInMarketplace: 1, deletedAt: 1, marketplaceViews: -1 },
+  { partialFilterExpression: { isPublishedInMarketplace: true, deletedAt: null } }
+)
+ProductSchema.index(
+  { isPublishedInMarketplace: 1, deletedAt: 1, price: 1 },
+  { partialFilterExpression: { isPublishedInMarketplace: true, deletedAt: null } }
 )
 
 // ─── Wilaya (per-store override of the 58 Algerian wilayas) ─────────────────

@@ -335,6 +335,78 @@ export async function toggleProductFlagApi(id: string, flag: 'isFeatured' | 'isN
   invalidate(PRODUCTS_PATH); return products
 }
 
+/**
+ * Toggle a product's visibility in the public LUMIÈRE Marketplace.
+ * When true, the product appears at /marketplace for anyone to browse.
+ * When false, it only appears in the merchant's own store.
+ */
+export async function toggleMarketplacePublishApi(id: string): Promise<Product[]> {
+  const { products } = await apiFetch<{ products: Product[] }>(
+    `${PRODUCTS_PATH}/${encodeURIComponent(id)}/action`,
+    { method: 'POST', body: JSON.stringify({ action: 'toggleMarketplace' }) }
+  )
+  invalidate(PRODUCTS_PATH); return products
+}
+
+// ─── Public API: Marketplace (cross-tenant browse) ─────────────────────────
+//
+// These are PUBLIC endpoints — no auth, no tenant context. They aggregate
+// products from ALL stores that have isPublishedInMarketplace: true.
+// Used by the /marketplace browse page.
+
+export interface MarketplaceProduct extends Product {
+  storeId: string
+}
+
+export interface MarketplaceResponse {
+  products: MarketplaceProduct[]
+  total: number
+  page: number
+  totalPages: number
+  stores: TenantStore[]
+}
+
+export interface MarketplaceQuery {
+  q?: string
+  category?: string
+  minPrice?: number
+  maxPrice?: number
+  sort?: 'newest' | 'popular' | 'price_low' | 'price_high'
+  page?: number
+  limit?: number
+  storeId?: string
+}
+
+export async function fetchMarketplaceProducts(opts: MarketplaceQuery = {}): Promise<MarketplaceResponse> {
+  const params = new URLSearchParams()
+  if (opts.q) params.set('q', opts.q)
+  if (opts.category && opts.category !== 'all') params.set('category', opts.category)
+  if (opts.minPrice) params.set('minPrice', String(opts.minPrice))
+  if (opts.maxPrice) params.set('maxPrice', String(opts.maxPrice))
+  if (opts.sort) params.set('sort', opts.sort)
+  if (opts.page) params.set('page', String(opts.page))
+  if (opts.limit) params.set('limit', String(opts.limit))
+  if (opts.storeId) params.set('storeId', opts.storeId)
+  const qs = params.toString()
+  return await apiFetch<MarketplaceResponse>(`/api/marketplace/products${qs ? '?' + qs : ''}`)
+}
+
+export async function fetchMarketplaceStores(): Promise<{ stores: (TenantStore & { productCount: number })[] }> {
+  return await apiFetch('/api/marketplace/stores')
+}
+
+export async function fetchMarketplaceStore(slug: string): Promise<{ store: TenantStore; products: MarketplaceProduct[] }> {
+  return await apiFetch(`/api/marketplace/store/${encodeURIComponent(slug)}`)
+}
+
+export async function trackMarketplaceView(productId: string): Promise<void> {
+  try {
+    await apiFetch(`/api/marketplace/product/${encodeURIComponent(productId)}/view`, { method: 'POST' })
+  } catch {
+    // Non-critical — don't throw if view tracking fails
+  }
+}
+
 // ─── Public API: Orders ─────────────────────────────────────────────────────
 
 const ORDERS_PATH = '/api/orders'

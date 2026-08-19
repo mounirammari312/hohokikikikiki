@@ -135,6 +135,10 @@ export interface Product {
   tierPricing: { minQty: number; discountPercent: number; label: string; labelAr: string }[]
   createdAt: string
   domainId?: string
+  // ─── Marketplace fields ─────────────────────────────────────────────
+  isPublishedInMarketplace?: boolean
+  marketplacePublishedAt?: string | null
+  marketplaceViews?: number
 }
 
 export interface WilayaRate {
