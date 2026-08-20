@@ -1,11 +1,11 @@
 /**
- * Marketplace — Professional multi-category marketplace
+ * Marketplace — Temu/AliExpress-style rich marketplace.
  * ─────────────────────────────────────────────────────────────────────────
  *
  *  Features:
  *    - LEFT SIDEBAR (persistent on desktop, drawer on mobile):
  *      • Logo + "أنشئ متجرك" CTA
- *      • Main categories with icons (electronics, fashion, beauty, etc.)
+ *      • Main categories with icons
  *      • Price range filter
  *      • Store filter (browse by merchant)
  *      • Clear filters button
@@ -13,24 +13,37 @@
  *    - TOP BAR:
  *      • Search (full width)
  *      • Sort dropdown
- *      • Results count
+ *      • Live viewers counter ("X browsing now")
  *
- *    - HERO BANNER (first page only):
- *      • Gradient + live stats
+ *    - LIVE TICKER (animated marquee of recent orders)
+ *    - BANNER CAROUSEL (auto-rotating 5 promotional banners)
+ *    - CIRCULAR CATEGORIES (horizontal scrolling icons)
+ *    - TRUST BADGES (COD, 58 wilayas, verified, secure, returns)
+ *    - COUPON BANNER (500 DZD discount, copy-to-clipboard)
  *
- *    - FLASH DEALS section (discounted products)
+ *    - FLASH DEALS section (with live countdown timer)
  *    - TRENDING section (most viewed)
  *    - NEW ARRIVALS section (recently published)
+ *    - TOP STORES ranking (sidebar, desktop only)
+ *
  *    - ALL PRODUCTS grid (paginated)
  *
- *    - PRODUCT CARDS (AliExpress/Temu style):
- *      • Image with discount badge
+ *    - PRODUCT CARDS (Enhanced AliExpress/Temu style):
+ *      • Image with discount ribbon
+ *      • New badge, Flash badge
+ *      • Wishlist heart button
+ *      • Quick add-to-cart (hover reveal)
  *      • Store name + verified badge
- *      • Product name (2 lines)
+ *      • Star rating + reviews count
  *      • Price in red + original price strikethrough
- *      • Rating stars + sold count
- *      • "COD" badge (cash on delivery)
- *      • Stock indicator
+ *      • "Sold X today" badge
+ *      • "COD" + "Free delivery" badges
+ *      • Pulsing low stock indicator
+ *
+ *    - FLOATING BUTTONS (back to top + cart, desktop)
+ *    - BOTTOM MOBILE NAV (Home / Browse / Cart / Account)
+ *    - TOAST NOTIFICATIONS (recent orders, every 25-40s)
+ *    - APP DOWNLOAD BANNER (with QR code)
  *
  *  This page is PUBLIC — no auth required. Anyone can browse.
  */
@@ -48,10 +61,25 @@ import type { MarketplaceProduct } from '../services/api/client'
 import type { TenantStore } from '../services/api/types'
 import { formatDZD } from '../lib/utils'
 import { SmartImage } from '../components/SmartImage'
+import { useCart } from '../context/CartContext'
+import { useWishlist } from '../context/WishlistContext'
 
-// ─── Main marketplace categories (broad, multi-niche) ──────────────────────
-// These are TOP-LEVEL categories that cover ALL possible merchant niches.
-// Each has an icon (lucide-react) + Arabic label.
+// Marketplace UI components
+import { CountdownTimer } from '../components/marketplace/CountdownTimer'
+import { LiveTicker } from '../components/marketplace/LiveTicker'
+import { LiveViewers } from '../components/marketplace/LiveViewers'
+import { BannerCarousel } from '../components/marketplace/BannerCarousel'
+import { CategoriesCircle } from '../components/marketplace/CategoriesCircle'
+import { CouponBanner } from '../components/marketplace/CouponBanner'
+import { EnhancedMarketplaceProductCard } from '../components/marketplace/EnhancedProductCard'
+import { TopStores } from '../components/marketplace/TopStores'
+import { TrustBadges } from '../components/marketplace/TrustBadges'
+import { FloatingButtons } from '../components/marketplace/FloatingButtons'
+import { BottomMobileNav } from '../components/marketplace/BottomMobileNav'
+import { ToastNotifications } from '../components/marketplace/ToastNotifications'
+import { AppDownloadBanner } from '../components/marketplace/AppDownloadBanner'
+
+// ─── Main marketplace categories (sidebar) ──────────────────────────────────
 const MAIN_CATEGORIES = [
   { key: 'all',           labelAr: 'كل الفئات',    icon: ShoppingBag },
   { key: 'electronics',   labelAr: 'إلكترونيات',    icon: Smartphone },
@@ -91,6 +119,7 @@ export default function Marketplace() {
   const navigate = useNavigate()
   const [products, setProducts] = useState<MarketplaceProduct[]>([])
   const [stores, setStores] = useState<TenantStore[]>([])
+  const [storesWithCounts, setStoresWithCounts] = useState<(TenantStore & { productCount?: number })[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -114,20 +143,7 @@ export default function Marketplace() {
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     try {
-      // Map main category to product categories for filtering
-      // e.g. if user selects "jewelry", we need to filter by necklace OR ring OR earring OR bracelet
       let categoryFilter = category
-      if (category !== 'all' && CATEGORY_MAP[category]) {
-        // It's a sub-category, use as-is
-      } else if (category !== 'all') {
-        // It's a main category — find all sub-categories that map to it
-        const subCats = Object.entries(CATEGORY_MAP).filter(([, main]) => main === category).map(([sub]) => sub)
-        if (subCats.length > 0) {
-          // The API accepts a single category — we'll filter client-side for now
-          // TODO: server should accept comma-separated categories
-        }
-      }
-
       const res = await fetchMarketplaceProducts({
         q: q || undefined,
         category: categoryFilter !== 'all' ? categoryFilter : undefined,
@@ -140,8 +156,7 @@ export default function Marketplace() {
       })
       let fetchedProducts = res.products || []
 
-      // Client-side main-category filtering (when a main category is selected,
-      // filter by all sub-categories that belong to it)
+      // Client-side main-category filtering
       if (category !== 'all' && !CATEGORY_MAP[category]) {
         const subCats = Object.entries(CATEGORY_MAP).filter(([, main]) => main === category).map(([sub]) => sub)
         if (subCats.length > 0) {
@@ -165,6 +180,18 @@ export default function Marketplace() {
 
   useEffect(() => { void fetchProducts() }, [fetchProducts])
   useEffect(() => { setPage(1) }, [q, category, sort, minPrice, maxPrice, storeId])
+
+  // Fetch top stores list (for the ranking sidebar widget)
+  useEffect(() => {
+    void (async () => {
+      try {
+        const { stores: list } = await fetchMarketplaceStores()
+        setStoresWithCounts(list || [])
+      } catch {
+        // Non-critical
+      }
+    })()
+  }, [])
 
   // If storeSlug is provided, fetch that store's profile
   useEffect(() => {
@@ -218,12 +245,16 @@ export default function Marketplace() {
     }).slice(0, 6)
   }, [products, isMainPage])
 
+  // Pool of product names for the live ticker & toast notifications
+  const productNamesPool = useMemo(() => {
+    return products.slice(0, 30).map(p => p.nameAr).filter(Boolean)
+  }, [products])
+
   const hasActiveFilters = q || category !== 'all' || minPrice || maxPrice || storeId
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex">
       {/* ═══ SIDEBAR ═════════════════════════════════════════════════════ */}
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-[#1A1A1E]/60 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -377,6 +408,11 @@ export default function Marketplace() {
               </div>
             </div>
 
+            {/* Live viewers (desktop) */}
+            <div className="hidden md:block">
+              <LiveViewers />
+            </div>
+
             {/* Sort */}
             <select
               value={sort}
@@ -390,8 +426,13 @@ export default function Marketplace() {
           </div>
         </header>
 
+        {/* Live ticker (only on main page) */}
+        {isMainPage && !storeProfile && (
+          <LiveTicker productNames={productNamesPool} />
+        )}
+
         {/* Content area */}
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6 pb-24 lg:pb-6">
           {/* Store profile header (when viewing /marketplace/store/:slug) */}
           {storeProfile && (
             <div className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white rounded-2xl p-6 mb-6 relative overflow-hidden">
@@ -411,154 +452,230 @@ export default function Marketplace() {
             </div>
           )}
 
-          {/* Hero banner (main page only) */}
+          {/* ═══ Main page hero zone ═════════════════════════════════════════ */}
           {isMainPage && !storeProfile && (
-            <div className="relative rounded-3xl overflow-hidden mb-6 bg-gradient-to-l from-[#1A1A1E] via-[#2D2D35] to-[#1A1A1E]">
-              <div className="absolute -top-20 -right-20 w-80 h-80 bg-[#C9A96A]/20 rounded-full blur-3xl" />
-              <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-[#A02A5B]/20 rounded-full blur-3xl" />
-              <div className="relative p-6 md:p-10 text-white">
-                <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 rounded-full px-3 py-1 text-xs font-bold mb-3">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  {total} منتج من {stores.length} متجر
+            <>
+              {/* Banner Carousel */}
+              <BannerCarousel className="mb-4" />
+
+              {/* Circular categories */}
+              <div className="bg-white border border-[#E5E7EB] rounded-2xl mb-4">
+                <CategoriesCircle active={category} onSelect={setCategory} />
+              </div>
+
+              {/* Trust badges */}
+              <TrustBadges className="mb-4" />
+
+              {/* Coupon banner */}
+              <CouponBanner className="mb-6" />
+            </>
+          )}
+
+          {/* Hero stats banner (only when filters active — replaces the carousel) */}
+          {!isMainPage && !storeProfile && (
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#F3F4F6] grid place-items-center shrink-0">
+                <Search size={18} className="text-[#9A8A6B]" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-sm text-[#1A1A1E]">
+                  {hasActiveFilters ? 'نتائج البحث' : 'كل المنتجات'}
                 </div>
-                <h1 className="text-2xl md:text-4xl font-extrabold leading-tight">
-                  تسوّق من أفضل المتاجر الجزائرية
-                  <span className="block text-[#C9A96A] mt-1">في مكان واحد</span>
-                </h1>
-                <p className="text-white/70 text-sm md:text-base mt-3 max-w-lg leading-7">
-                  اكتشف آلاف المنتجات من متاجر جزائرية موثوقة. الدفع عند الاستلام، توصيل لكل الولايات، وأسعار تنافسية.
-                </p>
-                <div className="flex flex-wrap gap-3 mt-5">
-                  <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 text-xs font-bold">
-                    <ShieldCheck size={14} className="text-emerald-400" /> دفع عند الاستلام
+                <div className="text-xs text-[#9A8A6B]">
+                  {loading ? 'جاري التحميل...' : `${total} منتج`}
+                </div>
+              </div>
+              <LiveViewers className="hidden sm:inline-flex" />
+            </div>
+          )}
+
+          {/* ═══ Flash Deals section ════════════════════════════════════════ */}
+          {flashDeals.length > 0 && (
+            <div className="mb-6 bg-gradient-to-l from-[#DC2626]/5 via-[#F59E0B]/5 to-[#DC2626]/5 border border-[#DC2626]/20 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#DC2626] to-[#B91C1C] grid place-items-center shrink-0 shadow-md">
+                    <Zap size={18} className="text-white" />
                   </div>
-                  <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 text-xs font-bold">
-                    <Truck size={14} className="text-[#C9A96A]" /> توصيل 58 ولاية
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 text-xs font-bold">
-                    <Package size={14} className="text-[#A02A5B]" /> {total} منتج
+                  <div>
+                    <h2 className="text-lg font-extrabold text-[#1A1A1E]">عروض اليوم</h2>
+                    <p className="text-[11px] text-[#9A8A6B]">خصومات حصرية لفترة محدودة</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-[#9A8A6B] font-medium">ينتهي خلال</span>
+                  <CountdownTimer hours={8} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {flashDeals.map(p => (
+                  <EnhancedMarketplaceProductCard
+                    key={p._id}
+                    p={p}
+                    stores={stores}
+                    onClick={() => handleProductClick(p)}
+                    flash
+                  />
+                ))}
               </div>
             </div>
           )}
 
-          {/* Flash Deals section */}
-          {flashDeals.length > 0 && (
-            <Section title="عروض اليوم" subtitle="خصومات حصرية لفترة محدودة" icon={Zap} iconBg="from-[#DC2626] to-[#B91C1C]">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {flashDeals.map(p => <MarketplaceProductCard key={p._id} p={p} stores={stores} onClick={() => handleProductClick(p)} />)}
-              </div>
-            </Section>
-          )}
-
-          {/* Trending section */}
+          {/* ═══ Trending section ═══════════════════════════════════════════ */}
           {trending.length > 0 && (
             <Section title="الأكثر رواجاً" subtitle="منتجات يبحث عنها الجميع" icon={Flame} iconBg="from-[#A02A5B] to-[#7A1F44]">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {trending.map(p => <MarketplaceProductCard key={p._id} p={p} stores={stores} onClick={() => handleProductClick(p)} />)}
+                {trending.map(p => (
+                  <EnhancedMarketplaceProductCard
+                    key={p._id}
+                    p={p}
+                    stores={stores}
+                    onClick={() => handleProductClick(p)}
+                  />
+                ))}
               </div>
             </Section>
           )}
 
-          {/* New arrivals section */}
+          {/* ═══ New arrivals section ════════════════════════════════════════ */}
           {newArrivals.length > 0 && (
             <Section title="وصل حديثاً" subtitle="أحدث المنتجات في السوق" icon={Sparkles} iconBg="from-[#C9A96A] to-[#B8945A]">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {newArrivals.map(p => <MarketplaceProductCard key={p._id} p={p} stores={stores} onClick={() => handleProductClick(p)} />)}
+                {newArrivals.map(p => (
+                  <EnhancedMarketplaceProductCard
+                    key={p._id}
+                    p={p}
+                    stores={stores}
+                    onClick={() => handleProductClick(p)}
+                  />
+                ))}
               </div>
             </Section>
           )}
 
-          {/* All products / filtered results */}
-          <div className="mt-6">
-            {/* Section header */}
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-lg font-extrabold text-[#1A1A1E]">
-                  {storeProfile ? 'منتجات المتجر' : hasActiveFilters ? 'نتائج البحث' : 'كل المنتجات'}
-                </h2>
-                <p className="text-xs text-[#9A8A6B] mt-0.5">
-                  {loading ? 'جاري التحميل...' : `${total} منتج`}
-                </p>
+          {/* ═══ Main grid + Top Stores (two-column on desktop) ═══════════════ */}
+          <div className="mt-6 grid lg:grid-cols-[1fr_280px] gap-4">
+            {/* Main product grid */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="text-lg font-extrabold text-[#1A1A1E]">
+                    {storeProfile ? 'منتجات المتجر' : hasActiveFilters ? 'نتائج البحث' : 'كل المنتجات'}
+                  </h2>
+                  <p className="text-xs text-[#9A8A6B] mt-0.5">
+                    {loading ? 'جاري التحميل...' : `${total} منتج`}
+                  </p>
+                </div>
+                {totalPages > 1 && (
+                  <div className="text-xs text-[#9A8A6B]">
+                    صفحة {page} من {totalPages}
+                  </div>
+                )}
               </div>
+
+              {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {Array.from({ length: 15 }).map((_, i) => (
+                    <div key={i} className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden">
+                      <div className="aspect-square skeleton" />
+                      <div className="p-2.5 space-y-2">
+                        <div className="h-3 skeleton rounded" />
+                        <div className="h-4 w-1/2 skeleton rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : products.length === 0 ? (
+                <div className="bg-white border border-[#E5E7EB] rounded-2xl p-12 text-center">
+                  <div className="w-16 h-16 rounded-full bg-[#F3F4F6] grid place-items-center mx-auto mb-3">
+                    <Search size={24} className="text-[#9A8A6B]" />
+                  </div>
+                  <div className="font-bold text-[#1A1A1E]">لا توجد منتجات مطابقة</div>
+                  <p className="text-sm text-[#9A8A6B] mt-1">جرّب تغيير الفلاتر أو كلمة البحث</p>
+                  {hasActiveFilters && (
+                    <button onClick={() => { setQ(''); setCategory('all'); setMinPrice(0); setMaxPrice(0); setStoreId('') }} className="mt-4 bg-[#1A1A1E] text-white px-5 py-2 rounded-full text-xs font-bold">
+                      مسح الفلاتر
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {products.map(p => (
+                    <EnhancedMarketplaceProductCard
+                      key={p._id}
+                      p={p}
+                      stores={stores}
+                      onClick={() => handleProductClick(p)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
               {totalPages > 1 && (
-                <div className="text-xs text-[#9A8A6B]">
-                  صفحة {page} من {totalPages}
+                <div className="flex items-center justify-center gap-2 mt-8">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="bg-white border border-[#E5E7EB] rounded-full w-10 h-10 grid place-items-center disabled:opacity-40 hover:bg-[#F3F4F6] transition"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                  {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
+                    const p = i + 1
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        className={`w-10 h-10 rounded-full text-sm font-bold transition ${page === p ? 'bg-[#1A1A1E] text-white' : 'bg-white border border-[#E5E7EB] text-[#4B5563] hover:bg-[#F3F4F6]'}`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  })}
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="bg-white border border-[#E5E7EB] rounded-full w-10 h-10 grid place-items-center disabled:opacity-40 hover:bg-[#F3F4F6] transition"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Product grid */}
-            {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {Array.from({ length: 15 }).map((_, i) => (
-                  <div key={i} className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden">
-                    <div className="aspect-square skeleton" />
-                    <div className="p-2.5 space-y-2">
-                      <div className="h-3 skeleton rounded" />
-                      <div className="h-4 w-1/2 skeleton rounded" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : products.length === 0 ? (
-              <div className="bg-white border border-[#E5E7EB] rounded-2xl p-12 text-center">
-                <div className="w-16 h-16 rounded-full bg-[#F3F4F6] grid place-items-center mx-auto mb-3">
-                  <Search size={24} className="text-[#9A8A6B]" />
-                </div>
-                <div className="font-bold text-[#1A1A1E]">لا توجد منتجات مطابقة</div>
-                <p className="text-sm text-[#9A8A6B] mt-1">جرّب تغيير الفلاتر أو كلمة البحث</p>
-                {hasActiveFilters && (
-                  <button onClick={() => { setQ(''); setCategory('all'); setMinPrice(0); setMaxPrice(0); setStoreId('') }} className="mt-4 bg-[#1A1A1E] text-white px-5 py-2 rounded-full text-xs font-bold">
-                    مسح الفلاتر
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {products.map(p => (
-                  <MarketplaceProductCard key={p._id} p={p} stores={stores} onClick={() => handleProductClick(p)} />
-                ))}
-              </div>
-            )}
+            {/* Right sidebar: Top Stores (desktop only, main page only) */}
+            {isMainPage && !storeProfile && storesWithCounts.length > 0 && (
+              <div className="hidden lg:block">
+                <div className="sticky top-20 space-y-4">
+                  <TopStores stores={storesWithCounts} />
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-8">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="bg-white border border-[#E5E7EB] rounded-full w-10 h-10 grid place-items-center disabled:opacity-40 hover:bg-[#F3F4F6] transition"
-                >
-                  <ChevronRight size={18} />
-                </button>
-                {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
-                  const p = i + 1
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => setPage(p)}
-                      className={`w-10 h-10 rounded-full text-sm font-bold transition ${page === p ? 'bg-[#1A1A1E] text-white' : 'bg-white border border-[#E5E7EB] text-[#4B5563] hover:bg-[#F3F4F6]'}`}
-                    >
-                      {p}
-                    </button>
-                  )
-                })}
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="bg-white border border-[#E5E7EB] rounded-full w-10 h-10 grid place-items-center disabled:opacity-40 hover:bg-[#F3F4F6] transition"
-                >
-                  <ChevronLeft size={18} />
-                </button>
+                  {/* "Create your store" promo card */}
+                  <div className="bg-gradient-to-br from-[#C9A96A]/10 to-[#A02A5B]/10 border border-[#C9A96A]/30 rounded-2xl p-4">
+                    <div className="w-10 h-10 rounded-xl bg-white grid place-items-center mb-2 shadow-sm">
+                      <StoreIcon size={18} className="text-[#C9A96A]" />
+                    </div>
+                    <h3 className="font-extrabold text-sm text-[#1A1A1E] mb-1">متجر مجاني 100%</h3>
+                    <p className="text-[11px] text-[#4B5563] leading-5 mb-3">
+                      أنشئ متجرك في أقل من دقيقة، انشر منتجاتك في السوق العام مجاناً، واحصل على عملاء جدد.
+                    </p>
+                    <Link to="/" className="block bg-[#1A1A1E] text-white text-center py-2 rounded-xl text-xs font-bold hover:bg-[#2D2D35] transition">
+                      أنشئ متجرك الآن
+                    </Link>
+                  </div>
+                </div>
               </div>
             )}
           </div>
+
+          {/* App download banner */}
+          {isMainPage && !storeProfile && (
+            <AppDownloadBanner className="mt-8" />
+          )}
         </main>
 
         {/* Footer */}
-        <footer className="bg-[#1A1A1E] text-white/40 py-6 px-4 md:px-6 mt-8">
+        <footer className="bg-[#1A1A1E] text-white/40 py-6 px-4 md:px-6 mt-8 pb-24 lg:pb-6">
           <div className="max-w-[1200px] mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-white/10 grid place-items-center">
@@ -574,6 +691,11 @@ export default function Marketplace() {
           </div>
         </footer>
       </div>
+
+      {/* ═══ Floating UI (overlay) ═════════════════════════════════════════ */}
+      <FloatingButtons />
+      <BottomMobileNav />
+      <ToastNotifications productNames={productNamesPool} />
     </div>
   )
 }
@@ -599,83 +721,5 @@ function Section({ title, subtitle, icon: Icon, iconBg, children }: {
       </div>
       {children}
     </div>
-  )
-}
-
-// ─── Product Card (AliExpress/Temu style) ────────────────────────────────────
-function MarketplaceProductCard({ p, stores, onClick }: {
-  p: MarketplaceProduct
-  stores: TenantStore[]
-  onClick: () => void
-}) {
-  const discount = p.compareAtPrice ? Math.round((1 - p.price / p.compareAtPrice) * 100) : 0
-  const store = stores.find(s => s._id === p.storeId)
-  const views = (p as any).marketplaceViews || 0
-
-  return (
-    <button
-      onClick={onClick}
-      className="group bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden hover:shadow-lg hover:border-[#C9A96A]/40 transition-all text-right w-full"
-    >
-      {/* Image */}
-      <div className="relative aspect-square bg-[#F9FAFB] overflow-hidden">
-        <SmartImage src={p.images[0] || ''} alt={p.nameAr} size="card" className="w-full h-full" />
-        {/* Discount badge */}
-        {discount > 0 && (
-          <div className="absolute top-2 right-2 bg-gradient-to-l from-[#DC2626] to-[#B91C1C] text-white text-[10px] font-extrabold px-2 py-1 rounded-full shadow">
-            -{discount}%
-          </div>
-        )}
-        {/* New badge */}
-        {p.isNew && (
-          <div className="absolute top-2 left-2 bg-[#10B981] text-white text-[10px] font-bold px-2 py-1 rounded-full">
-            جديد
-          </div>
-        )}
-      </div>
-      {/* Content */}
-      <div className="p-2.5">
-        {/* Store name */}
-        {store && (
-          <div className="text-[10px] text-[#9A8A6B] mb-1 flex items-center gap-1 truncate">
-            <StoreIcon size={10} className="shrink-0" />
-            <span className="truncate">{store.nameAr || store.name}</span>
-          </div>
-        )}
-        {/* Product name */}
-        <div className="text-xs font-medium text-[#1A1A1E] line-clamp-2 leading-5 min-h-[40px]">
-          {p.nameAr}
-        </div>
-        {/* Price */}
-        <div className="flex items-baseline gap-1.5 mt-2">
-          <span className="font-extrabold text-[#DC2626] text-sm">{formatDZD(p.price)}</span>
-          {p.compareAtPrice && (
-            <span className="text-[10px] text-[#9A8A6B] line-through">{formatDZD(p.compareAtPrice)}</span>
-          )}
-        </div>
-        {/* Rating + views + COD badge */}
-        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[#9A8A6B]">
-          {p.rating > 0 && (
-            <div className="flex items-center gap-0.5">
-              <Star size={10} className="fill-[#FBBF24] text-[#FBBF24]" />
-              <span className="font-bold">{p.rating.toFixed(1)}</span>
-            </div>
-          )}
-          {views > 0 && (
-            <div className="flex items-center gap-0.5">
-              <Eye size={10} />
-              <span>{views}</span>
-            </div>
-          )}
-          <div className="flex items-center gap-0.5 bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">
-            <ShieldCheck size={9} /> COD
-          </div>
-        </div>
-        {/* Low stock indicator */}
-        {p.stock <= 5 && p.stock > 0 && (
-          <div className="text-[10px] text-[#F59E0B] font-bold mt-1">⚡ باقي {p.stock} قطع</div>
-        )}
-      </div>
-    </button>
   )
 }

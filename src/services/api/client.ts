@@ -365,6 +365,192 @@ export async function trackMarketplaceView(productId: string): Promise<void> {
   }
 }
 
+// ─── Phase 2: Rich marketplace endpoints ──────────────────────────────────
+
+export interface MarketplaceStats {
+  totalProducts: number
+  totalStores: number
+  totalOrders: number
+  ordersToday: number
+  avgRating: number
+  totalReviews: number
+  viewersNow: number
+}
+
+export interface MarketplaceActivity {
+  _id: string
+  customerName: string
+  wilaya: string
+  productNameAr: string
+  total: number
+  createdAt: string
+}
+
+export interface TopStore {
+  store: TenantStore & { productCount?: number }
+  productCount: number
+  orderCount: number
+  rating: number
+  reviewCount: number
+  sales: number
+}
+
+export interface Review {
+  _id: string
+  productId: string
+  storeId: string
+  orderId?: string
+  customerName: string
+  customerNameAr: string
+  wilaya: string
+  rating: number
+  comment: string
+  commentAr: string
+  images: string[]
+  status: 'pending' | 'approved' | 'rejected'
+  helpful: number
+  createdAt: string
+}
+
+export interface Coupon {
+  _id: string
+  code: string
+  description: string
+  descriptionAr: string
+  discountType: 'percent' | 'fixed'
+  discountValue: number
+  minOrderValue: number
+  maxRedemptions: number
+  redeemedCount: number
+  startsAt: string
+  expiresAt: string | null
+  isActive: boolean
+  color: string
+}
+
+export interface MarketplaceBanner {
+  _id: string
+  order: number
+  badge: string
+  badgeAr: string
+  icon: string
+  title: string
+  titleAr: string
+  highlight: string
+  highlightAr: string
+  subtitle: string
+  subtitleAr: string
+  cta: string
+  ctaAr: string
+  href: string
+  gradient: string
+  blob1: string
+  blob2: string
+  isActive: boolean
+}
+
+/** GET /api/marketplace/stats — platform-wide stats for the UI */
+export async function fetchMarketplaceStats(): Promise<MarketplaceStats> {
+  try {
+    return await apiFetch<MarketplaceStats>('/api/marketplace/stats')
+  } catch {
+    // Fallback to safe defaults if the endpoint is unavailable
+    return {
+      totalProducts: 0,
+      totalStores: 0,
+      totalOrders: 0,
+      ordersToday: 0,
+      avgRating: 4.8,
+      totalReviews: 0,
+      viewersNow: 180 + Math.floor(Math.random() * 220),
+    }
+  }
+}
+
+/** GET /api/marketplace/top-stores — real ranking by orders + rating */
+export async function fetchTopStores(limit = 8): Promise<{ stores: TopStore[] }> {
+  try {
+    return await apiFetch<{ stores: TopStore[] }>(`/api/marketplace/top-stores?limit=${limit}`)
+  } catch {
+    return { stores: [] }
+  }
+}
+
+/** GET /api/marketplace/recent-activity — last N real orders */
+export async function fetchRecentActivity(limit = 12): Promise<{ activity: MarketplaceActivity[]; total: number }> {
+  try {
+    return await apiFetch<{ activity: MarketplaceActivity[]; total: number }>(`/api/marketplace/recent-activity?limit=${limit}`)
+  } catch {
+    return { activity: [], total: 0 }
+  }
+}
+
+/** GET /api/marketplace/reviews/:productId — list approved reviews for a product */
+export async function fetchProductReviews(productId: string, page = 1, limit = 10): Promise<{
+  reviews: Review[]
+  total: number
+  page: number
+  totalPages: number
+  avgRating: number
+  reviewCount: number
+}> {
+  return await apiFetch(`/api/marketplace/reviews/${encodeURIComponent(productId)}?page=${page}&limit=${limit}`)
+}
+
+/** POST /api/marketplace/reviews — submit a new review */
+export async function submitReview(payload: {
+  productId: string
+  storeId: string
+  orderId?: string
+  customerName: string
+  wilaya?: string
+  rating: number
+  comment?: string
+  images?: string[]
+}): Promise<{ reviewId: string; ok: boolean }> {
+  return await apiFetch('/api/marketplace/reviews', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+/** POST /api/marketplace/reviews/:id/helpful — upvote a review */
+export async function upvoteReview(reviewId: string): Promise<void> {
+  try {
+    await apiFetch(`/api/marketplace/reviews/${encodeURIComponent(reviewId)}/helpful`, { method: 'POST' })
+  } catch {
+    // Non-critical
+  }
+}
+
+/** GET /api/marketplace/coupons — list active coupons (public) */
+export async function fetchActiveCoupons(): Promise<{ coupons: Coupon[] }> {
+  try {
+    return await apiFetch('/api/marketplace/coupons')
+  } catch {
+    return { coupons: [] }
+  }
+}
+
+/** GET /api/marketplace/coupons/validate — validate a coupon code */
+export async function validateCoupon(code: string, subtotal: number): Promise<{
+  valid: boolean
+  coupon?: Coupon
+  discountAmount?: number
+  message?: string
+}> {
+  return await apiFetch(`/api/marketplace/coupons/validate?code=${encodeURIComponent(code)}&subtotal=${subtotal}`)
+}
+
+/** GET /api/marketplace/banners — list active banners (public) */
+export async function fetchBanners(): Promise<{ banners: MarketplaceBanner[] }> {
+  try {
+    return await apiFetch('/api/marketplace/banners')
+  } catch {
+    return { banners: [] }
+  }
+}
+
 // ─── Public API: Orders ─────────────────────────────────────────────────────
 
 const ORDERS_PATH = '/api/orders'

@@ -72,6 +72,7 @@ import { connectDB, json, handleError } from './lib/mongo.js'
 import {
   ProductModel, WilayaModel, OrderModel, SettingsModel, DomainModel,
   TenantStoreModel, MerchantUserModel,
+  ReviewModel, CouponModel, BannerModel, MarketplaceActivityModel,
 } from './lib/models.js'
 import {
   ensureSeeded, seedStoreData, presetDomains,
@@ -1016,6 +1017,309 @@ async function marketplaceRoute(segments: string[], method: string, req: any, qu
     return [{ ok: true }, 200]
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  //  PHASE 2 — Rich marketplace endpoints
+  // ═════════════════════════════════════════════════════════════════════════
+
+  // GET /api/marketplace/stats — platform-wide statistics for the UI
+  // Returns: { totalProducts, totalStores, totalOrders, ordersToday,
+  //            avgRating, totalReviews, viewersNow }
+  if (segments.length === 2 && segments[1] === 'stats' && method === 'GET') {
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000).toISOString()
+
+    const [totalProducts, totalStores, totalOrders, ordersToday, recentReviews] = await Promise.all([
+      ProductModel.countDocuments({ isPublishedInMarketplace: true, deletedAt: null }),
+      TenantStoreModel.countDocuments({ status: 'active' }),
+      OrderModel.countDocuments({ deletedAt: null }),
+      OrderModel.countDocuments({ deletedAt: null, createdAt: { $gte: startOfToday } }),
+      ReviewModel.find({ status: 'approved' }, { rating: 1 }).lean(),
+    ])
+
+    const totalReviews = recentReviews.length
+    const avgRating = totalReviews > 0
+      ? Number((recentReviews.reduce((s, r) => s + (r.rating || 0), 0) / totalReviews).toFixed(2))
+      : 4.8 // default fallback
+
+    // "Viewers now" — pseudo-real-time based on recent activity in last 5 minutes
+    // + a stable random baseline derived from the hour-of-day. This gives
+    // a number that feels alive but doesn't require a real-time WS connection.
+    const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString()
+    const recentActivity = await MarketplaceActivityModel.countDocuments({
+      createdAt: { $gte: fiveMinAgo },
+    })
+    // Base it on hour-of-day: more traffic during evening hours (18-23)
+    const hour = now.getHours()
+    const hourMultiplier = hour >= 18 && hour <= 23 ? 1.5 : hour >= 9 && hour <= 17 ? 1.0 : 0.5
+    const viewersNow = Math.min(2000, Math.max(80,
+      Math.round((120 + recentActivity * 8) * hourMultiplier)
+    ))
+
+    return [{
+      totalProducts,
+      totalStores,
+      totalOrders,
+      ordersToday,
+      avgRating,
+      totalReviews,
+      viewersNow,
+    }, 200]
+  }
+
+  // GET /api/marketplace/top-stores — real ranking based on order count + rating
+  // Returns: { stores: [{ store, productCount, orderCount, rating, sales }] }
+  if (segments.length === 2 && segments[1] === 'top-stores' && method === 'GET') {
+    const limit = Math.min(20, Math.max(1, Number(query.get('limit')) || 8))
+
+    // Step 1: Get all stores with at least 1 published product
+    const storeIdsWithProducts = await ProductModel.distinct('storeId', {
+      isPublishedInMarketplace: true,
+      deletedAt: null,
+    })
+    if (!storeIdsWithProducts.length) return [{ stores: [] }, 200]
+
+    const stores = await TenantStoreModel.find({
+      _id: { $in: storeIdsWithProducts },
+      status: 'active',
+    }).lean()
+
+    // Step 2: For each store, count products + orders in parallel
+    const ranked = await Promise.all(stores.map(async (s) => {
+      const [productCount, orderCount, ratingAgg] = await Promise.all([
+        ProductModel.countDocuments({
+          storeId: s._id, isPublishedInMarketplace: true, deletedAt: null,
+        }),
+        OrderModel.countDocuments({
+          storeId: s._id, deletedAt: null, status: { $ne: 'cancelled' },
+        }),
+        // Average rating from reviews on this store's products
+        ReviewModel.aggregate([
+          { $match: { storeId: s._id, status: 'approved' } },
+          { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+        ]),
+      ])
+      const avgRating = ratingAgg[0]?.avg || 4.5
+      const reviewCount = ratingAgg[0]?.count || 0
+      return {
+        store: s,
+        productCount,
+        orderCount,
+        rating: Number(avgRating.toFixed(2)),
+        reviewCount,
+        sales: orderCount, // alias for clarity
+      }
+    }))
+
+    // Step 3: Sort by (orderCount * 10 + rating) desc — orders weighted heavily
+    ranked.sort((a, b) => (b.orderCount * 10 + b.rating) - (a.orderCount * 10 + a.rating))
+    return [{ stores: ranked.slice(0, limit) }, 200]
+  }
+
+  // GET /api/marketplace/recent-activity — last N real orders (for the live ticker)
+  // Returns: { activity: [{ customerName, wilaya, productNameAr, time, total }] }
+  if (segments.length === 2 && segments[1] === 'recent-activity' && method === 'GET') {
+    const limit = Math.min(50, Math.max(1, Number(query.get('limit')) || 12))
+
+    // Try to fetch from MarketplaceActivity collection first
+    let activity = await MarketplaceActivityModel.find({})
+      .sort({ createdAt: -1 })
+      .limit(limit * 2) // fetch more so we can filter
+      .lean()
+
+    // If empty (no real orders logged yet), fall back to recent real orders
+    if (activity.length === 0) {
+      const recentOrders = await OrderModel.find({ deletedAt: null, status: { $ne: 'cancelled' } })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean()
+      activity = recentOrders.map(o => ({
+        _id: o._id,
+        orderId: o._id,
+        storeId: o.storeId,
+        productId: o.items?.[0]?.productId || '',
+        productNameAr: o.items?.[0]?.nameAr || 'منتج مميز',
+        customerName: o.customerName,
+        wilaya: o.wilayaNameAr || o.wilaya,
+        total: o.total,
+        createdAt: o.createdAt,
+      }))
+    }
+
+    // Filter: only show entries with a customer name (privacy)
+    const filtered = activity
+      .filter(a => a.customerName || a.productNameAr)
+      .slice(0, limit)
+      .map(a => ({
+        _id: a._id,
+        customerName: a.customerName || 'زبون',
+        wilaya: a.wilaya || 'الجزائر',
+        productNameAr: a.productNameAr || 'منتج مميز',
+        total: a.total || 0,
+        createdAt: a.createdAt,
+      }))
+
+    return [{ activity: filtered, total: filtered.length }, 200]
+  }
+
+  // GET /api/marketplace/reviews/:productId — list reviews for a product
+  // Query: ?limit=10&page=1&status=approved
+  if (segments.length === 3 && segments[1] === 'reviews' && method === 'GET') {
+    const productId = segments[2]
+    const page = Math.max(1, Number(query.get('page')) || 1)
+    const limit = Math.min(50, Math.max(1, Number(query.get('limit')) || 10))
+    const skip = (page - 1) * limit
+
+    const [reviews, total, ratingAgg] = await Promise.all([
+      ReviewModel.find({ productId, status: 'approved' })
+        .sort({ helpful: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      ReviewModel.countDocuments({ productId, status: 'approved' }),
+      ReviewModel.aggregate([
+        { $match: { productId, status: 'approved' } },
+        { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+      ]),
+    ])
+
+    return [{
+      reviews,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      avgRating: ratingAgg[0]?.avg || 0,
+      reviewCount: ratingAgg[0]?.count || 0,
+    }, 200]
+  }
+
+  // POST /api/marketplace/reviews — submit a new review (public, no auth)
+  // Body: { productId, storeId, customerName, wilaya, rating, comment, images }
+  if (segments.length === 2 && segments[1] === 'reviews' && method === 'POST') {
+    const body = await getReqBody(req)
+    const { productId, storeId, customerName, wilaya, rating, comment, images } = body
+
+    if (!productId || !storeId) return [{ error: 'MISSING_PRODUCT_OR_STORE' }, 400]
+    const r = Number(rating)
+    if (!Number.isFinite(r) || r < 1 || r > 5) return [{ error: 'INVALID_RATING' }, 400]
+    if (comment && String(comment).length > 1000) return [{ error: 'COMMENT_TOO_LONG' }, 400]
+    if (images && Array.isArray(images) && images.length > 3) {
+      return [{ error: 'TOO_MANY_IMAGES' }, 400]
+    }
+
+    // Verify product exists
+    const product = await ProductModel.findById(productId).lean()
+    if (!product) return [{ error: 'PRODUCT_NOT_FOUND' }, 404]
+
+    // Rate-limit: max 3 reviews per IP per hour
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown'
+    const rlKey = `review_${ip}`
+    const rl = rateLimitMap.get(rlKey) || { count: 0, resetAt: Date.now() + 3600_000 }
+    if (Date.now() < rl.resetAt && rl.count >= 3) {
+      return [{ error: 'RATE_LIMITED', message: 'لقد أرسلت 3 تقييمات في الساعة الأخيرة — حاول لاحقاً' }, 429]
+    }
+    rl.count++
+    rateLimitMap.set(rlKey, rl)
+
+    const reviewId = genId('review')
+    await ReviewModel.create({
+      _id: reviewId,
+      productId,
+      storeId,
+      orderId: body.orderId || '',
+      customerName: customerName || 'زبون',
+      customerNameAr: customerName || 'زبون',
+      wilaya: wilaya || '',
+      rating: r,
+      comment: comment || '',
+      commentAr: comment || '',
+      images: (images || []).slice(0, 3),
+      status: 'approved', // auto-approve for now (TODO: moderation queue)
+      helpful: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+
+    // Recompute the product's aggregate rating + reviewsCount (denormalized)
+    const agg = await ReviewModel.aggregate([
+      { $match: { productId, status: 'approved' } },
+      { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+    ])
+    if (agg[0]) {
+      await ProductModel.findByIdAndUpdate(productId, {
+        $set: { rating: Number(agg[0].avg.toFixed(2)), reviewsCount: agg[0].count },
+      })
+    }
+
+    return [{ reviewId, ok: true }, 201]
+  }
+
+  // POST /api/marketplace/reviews/:id/helpful — upvote a review
+  if (segments.length === 4 && segments[1] === 'reviews' && segments[3] === 'helpful' && method === 'POST') {
+    const reviewId = segments[2]
+    await ReviewModel.findByIdAndUpdate(reviewId, { $inc: { helpful: 1 } })
+    return [{ ok: true }, 200]
+  }
+
+  // GET /api/marketplace/coupons — list active coupons (public)
+  // Returns: { coupons: [...] }
+  if (segments.length === 2 && segments[1] === 'coupons' && method === 'GET') {
+    const now = new Date().toISOString()
+    const coupons = await CouponModel.find({
+      isActive: true,
+      startsAt: { $lte: now },
+      $or: [{ expiresAt: null }, { expiresAt: { $gte: now } }],
+    })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean()
+    return [{ coupons }, 200]
+  }
+
+  // GET /api/marketplace/coupons/validate?code=CODE&subtotal=5000
+  // Validate a coupon code against the user's cart subtotal.
+  // Returns: { valid, coupon, discountAmount, message }
+  if (segments.length === 3 && segments[1] === 'coupons' && segments[2] === 'validate' && method === 'GET') {
+    const code = (query.get('code') || '').trim().toUpperCase()
+    const subtotal = Number(query.get('subtotal')) || 0
+    if (!code) return [{ error: 'CODE_REQUIRED' }, 400]
+
+    const coupon = await CouponModel.findOne({ code, isActive: true }).lean()
+    if (!coupon) return [{ valid: false, message: 'كود الخصم غير صالح' }, 200]
+
+    const now = new Date().toISOString()
+    if (coupon.startsAt && coupon.startsAt > now) {
+      return [{ valid: false, message: 'هذا الكود لم يبدأ بعد' }, 200]
+    }
+    if (coupon.expiresAt && coupon.expiresAt < now) {
+      return [{ valid: false, message: 'انتهت صلاحية هذا الكود' }, 200]
+    }
+    if (coupon.maxRedemptions > 0 && coupon.redeemedCount >= coupon.maxRedemptions) {
+      return [{ valid: false, message: 'تم استنفاد هذا الكود' }, 200]
+    }
+    if (coupon.minOrderValue > 0 && subtotal < coupon.minOrderValue) {
+      return [{
+        valid: false,
+        message: `الحد الأدنى للطلب ${coupon.minOrderValue} د.ج`,
+      }, 200]
+    }
+
+    const discountAmount = coupon.discountType === 'percent'
+      ? Math.round(subtotal * coupon.discountValue / 100)
+      : coupon.discountValue
+
+    return [{ valid: true, coupon, discountAmount }, 200]
+  }
+
+  // GET /api/marketplace/banners — list active banners for the carousel (public)
+  if (segments.length === 2 && segments[1] === 'banners' && method === 'GET') {
+    const banners = await BannerModel.find({ isActive: true })
+      .sort({ order: 1, createdAt: -1 })
+      .limit(8)
+      .lean()
+    return [{ banners }, 200]
+  }
+
   return [{ error: 'NOT_FOUND' }, 404]
 }
 
@@ -1154,6 +1458,146 @@ async function superAdminRoute(segments: string[], method: string, req: any, que
       storesByStatus: storesByStatus.reduce((a, b) => (a[b._id] = b.count, a), {}),
       storesByPlan: storesByPlan.reduce((a, b) => (a[b._id] = b.count, a), {}),
     }, 200]
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  Coupons management (super_admin only)
+  // ═════════════════════════════════════════════════════════════════════════
+
+  // GET /api/super-admin/coupons — list all coupons
+  if (segments[1] === 'coupons' && segments.length === 2 && method === 'GET') {
+    const coupons = await CouponModel.find({}).sort({ createdAt: -1 }).lean()
+    return [{ coupons }, 200]
+  }
+
+  // POST /api/super-admin/coupons — create a new coupon
+  if (segments[1] === 'coupons' && segments.length === 2 && method === 'POST') {
+    const body = await getReqBody(req)
+    if (!body.code || !body.discountValue) {
+      return [{ error: 'MISSING_FIELDS', message: 'الرمز وقيمة الخصم مطلوبان' }, 400]
+    }
+    const code = String(body.code).toUpperCase().trim()
+    const existing = await CouponModel.findOne({ code }).lean()
+    if (existing) return [{ error: 'CODE_EXISTS', message: 'هذا الرمز مستخدم بالفعل' }, 409]
+
+    const couponId = genId('coupon')
+    const now = new Date().toISOString()
+    await CouponModel.create({
+      _id: couponId,
+      code,
+      description: body.description || '',
+      descriptionAr: body.descriptionAr || body.description || '',
+      discountType: body.discountType === 'percent' ? 'percent' : 'fixed',
+      discountValue: Number(body.discountValue) || 0,
+      minOrderValue: Number(body.minOrderValue) || 0,
+      maxRedemptions: Number(body.maxRedemptions) || 0,
+      redeemedCount: 0,
+      startsAt: body.startsAt || now,
+      expiresAt: body.expiresAt || null,
+      isActive: body.isActive !== false,
+      color: body.color || 'rose',
+      createdAt: now,
+      updatedAt: now,
+    })
+    return [{ couponId, code }, 201]
+  }
+
+  // PATCH /api/super-admin/coupons/:id — update coupon
+  if (segments[1] === 'coupons' && segments.length === 3 && method === 'PATCH') {
+    const id = segments[2]
+    const body = await getReqBody(req)
+    const patch: any = { updatedAt: new Date().toISOString() }
+    if (body.code !== undefined) {
+      const code = String(body.code).toUpperCase().trim()
+      const clash = await CouponModel.findOne({ code, _id: { $ne: id } }).lean()
+      if (clash) return [{ error: 'CODE_EXISTS' }, 409]
+      patch.code = code
+    }
+    if (body.descriptionAr !== undefined) patch.descriptionAr = body.descriptionAr
+    if (body.discountType !== undefined) patch.discountType = body.discountType === 'percent' ? 'percent' : 'fixed'
+    if (body.discountValue !== undefined) patch.discountValue = Number(body.discountValue) || 0
+    if (body.minOrderValue !== undefined) patch.minOrderValue = Number(body.minOrderValue) || 0
+    if (body.maxRedemptions !== undefined) patch.maxRedemptions = Number(body.maxRedemptions) || 0
+    if (body.startsAt !== undefined) patch.startsAt = body.startsAt
+    if (body.expiresAt !== undefined) patch.expiresAt = body.expiresAt || null
+    if (body.isActive !== undefined) patch.isActive = !!body.isActive
+    if (body.color !== undefined) patch.color = body.color
+
+    const next = await CouponModel.findByIdAndUpdate(id, { $set: patch }, { new: true }).lean()
+    if (!next) return [{ error: 'NOT_FOUND' }, 404]
+    return [{ coupon: next }, 200]
+  }
+
+  // DELETE /api/super-admin/coupons/:id
+  if (segments[1] === 'coupons' && segments.length === 3 && method === 'DELETE') {
+    const id = segments[2]
+    await CouponModel.findByIdAndDelete(id)
+    return [{ ok: true }, 200]
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  Banners management (super_admin only)
+  // ═════════════════════════════════════════════════════════════════════════
+
+  // GET /api/super-admin/banners — list all banners
+  if (segments[1] === 'banners' && segments.length === 2 && method === 'GET') {
+    const banners = await BannerModel.find({}).sort({ order: 1, createdAt: -1 }).lean()
+    return [{ banners }, 200]
+  }
+
+  // POST /api/super-admin/banners — create a new banner
+  if (segments[1] === 'banners' && segments.length === 2 && method === 'POST') {
+    const body = await getReqBody(req)
+    if (!body.titleAr) {
+      return [{ error: 'TITLE_REQUIRED', message: 'عنوان البانر مطلوب' }, 400]
+    }
+    const bannerId = genId('banner')
+    const now = new Date().toISOString()
+    await BannerModel.create({
+      _id: bannerId,
+      order: Number(body.order) || 0,
+      badge: body.badge || body.badgeAr || '',
+      badgeAr: body.badgeAr || body.badge || '',
+      icon: body.icon || 'Sparkles',
+      title: body.title || body.titleAr,
+      titleAr: body.titleAr,
+      highlight: body.highlight || body.highlightAr || '',
+      highlightAr: body.highlightAr || body.highlight || '',
+      subtitle: body.subtitle || body.subtitleAr || '',
+      subtitleAr: body.subtitleAr || body.subtitle || '',
+      cta: body.cta || body.ctaAr || 'تسوّق الآن',
+      ctaAr: body.ctaAr || body.cta || 'تسوّق الآن',
+      href: body.href || '/marketplace',
+      gradient: body.gradient || 'from-[#1A1A1E] via-[#2D2D35] to-[#1A1A1E]',
+      blob1: body.blob1 || 'bg-[#C9A96A]/30',
+      blob2: body.blob2 || 'bg-[#A02A5B]/20',
+      isActive: body.isActive !== false,
+      createdAt: now,
+      updatedAt: now,
+    })
+    return [{ bannerId }, 201]
+  }
+
+  // PATCH /api/super-admin/banners/:id — update banner
+  if (segments[1] === 'banners' && segments.length === 3 && method === 'PATCH') {
+    const id = segments[2]
+    const body = await getReqBody(req)
+    const patch: any = { updatedAt: new Date().toISOString() }
+    const fields = ['order','badge','badgeAr','icon','title','titleAr','highlight','highlightAr','subtitle','subtitleAr','cta','ctaAr','href','gradient','blob1','blob2','isActive']
+    for (const f of fields) {
+      if (body[f] !== undefined) patch[f] = body[f]
+    }
+    if (body.order !== undefined) patch.order = Number(body.order) || 0
+    const next = await BannerModel.findByIdAndUpdate(id, { $set: patch }, { new: true }).lean()
+    if (!next) return [{ error: 'NOT_FOUND' }, 404]
+    return [{ banner: next }, 200]
+  }
+
+  // DELETE /api/super-admin/banners/:id
+  if (segments[1] === 'banners' && segments.length === 3 && method === 'DELETE') {
+    const id = segments[2]
+    await BannerModel.findByIdAndDelete(id)
+    return [{ ok: true }, 200]
   }
 
   return [{ error: 'NOT_FOUND' }, 404]
@@ -1385,6 +1829,38 @@ async function createOrder(ctx: RouteCtx) {
     updatedAt: new Date().toISOString(),
   }
   await OrderModel.create(order)
+
+  // ─── Marketplace activity hook ────────────────────────────────────────────
+  // Log this order to the marketplace activity collection so the live
+  // ticker on /marketplace can show REAL recent orders (not fake ones).
+  // We only log orders that contain at least one marketplace-published
+  // product — pure tenant-scoped orders (e.g. from a merchant's own
+  // storefront) are NOT shown publicly.
+  try {
+    const firstItem = order.items?.[0]
+    if (firstItem?.productId) {
+      const product = await ProductModel.findById(firstItem.productId).lean()
+      if (product?.isPublishedInMarketplace) {
+        // Extract first name only for privacy (e.g. "Ahmed B." instead of "Ahmed Benali")
+        const fullName = (order.customerName || 'زبون').trim()
+        const firstName = fullName.split(/\s+/)[0] || 'زبون'
+        await MarketplaceActivityModel.create({
+          _id: genId('activity'),
+          orderId: order._id,
+          storeId: order.storeId,
+          productId: firstItem.productId,
+          productNameAr: firstItem.nameAr || product.nameAr || 'منتج مميز',
+          customerName: firstName,
+          wilaya: order.wilayaNameAr || order.wilaya,
+          total: order.total,
+          createdAt: order.createdAt,
+        })
+      }
+    }
+  } catch {
+    // Non-critical — don't fail the order creation if activity logging fails
+  }
+
   return { data: { order }, status: 201 }
 }
 

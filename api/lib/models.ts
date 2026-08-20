@@ -301,6 +301,108 @@ const DomainSchema = new mongoose.Schema({
 }, { _id: false, versionKey: false, strict: false })
 DomainSchema.index({ storeId: 1, id: 1 }, { unique: true })
 
+// ─── Marketplace Review (cross-tenant — for product reviews on marketplace) ─
+// A review is left by a customer AFTER their order is delivered. The review
+// is tied to a productId (which is globally unique), not to a store. This
+// allows aggregating reviews across all stores for the marketplace.
+const ReviewSchema = new mongoose.Schema({
+  _id: STRING_ID,
+  productId: { type: String, required: true, index: true },
+  storeId: { type: String, required: true, index: true },
+  orderId: { type: String, default: '' }, // link to the order that triggered the review
+  customerName: { type: String, default: 'زبون' },
+  customerNameAr: { type: String, default: '' },
+  wilaya: { type: String, default: '' },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  comment: { type: String, default: '' },
+  commentAr: { type: String, default: '' },
+  // Images uploaded by the customer (URLs). Max 3.
+  images: { type: [String], default: [] },
+  // Moderation: pending / approved / rejected
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved', index: true },
+  helpful: { type: Number, default: 0 }, // upvotes from other users
+  createdAt: { type: String, default: () => new Date().toISOString() },
+  updatedAt: { type: String, default: () => new Date().toISOString() },
+}, { _id: false, versionKey: false, strict: false })
+ReviewSchema.index({ productId: 1, status: 1, createdAt: -1 })
+
+// ─── Marketplace Coupon (managed by super_admin) ─────────────────────────────
+// Coupons are platform-wide discount codes that work across ALL stores.
+// They're shown on the marketplace homepage as a "copy code" banner.
+const CouponSchema = new mongoose.Schema({
+  _id: STRING_ID,
+  code: { type: String, required: true, unique: true, uppercase: true, trim: true, index: true },
+  description: { type: String, default: '' },
+  descriptionAr: { type: String, default: '' },
+  // Discount type: 'percent' or 'fixed'
+  discountType: { type: String, enum: ['percent', 'fixed'], default: 'fixed' },
+  // Discount value: percentage (1-100) or fixed amount in DZD
+  discountValue: { type: Number, required: true },
+  // Minimum order subtotal for the coupon to apply
+  minOrderValue: { type: Number, default: 0 },
+  // Total times the coupon can be redeemed (0 = unlimited)
+  maxRedemptions: { type: Number, default: 0 },
+  // How many times it has been redeemed
+  redeemedCount: { type: Number, default: 0 },
+  // Validity window
+  startsAt: { type: String, default: () => new Date().toISOString() },
+  expiresAt: { type: String, default: null },
+  isActive: { type: Boolean, default: true, index: true },
+  // Visual: gradient color for the banner (CSS class suffix)
+  color: { type: String, default: 'rose' },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+  updatedAt: { type: String, default: () => new Date().toISOString() },
+}, { _id: false, versionKey: false, strict: false })
+
+// ─── Marketplace Banner (managed by super_admin) ─────────────────────────────
+// Dynamic banners shown in the marketplace carousel. Each banner has a
+// gradient, headline, subtitle, CTA, and link.
+const BannerSchema = new mongoose.Schema({
+  _id: STRING_ID,
+  // Display order (lower = first)
+  order: { type: Number, default: 0, index: true },
+  // The badge label (e.g. "توصيل مجاني")
+  badge: { type: String, default: '' },
+  badgeAr: { type: String, default: '' },
+  // Lucide icon name (must match a known icon in BannerCarousel.tsx)
+  icon: { type: String, default: 'Sparkles' },
+  title: { type: String, default: '' },
+  titleAr: { type: String, required: true },
+  highlight: { type: String, default: '' },
+  highlightAr: { type: String, default: '' },
+  subtitle: { type: String, default: '' },
+  subtitleAr: { type: String, default: '' },
+  cta: { type: String, default: 'تسوّق الآن' },
+  ctaAr: { type: String, default: 'تسوّق الآن' },
+  href: { type: String, default: '/marketplace' },
+  // Tailwind gradient classes (e.g. "from-[#1A1A1E] via-[#2D2D35] to-[#1A1A1E]")
+  gradient: { type: String, default: 'from-[#1A1A1E] via-[#2D2D35] to-[#1A1A1E]' },
+  // Tailwind blob color classes
+  blob1: { type: String, default: 'bg-[#C9A96A]/30' },
+  blob2: { type: String, default: 'bg-[#A02A5B]/20' },
+  isActive: { type: Boolean, default: true, index: true },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+  updatedAt: { type: String, default: () => new Date().toISOString() },
+}, { _id: false, versionKey: false, strict: false })
+
+// ─── Marketplace Activity (live order events) ───────────────────────────────
+// A rolling log of "recent orders" — each time a customer places an order,
+// we add an entry here so the live ticker can show real orders. The
+// collection is capped (max 1000 docs) so it never grows unbounded.
+const MarketplaceActivitySchema = new mongoose.Schema({
+  _id: STRING_ID,
+  orderId: { type: String, default: '' },
+  storeId: { type: String, default: '', index: true },
+  productId: { type: String, default: '' },
+  productNameAr: { type: String, default: '' },
+  customerName: { type: String, default: '' }, // first name only, for privacy
+  wilaya: { type: String, default: '' },
+  // Total order value (for "X spent" displays)
+  total: { type: Number, default: 0 },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+}, { _id: false, versionKey: false, strict: false })
+MarketplaceActivitySchema.index({ createdAt: -1 })
+
 export const TenantStoreModel =
   mongoose.models.TenantStore || mongoose.model('TenantStore', TenantStoreSchema)
 export const MerchantUserModel =
@@ -315,3 +417,11 @@ export const SettingsModel =
   mongoose.models.Settings || mongoose.model('Settings', SettingsSchema)
 export const DomainModel =
   mongoose.models.Domain || mongoose.model('Domain', DomainSchema)
+export const ReviewModel =
+  mongoose.models.Review || mongoose.model('Review', ReviewSchema)
+export const CouponModel =
+  mongoose.models.Coupon || mongoose.model('Coupon', CouponSchema)
+export const BannerModel =
+  mongoose.models.Banner || mongoose.model('Banner', BannerSchema)
+export const MarketplaceActivityModel =
+  mongoose.models.MarketplaceActivity || mongoose.model('MarketplaceActivity', MarketplaceActivitySchema)

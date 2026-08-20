@@ -13,6 +13,7 @@ import bcrypt from 'bcryptjs'
 import {
   ProductModel, WilayaModel, SettingsModel, DomainModel,
   TenantStoreModel, MerchantUserModel,
+  CouponModel, BannerModel,
 } from './models.js'
 import { seedProducts, seedWilayas, presetDomains, defaultSettings } from './seed.js'
 import { defaultDeliveryProviders, migrateLegacyDeliveryFields } from './deliveryProviders.js'
@@ -122,6 +123,168 @@ async function doPlatformSeed(): Promise<void> {
     },
     { upsert: true, new: true }
   ).lean()
+
+  // ─── Default marketplace coupons ───────────────────────────────────
+  // Only seed if collection is empty — admin can add/edit/delete later.
+  const couponCount = await CouponModel.estimatedDocumentCount()
+  if (couponCount === 0) {
+    await CouponModel.insertMany([
+      {
+        _id: 'coupon_welcome_500',
+        code: 'AMUGAR500',
+        description: 'Welcome coupon — 500 DZD off first order',
+        descriptionAr: 'كوبون ترحيبي — خصم 500 د.ج على أول طلب',
+        discountType: 'fixed',
+        discountValue: 500,
+        minOrderValue: 2000,
+        maxRedemptions: 0,
+        redeemedCount: 0,
+        startsAt: new Date().toISOString(),
+        expiresAt: null,
+        isActive: true,
+        color: 'rose',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        _id: 'coupon_10_percent',
+        code: 'WELCOME10',
+        description: '10% off your first order',
+        descriptionAr: 'خصم 10% على أول طلب',
+        discountType: 'percent',
+        discountValue: 10,
+        minOrderValue: 3000,
+        maxRedemptions: 0,
+        redeemedCount: 0,
+        startsAt: new Date().toISOString(),
+        expiresAt: null,
+        isActive: true,
+        color: 'gold',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ])
+    console.log('[seed] inserted 2 default coupons')
+  }
+
+  // ─── Default marketplace banners ───────────────────────────────────
+  // Only seed if collection is empty — admin can add/edit/delete later.
+  const bannerCount = await BannerModel.estimatedDocumentCount()
+  if (bannerCount === 0) {
+    await BannerModel.insertMany([
+      {
+        _id: 'banner_free_delivery',
+        order: 1,
+        badge: 'توصيل مجاني',
+        badgeAr: 'توصيل مجاني',
+        icon: 'Truck',
+        title: 'توصيل مجاني لكل الولايات',
+        titleAr: 'توصيل مجاني لكل الولايات',
+        highlight: '58 ولاية',
+        highlightAr: '58 ولاية',
+        subtitle: 'عند الطلب بأكثر من 5000 دج — توصيل سريع وآمن إلى باب منزلك',
+        subtitleAr: 'عند الطلب بأكثر من 5000 دج — توصيل سريع وآمن إلى باب منزلك',
+        cta: 'تسوّق الآن',
+        ctaAr: 'تسوّق الآن',
+        href: '/marketplace',
+        gradient: 'from-[#0F766E] via-[#115E59] to-[#0F4F4A]',
+        blob1: 'bg-emerald-400/30',
+        blob2: 'bg-teal-300/20',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        _id: 'banner_cod',
+        order: 2,
+        badge: 'دفع عند الاستلام',
+        badgeAr: 'دفع عند الاستلام',
+        icon: 'ShieldCheck',
+        title: 'ادفع عند الاستلام',
+        titleAr: 'ادفع عند الاستلام',
+        highlight: 'بكل ثقة',
+        highlightAr: 'بكل ثقة',
+        subtitle: 'لا تدفع شيء قبل أن يصلك المنتج وتراه بعينيك — الثقة أولاً',
+        subtitleAr: 'لا تدفع شيء قبل أن يصلك المنتج وتراه بعينيك — الثقة أولاً',
+        cta: 'تصفّح المنتجات',
+        ctaAr: 'تصفّح المنتجات',
+        href: '/marketplace',
+        gradient: 'from-[#1A1A1E] via-[#2D2D35] to-[#1A1A1E]',
+        blob1: 'bg-[#C9A96A]/30',
+        blob2: 'bg-[#A02A5B]/20',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        _id: 'banner_new_user',
+        order: 3,
+        badge: 'هدية جديدة',
+        badgeAr: 'هدية جديدة',
+        icon: 'Gift',
+        title: 'هدية المستخدم الجديد',
+        titleAr: 'هدية المستخدم الجديد',
+        highlight: '500 دج خصم',
+        highlightAr: '500 دج خصم',
+        subtitle: 'سجّل متجرك مجاناً واحصل على كوبون خصم 500 دج على أول طلب',
+        subtitleAr: 'سجّل متجرك مجاناً واحصل على كوبون خصم 500 دج على أول طلب',
+        cta: 'احصل على هديتك',
+        ctaAr: 'احصل على هديتك',
+        href: '/',
+        gradient: 'from-[#A02A5B] via-[#7A1F44] to-[#5E1834]',
+        blob1: 'bg-pink-300/30',
+        blob2: 'bg-rose-300/20',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        _id: 'banner_flash',
+        order: 4,
+        badge: 'عروض اليوم',
+        badgeAr: 'عروض اليوم',
+        icon: 'Sparkles',
+        title: 'خصومات تصل إلى 70%',
+        titleAr: 'خصومات تصل إلى 70%',
+        highlight: 'لفترة محدودة',
+        highlightAr: 'لفترة محدودة',
+        subtitle: 'عروض حصرية تنتهي خلال ساعات — لا تفوّت الفرصة',
+        subtitleAr: 'عروض حصرية تنتهي خلال ساعات — لا تفوّت الفرصة',
+        cta: 'شاهد العروض',
+        ctaAr: 'شاهد العروض',
+        href: '/marketplace',
+        gradient: 'from-[#B45309] via-[#92400E] to-[#78350F]',
+        blob1: 'bg-amber-300/30',
+        blob2: 'bg-orange-300/20',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        _id: 'banner_verified_stores',
+        order: 5,
+        badge: 'متاجر موثّقة',
+        badgeAr: 'متاجر موثّقة',
+        icon: 'Crown',
+        title: 'تسوّق من متاجر موثّقة',
+        titleAr: 'تسوّق من متاجر موثّقة',
+        highlight: '100% ضمان',
+        highlightAr: '100% ضمان',
+        subtitle: 'كل المتاجر في أموگار موثّقة ومعتمدة — جودة مضمونة',
+        subtitleAr: 'كل المتاجر في أموگار موثّقة ومعتمدة — جودة مضمونة',
+        cta: 'تصفّح المتاجر',
+        ctaAr: 'تصفّح المتاجر',
+        href: '/marketplace',
+        gradient: 'from-[#1E3A8A] via-[#1E40AF] to-[#1E3A8A]',
+        blob1: 'bg-blue-400/30',
+        blob2: 'bg-indigo-300/20',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ])
+    console.log('[seed] inserted 5 default banners')
+  }
 }
 
 /**
