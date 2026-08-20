@@ -74,39 +74,40 @@ export function CouponBanner({ className = '' }: { className?: string }) {
       <Sparkles size={14} className="absolute top-3 left-3 text-white/40" />
       <Sparkles size={10} className="absolute bottom-3 right-3 text-white/30" />
 
-      <div className="relative flex items-center gap-4 p-4 md:p-5">
+      <div className="relative flex items-center gap-3 sm:gap-4 p-3 sm:p-4 md:p-5">
         {/* Gift icon */}
-        <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/15 backdrop-blur border border-white/20 grid place-items-center shrink-0">
-          <Gift size={24} className="text-white" />
+        <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-white/15 backdrop-blur border border-white/20 grid place-items-center shrink-0">
+          <Gift size={20} className="sm:hidden text-white" />
+          <Gift size={24} className="hidden sm:block text-white" />
         </div>
 
         {/* Text */}
-        <div className="flex-1 text-white">
-          <div className="text-xs md:text-sm text-white/70 font-medium mb-0.5">🎁 عرض خاص</div>
-          <div className="font-extrabold text-base md:text-lg leading-tight">
+        <div className="flex-1 text-white min-w-0">
+          <div className="text-[10px] sm:text-xs md:text-sm text-white/70 font-medium mb-0.5">🎁 عرض خاص</div>
+          <div className="font-extrabold text-sm sm:text-base md:text-lg leading-tight">
             خصم {value} {unit} على طلبك
           </div>
-          <div className="text-[10px] md:text-xs text-white/60 mt-0.5">
+          <div className="text-[9px] sm:text-[10px] md:text-xs text-white/60 mt-0.5 truncate">
             {coupon?.descriptionAr || 'استخدم الكود عند الدفع — صالح لكل الولايات'}
             {coupon?.minOrderValue ? ` — الحد الأدنى ${coupon.minOrderValue} د.ج` : ''}
           </div>
         </div>
 
         {/* Coupon + claim */}
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <div className="bg-white text-[#A02A5B] px-3 py-1.5 rounded-lg font-mono font-extrabold text-xs md:text-sm border-2 border-dashed border-pink-300 tracking-wider">
+        <div className="flex flex-col items-end gap-1 sm:gap-1.5 shrink-0">
+          <div className="bg-white text-[#A02A5B] px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg font-mono font-extrabold text-[10px] sm:text-xs md:text-sm border-2 border-dashed border-pink-300 tracking-wider">
             {code}
           </div>
           <button
             onClick={claim}
-            className={`flex items-center gap-1 text-[10px] md:text-xs font-bold px-3 py-1 rounded-full transition ${
+            className={`flex items-center gap-1 text-[9px] sm:text-[10px] md:text-xs font-bold px-2 sm:px-3 py-1 rounded-full transition ${
               claimed ? 'bg-emerald-500 text-white' : 'bg-white text-[#A02A5B] hover:bg-pink-50'
             }`}
           >
             {claimed ? (
-              <><Check size={11} /> تم النسخ</>
+              <><Check size={10} className="sm:hidden" /><Check size={11} className="hidden sm:block" /> تم النسخ</>
             ) : (
-              <><Copy size={11} /> انسخ الكود</>
+              <><Copy size={10} className="sm:hidden" /><Copy size={11} className="hidden sm:block" /> انسخ</>
             )}
           </button>
         </div>

@@ -382,47 +382,71 @@ export default function Marketplace() {
 
       {/* ═══ MAIN CONTENT ═══════════════════════════════════════════════ */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Top bar */}
+        {/* Top bar — Mobile-first design */}
         <header className="sticky top-0 z-30 bg-white border-b border-[#E5E7EB] shadow-sm">
-          <div className="px-4 md:px-6 py-3 flex items-center gap-3">
+          {/* Row 1: Logo + Search + Cart (mobile) */}
+          <div className="px-3 md:px-6 pt-2.5 pb-2 flex items-center gap-2">
             {/* Mobile menu button */}
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-9 h-9 rounded-xl bg-[#F3F4F6] grid place-items-center shrink-0">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-9 h-9 rounded-xl bg-[#F3F4F6] grid place-items-center shrink-0 active:scale-95 transition" aria-label="القائمة">
               <Menu size={18} />
             </button>
 
+            {/* Mobile: Logo (compact) */}
+            <Link to="/marketplace" className="lg:hidden flex items-center gap-1.5 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1A1A1E] to-[#3D3D45] grid place-items-center">
+                <img src="/logo.webp" alt="Amugar" className="w-6 h-6 object-contain" />
+              </div>
+            </Link>
+
             {/* Search */}
-            <div className="flex-1 max-w-2xl">
+            <div className="flex-1 min-w-0">
               <div className="relative">
-                <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9A8A6B]" />
+                <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9A8A6B]" />
                 <input
                   value={q}
                   onChange={e => setQ(e.target.value)}
-                  placeholder="ابحث في آلاف المنتجات..."
-                  className="w-full bg-[#F3F4F6] border border-[#E5E7EB] rounded-full py-2.5 pr-10 pl-4 text-sm outline-none focus:border-[#C9A96A] focus:bg-white transition"
+                  placeholder="ابحث عن منتج..."
+                  className="w-full bg-[#F3F4F6] border border-[#E5E7EB] rounded-full py-2 pr-9 pl-4 text-xs md:text-sm outline-none focus:border-[#C9A96A] focus:bg-white transition"
                 />
                 {q && (
                   <button onClick={() => setQ('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9A8A6B] hover:text-[#1A1A1E]">
-                    <X size={16} />
+                    <X size={14} />
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Live viewers (desktop) */}
-            <div className="hidden md:block">
-              <LiveViewers />
-            </div>
-
-            {/* Sort */}
+            {/* Sort (mobile: icon only, desktop: full) */}
             <select
               value={sort}
               onChange={e => setSort(e.target.value as any)}
-              className="bg-white border border-[#E5E7EB] rounded-full px-3 py-2 text-xs font-bold outline-none cursor-pointer hover:bg-[#F3F4F6] transition"
+              className="bg-white border border-[#E5E7EB] rounded-full px-2 md:px-3 py-1.5 md:py-2 text-[10px] md:text-xs font-bold outline-none cursor-pointer hover:bg-[#F3F4F6] transition shrink-0"
+              aria-label="ترتيب"
             >
               {SORT_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.labelAr}</option>
               ))}
             </select>
+          </div>
+
+          {/* Row 2: Live viewers + quick stats (mobile only, scrollable) */}
+          <div className="lg:hidden px-3 pb-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+            <LiveViewers />
+            <div className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 rounded-full px-2.5 py-1 text-[10px] font-bold shrink-0">
+              <Package size={10} />
+              <span className="tabular-nums">{total}</span>
+              <span>منتج</span>
+            </div>
+            <div className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 rounded-full px-2.5 py-1 text-[10px] font-bold shrink-0">
+              <StoreIcon size={10} />
+              <span className="tabular-nums">{stores.length}</span>
+              <span>متجر</span>
+            </div>
+          </div>
+
+          {/* Desktop: Live viewers in top-right */}
+          <div className="hidden lg:flex px-6 pb-3 items-center justify-end">
+            <LiveViewers />
           </div>
         </header>
 
@@ -432,7 +456,7 @@ export default function Marketplace() {
         )}
 
         {/* Content area */}
-        <main className="flex-1 p-4 md:p-6 pb-24 lg:pb-6">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 pb-24 lg:pb-6">
           {/* Store profile header (when viewing /marketplace/store/:slug) */}
           {storeProfile && (
             <div className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white rounded-2xl p-6 mb-6 relative overflow-hidden">
@@ -455,19 +479,19 @@ export default function Marketplace() {
           {/* ═══ Main page hero zone ═════════════════════════════════════════ */}
           {isMainPage && !storeProfile && (
             <>
-              {/* Banner Carousel */}
-              <BannerCarousel className="mb-4" />
+              {/* Banner Carousel — mobile: shorter, desktop: taller */}
+              <BannerCarousel className="mb-3" />
 
-              {/* Circular categories */}
-              <div className="bg-white border border-[#E5E7EB] rounded-2xl mb-4">
+              {/* Circular categories — always visible, scrollable on mobile */}
+              <div className="bg-white border border-[#E5E7EB] rounded-2xl mb-3">
                 <CategoriesCircle active={category} onSelect={setCategory} />
               </div>
 
-              {/* Trust badges */}
-              <TrustBadges className="mb-4" />
+              {/* Trust badges — horizontal scroll on mobile, grid on desktop */}
+              <TrustBadges className="mb-3" />
 
               {/* Coupon banner */}
-              <CouponBanner className="mb-6" />
+              <CouponBanner className="mb-4" />
             </>
           )}
 
@@ -491,31 +515,33 @@ export default function Marketplace() {
 
           {/* ═══ Flash Deals section ════════════════════════════════════════ */}
           {flashDeals.length > 0 && (
-            <div className="mb-6 bg-gradient-to-l from-[#DC2626]/5 via-[#F59E0B]/5 to-[#DC2626]/5 border border-[#DC2626]/20 rounded-2xl p-4">
+            <div className="mb-4 bg-gradient-to-l from-[#DC2626]/5 via-[#F59E0B]/5 to-[#DC2626]/5 border border-[#DC2626]/20 rounded-2xl p-3">
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#DC2626] to-[#B91C1C] grid place-items-center shrink-0 shadow-md">
                     <Zap size={18} className="text-white" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-extrabold text-[#1A1A1E]">عروض اليوم</h2>
-                    <p className="text-[11px] text-[#9A8A6B]">خصومات حصرية لفترة محدودة</p>
+                    <h2 className="text-base md:text-lg font-extrabold text-[#1A1A1E]">عروض اليوم</h2>
+                    <p className="text-[10px] md:text-[11px] text-[#9A8A6B]">خصومات حصرية لفترة محدودة</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-[#9A8A6B] font-medium">ينتهي خلال</span>
+                  <span className="text-[10px] md:text-[11px] text-[#9A8A6B] font-medium hidden sm:inline">ينتهي خلال</span>
                   <CountdownTimer hours={8} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {/* Mobile: horizontal scroll carousel; Desktop: 6-col grid */}
+              <div className="flex lg:grid lg:grid-cols-6 gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1 lg:mx-0 lg:px-0 lg:overflow-visible">
                 {flashDeals.map(p => (
-                  <EnhancedMarketplaceProductCard
-                    key={p._id}
-                    p={p}
-                    stores={stores}
-                    onClick={() => handleProductClick(p)}
-                    flash
-                  />
+                  <div key={p._id} className="w-[140px] sm:w-[170px] lg:w-auto shrink-0 lg:shrink">
+                    <EnhancedMarketplaceProductCard
+                      p={p}
+                      stores={stores}
+                      onClick={() => handleProductClick(p)}
+                      flash
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -524,14 +550,15 @@ export default function Marketplace() {
           {/* ═══ Trending section ═══════════════════════════════════════════ */}
           {trending.length > 0 && (
             <Section title="الأكثر رواجاً" subtitle="منتجات يبحث عنها الجميع" icon={Flame} iconBg="from-[#A02A5B] to-[#7A1F44]">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="flex lg:grid lg:grid-cols-6 gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1 lg:mx-0 lg:px-0 lg:overflow-visible">
                 {trending.map(p => (
-                  <EnhancedMarketplaceProductCard
-                    key={p._id}
-                    p={p}
-                    stores={stores}
-                    onClick={() => handleProductClick(p)}
-                  />
+                  <div key={p._id} className="w-[140px] sm:w-[170px] lg:w-auto shrink-0 lg:shrink">
+                    <EnhancedMarketplaceProductCard
+                      p={p}
+                      stores={stores}
+                      onClick={() => handleProductClick(p)}
+                    />
+                  </div>
                 ))}
               </div>
             </Section>
@@ -540,29 +567,37 @@ export default function Marketplace() {
           {/* ═══ New arrivals section ════════════════════════════════════════ */}
           {newArrivals.length > 0 && (
             <Section title="وصل حديثاً" subtitle="أحدث المنتجات في السوق" icon={Sparkles} iconBg="from-[#C9A96A] to-[#B8945A]">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="flex lg:grid lg:grid-cols-6 gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1 lg:mx-0 lg:px-0 lg:overflow-visible">
                 {newArrivals.map(p => (
-                  <EnhancedMarketplaceProductCard
-                    key={p._id}
-                    p={p}
-                    stores={stores}
-                    onClick={() => handleProductClick(p)}
-                  />
+                  <div key={p._id} className="w-[140px] sm:w-[170px] lg:w-auto shrink-0 lg:shrink">
+                    <EnhancedMarketplaceProductCard
+                      p={p}
+                      stores={stores}
+                      onClick={() => handleProductClick(p)}
+                    />
+                  </div>
                 ))}
               </div>
             </Section>
           )}
 
+          {/* ═══ Top Stores (mobile: horizontal carousel, desktop: sidebar) ═══ */}
+          {isMainPage && !storeProfile && storesWithCounts.length > 0 && (
+            <div className="lg:hidden mb-4">
+              <TopStores stores={storesWithCounts} layout="carousel" limit={8} />
+            </div>
+          )}
+
           {/* ═══ Main grid + Top Stores (two-column on desktop) ═══════════════ */}
-          <div className="mt-6 grid lg:grid-cols-[1fr_280px] gap-4">
+          <div className="mt-2 lg:mt-6 grid lg:grid-cols-[1fr_280px] gap-4">
             {/* Main product grid */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h2 className="text-lg font-extrabold text-[#1A1A1E]">
+                  <h2 className="text-base md:text-lg font-extrabold text-[#1A1A1E]">
                     {storeProfile ? 'منتجات المتجر' : hasActiveFilters ? 'نتائج البحث' : 'كل المنتجات'}
                   </h2>
-                  <p className="text-xs text-[#9A8A6B] mt-0.5">
+                  <p className="text-[10px] md:text-xs text-[#9A8A6B] mt-0.5">
                     {loading ? 'جاري التحميل...' : `${total} منتج`}
                   </p>
                 </div>
@@ -574,11 +609,11 @@ export default function Marketplace() {
               </div>
 
               {loading ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  {Array.from({ length: 15 }).map((_, i) => (
-                    <div key={i} className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="bg-white border border-[#E5E7EB] rounded-xl sm:rounded-2xl overflow-hidden">
                       <div className="aspect-square skeleton" />
-                      <div className="p-2.5 space-y-2">
+                      <div className="p-2 sm:p-2.5 space-y-2">
                         <div className="h-3 skeleton rounded" />
                         <div className="h-4 w-1/2 skeleton rounded" />
                       </div>
@@ -586,20 +621,21 @@ export default function Marketplace() {
                   ))}
                 </div>
               ) : products.length === 0 ? (
-                <div className="bg-white border border-[#E5E7EB] rounded-2xl p-12 text-center">
-                  <div className="w-16 h-16 rounded-full bg-[#F3F4F6] grid place-items-center mx-auto mb-3">
-                    <Search size={24} className="text-[#9A8A6B]" />
+                <div className="bg-white border border-[#E5E7EB] rounded-2xl p-8 sm:p-12 text-center">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#F3F4F6] grid place-items-center mx-auto mb-3">
+                    <Search size={20} className="sm:hidden text-[#9A8A6B]" />
+                    <Search size={24} className="hidden sm:block text-[#9A8A6B]" />
                   </div>
-                  <div className="font-bold text-[#1A1A1E]">لا توجد منتجات مطابقة</div>
-                  <p className="text-sm text-[#9A8A6B] mt-1">جرّب تغيير الفلاتر أو كلمة البحث</p>
+                  <div className="font-bold text-sm sm:text-base text-[#1A1A1E]">لا توجد منتجات مطابقة</div>
+                  <p className="text-xs sm:text-sm text-[#9A8A6B] mt-1">جرّب تغيير الفلاتر أو كلمة البحث</p>
                   {hasActiveFilters && (
-                    <button onClick={() => { setQ(''); setCategory('all'); setMinPrice(0); setMaxPrice(0); setStoreId('') }} className="mt-4 bg-[#1A1A1E] text-white px-5 py-2 rounded-full text-xs font-bold">
+                    <button onClick={() => { setQ(''); setCategory('all'); setMinPrice(0); setMaxPrice(0); setStoreId('') }} className="mt-4 bg-[#1A1A1E] text-white px-4 sm:px-5 py-2 rounded-full text-xs font-bold">
                       مسح الفلاتر
                     </button>
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
                   {products.map(p => (
                     <EnhancedMarketplaceProductCard
                       key={p._id}

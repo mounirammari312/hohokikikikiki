@@ -23,24 +23,27 @@ const BADGES = [
 
 export function TrustBadges({ className = '' }: { className?: string }) {
   return (
-    <div className={`grid grid-cols-2 md:grid-cols-5 gap-2 ${className}`}>
-      {BADGES.map((b, i) => {
-        const Icon = b.icon
-        return (
-          <div
-            key={i}
-            className="bg-white border border-[#E5E7EB] rounded-xl p-3 flex items-center gap-2 hover:shadow-sm transition"
-          >
-            <div className={`w-9 h-9 rounded-lg ${b.bg} grid place-items-center shrink-0`}>
-              <Icon size={16} className={b.color} />
+    <div className={`${className} overflow-x-auto scrollbar-hide lg:overflow-visible`}>
+      <div className="flex lg:grid lg:grid-cols-5 gap-2 min-w-max lg:min-w-0">
+        {BADGES.map((b, i) => {
+          const Icon = b.icon
+          return (
+            <div
+              key={i}
+              className="bg-white border border-[#E5E7EB] rounded-xl p-2 sm:p-3 flex items-center gap-2 hover:shadow-sm transition shrink-0 w-[140px] sm:w-auto lg:w-auto"
+            >
+              <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg ${b.bg} grid place-items-center shrink-0`}>
+                <Icon size={14} className="sm:hidden" />
+                <Icon size={16} className="hidden sm:block" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] sm:text-[11px] font-bold text-[#1A1A1E] truncate">{b.label}</div>
+                <div className="text-[8px] sm:text-[9px] text-[#9A8A6B] truncate">{b.sub}</div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <div className="text-[11px] font-bold text-[#1A1A1E] truncate">{b.label}</div>
-              <div className="text-[9px] text-[#9A8A6B] truncate">{b.sub}</div>
-            </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }

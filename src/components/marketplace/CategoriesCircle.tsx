@@ -76,7 +76,7 @@ export function CategoriesCircle({ active, onSelect, className = '' }: Props) {
       {/* Scrollable row */}
       <div
         ref={scrollRef}
-        className="flex items-center gap-3 overflow-x-auto scrollbar-hide px-2 md:px-10 py-2"
+        className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide px-2 md:px-10 py-2"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {CATEGORY_CIRCLES.map(cat => {
@@ -86,14 +86,16 @@ export function CategoriesCircle({ active, onSelect, className = '' }: Props) {
             <button
               key={cat.key}
               onClick={() => onSelect(cat.key)}
-              className="flex flex-col items-center gap-1.5 shrink-0 group"
+              className="flex flex-col items-center gap-1 shrink-0 group w-[58px] sm:w-[64px]"
             >
               <div
-                className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br ${cat.gradient} grid place-items-center transition-all group-hover:scale-110 group-hover:shadow-lg ${isActive ? 'ring-2 ring-offset-2 ring-[#C9A96A] scale-105' : ''}`}
+                className={`w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br ${cat.gradient} grid place-items-center transition-all group-hover:scale-110 group-active:scale-95 group-hover:shadow-lg ${isActive ? 'ring-2 ring-offset-2 ring-[#C9A96A] scale-105' : ''}`}
               >
-                <Icon size={22} className={isActive ? 'text-white' : 'text-white/90'} />
+                <Icon size={18} className="sm:hidden text-white" />
+                <Icon size={22} className="hidden sm:block md:hidden text-white" />
+                <Icon size={22} className="hidden md:block text-white" />
               </div>
-              <span className={`text-[10px] md:text-xs font-medium ${isActive ? 'text-[#1A1A1E] font-bold' : 'text-[#4B5563]'}`}>
+              <span className={`text-[9px] sm:text-[10px] md:text-xs font-medium text-center leading-tight ${isActive ? 'text-[#1A1A1E] font-bold' : 'text-[#4B5563]'}`}>
                 {cat.labelAr}
               </span>
             </button>

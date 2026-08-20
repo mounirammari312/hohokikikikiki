@@ -5,6 +5,9 @@
  * sorts by (orderCount * 10 + rating) desc. Each store comes with its
  * real product count, order count, rating, and review count.
  *
+ * Mobile: renders as horizontal carousel cards (each ~140px wide).
+ * Desktop: renders as vertical list in the right sidebar.
+ *
  * Falls back to the old client-side ranking if the API is unavailable.
  */
 
@@ -20,6 +23,8 @@ interface Props {
   className?: string
   /** Limit the number of stores shown (default 8) */
   limit?: number
+  /** Layout: 'list' (desktop sidebar) or 'carousel' (mobile horizontal) */
+  layout?: 'list' | 'carousel'
 }
 
 // Deterministic hash for stable "sales" fallback number per store
@@ -31,7 +36,7 @@ function hashStr(s: string): number {
   return Math.abs(h)
 }
 
-export function TopStores({ stores: fallbackStores = [], className = '', limit = 8 }: Props) {
+export function TopStores({ stores: fallbackStores = [], className = '', limit = 8, layout = 'list' }: Props) {
   const [topStores, setTopStores] = useState<TopStore[]>([])
   const [loaded, setLoaded] = useState(false)
 
@@ -87,6 +92,82 @@ export function TopStores({ stores: fallbackStores = [], className = '', limit =
     'from-[#B45309] to-[#92400E]', // #3 bronze
   ]
 
+  // ═══ Carousel layout (mobile) ═══
+  if (layout === 'carousel') {
+    return (
+      <div className={`${className}`}>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#C9A96A] to-[#92653A] grid place-items-center shrink-0">
+              <Crown size={14} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-[#1A1A1E]">أفضل المتاجر</h3>
+              <p className="text-[9px] text-[#9A8A6B]">الأكثر نشاطاً</p>
+            </div>
+          </div>
+          <TrendingUp size={16} className="text-[#9A8A6B]" />
+        </div>
+
+        {/* Horizontal scroll cards */}
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 px-1 -mx-1">
+          {display.map((item, idx) => {
+            const rank = idx + 1
+            const store = item.store
+            const rankBg = rankGradients[idx] || 'from-[#1A1A1E] to-[#2D2D35]'
+            return (
+              <Link
+                key={store._id}
+                to={`/marketplace/store/${store.slug}`}
+                className="group shrink-0 w-[150px] bg-white border border-[#E5E7EB] rounded-2xl p-3 hover:shadow-md transition"
+              >
+                {/* Top row: rank + verified badge */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${rankBg} grid place-items-center shrink-0 shadow`}>
+                    <span className="text-white text-[10px] font-extrabold">{rank}</span>
+                  </div>
+                  {rank <= 3 && (
+                    <span className="text-[8px] bg-[#3B82F6] text-white px-1.5 py-0.5 rounded-full font-bold">
+                      موثّق
+                    </span>
+                  )}
+                </div>
+
+                {/* Store icon (centered) */}
+                <div className="w-10 h-10 rounded-xl bg-[#F3F4F6] grid place-items-center mx-auto mb-2 border border-[#E5E7EB]">
+                  <StoreIcon size={16} className="text-[#9A8A6B]" />
+                </div>
+
+                {/* Store name */}
+                <div className="font-bold text-xs text-[#1A1A1E] text-center truncate mb-1">
+                  {store.nameAr || store.name}
+                </div>
+
+                {/* Stats row */}
+                <div className="flex items-center justify-center gap-1.5 text-[9px] text-[#9A8A6B]">
+                  <div className="flex items-center gap-0.5">
+                    <Star size={8} className="fill-[#FBBF24] text-[#FBBF24]" />
+                    <span className="font-bold text-[#1A1A1E]">{Number(item.rating).toFixed(1)}</span>
+                  </div>
+                  <span>•</span>
+                  <span>{item.productCount} منتج</span>
+                </div>
+
+                {item.orderCount > 0 && (
+                  <div className="text-[8px] text-[#A02A5B] font-bold text-center mt-1">
+                    {item.orderCount}+ مبيعة
+                  </div>
+                )}
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  // ═══ List layout (desktop sidebar) ═══
   return (
     <div className={`bg-white border border-[#E5E7EB] rounded-2xl p-4 ${className}`}>
       {/* Header */}

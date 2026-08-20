@@ -180,7 +180,7 @@ export function BannerCarousel({ className = '' }: { className?: string }) {
       onTouchEnd={onTouchEnd}
     >
       {/* Slides */}
-      <div className="relative h-[200px] md:h-[280px]">
+      <div className="relative h-[160px] sm:h-[200px] md:h-[280px]">
         {banners.map((b, i) => {
           const Icon = ICON_MAP[b.icon] || Sparkles
           const active = i === idx
@@ -190,22 +190,24 @@ export function BannerCarousel({ className = '' }: { className?: string }) {
               className={`absolute inset-0 transition-opacity duration-700 ${active ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'}`}
             >
               <div className={`absolute inset-0 bg-gradient-to-l ${b.gradient}`} />
-              <div className={`absolute -top-20 -right-20 w-72 h-72 ${b.blob1} rounded-full blur-3xl`} />
-              <div className={`absolute -bottom-20 -left-20 w-72 h-72 ${b.blob2} rounded-full blur-3xl`} />
-              <Link to={b.href} className="relative h-full flex flex-col justify-center p-6 md:p-10 text-white">
-                <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur border border-white/20 rounded-full px-3 py-1 text-[10px] md:text-xs font-bold mb-3 w-fit">
-                  <Icon size={12} />
-                  {b.badgeAr || b.badge}
+              <div className={`absolute -top-20 -right-20 w-60 h-60 md:w-72 md:h-72 ${b.blob1} rounded-full blur-3xl`} />
+              <div className={`absolute -bottom-20 -left-20 w-60 h-60 md:w-72 md:h-72 ${b.blob2} rounded-full blur-3xl`} />
+              <Link to={b.href} className="relative h-full flex flex-col justify-center p-4 sm:p-6 md:p-10 text-white">
+                <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur border border-white/20 rounded-full px-2.5 py-0.5 md:px-3 md:py-1 text-[9px] md:text-xs font-bold mb-2 md:mb-3 w-fit">
+                  <Icon size={10} className="md:hidden" />
+                  <Icon size={12} className="hidden md:block" />
+                  <span className="truncate max-w-[100px] md:max-w-none">{b.badgeAr || b.badge}</span>
                 </div>
-                <h2 className="text-xl md:text-3xl font-extrabold leading-tight">
+                <h2 className="text-base sm:text-xl md:text-3xl font-extrabold leading-tight">
                   {b.titleAr || b.title}
-                  <span className="block text-white mt-1">{b.highlightAr || b.highlight}</span>
+                  <span className="block text-white mt-0.5 md:mt-1 text-sm sm:text-base md:text-2xl">{b.highlightAr || b.highlight}</span>
                 </h2>
-                <p className="text-white/80 text-xs md:text-sm mt-2 max-w-md leading-6">{b.subtitleAr || b.subtitle}</p>
-                <div className="mt-4">
-                  <span className="inline-flex items-center gap-1.5 bg-white text-[#1A1A1E] px-4 py-2 rounded-full text-xs font-bold hover:scale-105 transition-transform">
+                <p className="text-white/80 text-[10px] sm:text-xs md:text-sm mt-1.5 md:mt-2 max-w-xs md:max-w-md leading-5 md:leading-6 line-clamp-2">{b.subtitleAr || b.subtitle}</p>
+                <div className="mt-2 md:mt-4">
+                  <span className="inline-flex items-center gap-1 bg-white text-[#1A1A1E] px-3 py-1.5 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs font-bold hover:scale-105 transition-transform">
                     {b.ctaAr || b.cta}
-                    <ChevronLeft size={14} />
+                    <ChevronLeft size={12} className="md:hidden" />
+                    <ChevronLeft size={14} className="hidden md:block" />
                   </span>
                 </div>
               </Link>

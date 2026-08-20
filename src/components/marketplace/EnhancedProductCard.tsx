@@ -91,7 +91,7 @@ export function EnhancedMarketplaceProductCard({ p, stores, onClick, flash = fal
   return (
     <div
       onClick={onClick}
-      className="group relative bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden hover:shadow-xl hover:border-[#C9A96A]/40 transition-all cursor-pointer text-right"
+      className="group relative bg-white border border-[#E5E7EB] rounded-xl sm:rounded-2xl overflow-hidden hover:shadow-xl hover:border-[#C9A96A]/40 transition-all cursor-pointer text-right h-full flex flex-col"
     >
       {/* ─── IMAGE ─── */}
       <div className="relative aspect-square bg-[#F9FAFB] overflow-hidden">
@@ -99,34 +99,37 @@ export function EnhancedMarketplaceProductCard({ p, stores, onClick, flash = fal
 
         {/* Discount ribbon (top-left) */}
         {discount > 0 && (
-          <div className="absolute top-2 left-2 bg-gradient-to-l from-[#DC2626] to-[#B91C1C] text-white text-[10px] font-extrabold px-2 py-1 rounded-full shadow-md">
+          <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-gradient-to-l from-[#DC2626] to-[#B91C1C] text-white text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow-md">
             -{discount}%
           </div>
         )}
 
         {/* New badge (top-right) */}
         {p.isNew && (
-          <div className="absolute top-2 right-2 bg-[#10B981] text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
+          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-[#10B981] text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow">
             جديد
           </div>
         )}
 
         {/* Flash ribbon (bottom-left) */}
         {flash && (
-          <div className="absolute bottom-2 left-2 bg-gradient-to-l from-[#F59E0B] to-[#D97706] text-white text-[10px] font-extrabold px-2 py-1 rounded-full shadow flex items-center gap-1">
-            <Zap size={9} /> عاجل
+          <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 bg-gradient-to-l from-[#F59E0B] to-[#D97706] text-white text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow flex items-center gap-0.5">
+            <Zap size={8} className="sm:hidden" />
+            <Zap size={9} className="hidden sm:block" />
+            <span>عاجل</span>
           </div>
         )}
 
         {/* Wishlist heart (top-right corner, below new badge) */}
         <button
           onClick={handleWishlist}
-          className={`absolute top-2 right-2 w-7 h-7 rounded-full grid place-items-center transition-all ${
-            p.isNew ? 'top-9' : 'top-2'
-          } ${wished ? 'bg-[#A02A5B] text-white' : 'bg-white/80 backdrop-blur text-[#4B5563] hover:bg-white hover:text-[#A02A5B]'}`}
+          className={`absolute w-6 h-6 sm:w-7 sm:h-7 rounded-full grid place-items-center transition-all ${
+            p.isNew ? 'top-7 sm:top-9' : 'top-1.5 sm:top-2'
+          } right-1.5 sm:right-2 ${wished ? 'bg-[#A02A5B] text-white' : 'bg-white/80 backdrop-blur text-[#4B5563] hover:bg-white hover:text-[#A02A5B]'}`}
           aria-label="إضافة للمفضلة"
         >
-          <Heart size={13} className={wished ? 'fill-current' : ''} />
+          <Heart size={11} className="sm:hidden" />
+          <Heart size={13} className="hidden sm:block" />
         </button>
 
         {/* Quick add-to-cart (appears on hover, desktop only) */}
@@ -141,76 +144,88 @@ export function EnhancedMarketplaceProductCard({ p, stores, onClick, flash = fal
       </div>
 
       {/* ─── CONTENT ─── */}
-      <div className="p-2.5">
+      <div className="p-2 sm:p-2.5 flex-1 flex flex-col">
         {/* Store name with verified badge */}
         {store && (
-          <div className="text-[10px] text-[#9A8A6B] mb-1 flex items-center gap-1 truncate">
-            <StoreIcon size={10} className="shrink-0" />
+          <div className="text-[9px] sm:text-[10px] text-[#9A8A6B] mb-0.5 sm:mb-1 flex items-center gap-1 truncate">
+            <StoreIcon size={9} className="sm:hidden shrink-0" />
+            <StoreIcon size={10} className="hidden sm:block shrink-0" />
             <span className="truncate">{store.nameAr || store.name}</span>
             {isVerified && (
-              <CheckCircle2 size={10} className="shrink-0 text-[#3B82F6]" />
+              <CheckCircle2 size={9} className="sm:hidden shrink-0 text-[#3B82F6]" />
+            )}
+            {isVerified && (
+              <CheckCircle2 size={10} className="hidden sm:block shrink-0 text-[#3B82F6]" />
             )}
           </div>
         )}
 
         {/* Product name */}
-        <div className="text-xs font-medium text-[#1A1A1E] line-clamp-2 leading-5 min-h-[40px]">
+        <div className="text-[11px] sm:text-xs font-medium text-[#1A1A1E] line-clamp-2 leading-4 sm:leading-5 min-h-[32px] sm:min-h-[40px]">
           {p.nameAr}
         </div>
 
         {/* Rating + reviews */}
-        <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-[#9A8A6B]">
+        <div className="flex items-center gap-1 sm:gap-1.5 mt-1 sm:mt-1.5 text-[9px] sm:text-[10px] text-[#9A8A6B]">
           {p.rating > 0 && (
             <>
               <div className="flex items-center gap-0.5">
-                <Star size={10} className="fill-[#FBBF24] text-[#FBBF24]" />
+                <Star size={9} className="sm:hidden fill-[#FBBF24] text-[#FBBF24]" />
+                <Star size={10} className="hidden sm:block fill-[#FBBF24] text-[#FBBF24]" />
                 <span className="font-bold text-[#1A1A1E]">{p.rating.toFixed(1)}</span>
               </div>
-              <span>({p.reviewsCount || 0})</span>
+              <span className="hidden sm:inline">({p.reviewsCount || 0})</span>
             </>
           )}
           {views > 0 && (
             <div className="flex items-center gap-0.5">
-              <Eye size={10} />
+              <Eye size={9} className="sm:hidden" />
+              <Eye size={10} className="hidden sm:block" />
               <span>{views}</span>
             </div>
           )}
         </div>
 
         {/* Price */}
-        <div className="flex items-baseline gap-1.5 mt-1.5">
-          <span className="font-extrabold text-[#DC2626] text-sm">{formatDZD(p.price)}</span>
+        <div className="flex items-baseline gap-1 sm:gap-1.5 mt-1 sm:mt-1.5">
+          <span className="font-extrabold text-[#DC2626] text-xs sm:text-sm">{formatDZD(p.price)}</span>
           {p.compareAtPrice && (
-            <span className="text-[10px] text-[#9A8A6B] line-through">{formatDZD(p.compareAtPrice)}</span>
+            <span className="text-[9px] sm:text-[10px] text-[#9A8A6B] line-through">{formatDZD(p.compareAtPrice)}</span>
           )}
         </div>
 
         {/* Sold today */}
-        <div className="flex items-center gap-1 mt-1 text-[10px] text-[#A02A5B] font-medium">
-          <Flame size={9} />
+        <div className="flex items-center gap-1 mt-0.5 sm:mt-1 text-[9px] sm:text-[10px] text-[#A02A5B] font-medium">
+          <Flame size={8} className="sm:hidden" />
+          <Flame size={9} className="hidden sm:block" />
           <span>باع {soldToday} اليوم</span>
         </div>
 
         {/* Badges row */}
-        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-          <div className="flex items-center gap-0.5 bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold text-[9px]">
-            <ShieldCheck size={9} /> COD
+        <div className="flex items-center gap-1 mt-1 sm:mt-1.5 flex-wrap">
+          <div className="flex items-center gap-0.5 bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold text-[8px] sm:text-[9px]">
+            <ShieldCheck size={8} className="sm:hidden" />
+            <ShieldCheck size={9} className="hidden sm:block" />
+            <span>COD</span>
           </div>
           {hasFreeDelivery && (
-            <div className="flex items-center gap-0.5 bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-bold text-[9px]">
-              <Truck size={9} /> توصيل مجاني
+            <div className="flex items-center gap-0.5 bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-bold text-[8px] sm:text-[9px]">
+              <Truck size={8} className="sm:hidden" />
+              <Truck size={9} className="hidden sm:block" />
+              <span className="hidden sm:inline">توصيل مجاني</span>
+              <span className="sm:hidden">مجاني</span>
             </div>
           )}
         </div>
 
         {/* Low stock indicator (pulsing) */}
         {p.stock <= 5 && p.stock > 0 && (
-          <div className="text-[10px] text-[#F59E0B] font-bold mt-1.5 flex items-center gap-1">
+          <div className="text-[9px] sm:text-[10px] text-[#F59E0B] font-bold mt-1 sm:mt-1.5 flex items-center gap-1">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
             </span>
-            باقي {p.stock} قطع فقط!
+            باقي {p.stock} فقط!
           </div>
         )}
       </div>
