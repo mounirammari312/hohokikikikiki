@@ -1198,6 +1198,18 @@ async function createProduct(ctx: RouteCtx) {
   // New products are not soft-deleted — set explicitly so the field
   // exists even when the caller omits it.
   if (body.deletedAt === undefined) body.deletedAt = null
+  // ─── Marketplace auto-publish ──────────────────────────────────────
+  // Default: isPublishedInMarketplace = true (set in schema). When the
+  // client doesn't explicitly set it, default to true so the product
+  // appears in the public marketplace automatically.
+  if (body.isPublishedInMarketplace === undefined) {
+    body.isPublishedInMarketplace = true
+  }
+  // Set marketplacePublishedAt on first publish so the product appears
+  // as a "new arrival" in the marketplace.
+  if (body.isPublishedInMarketplace && !body.marketplacePublishedAt) {
+    body.marketplacePublishedAt = new Date().toISOString()
+  }
   if (Array.isArray(body.variants) && body.variants.length) {
     const vs = body.variants.reduce((a, b) => a + (Number(b.stock) || 0), 0)
     if (vs > 0) body.stock = vs

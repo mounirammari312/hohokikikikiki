@@ -115,7 +115,7 @@ export default function Admin() {
     stock: 10,
     isFeatured: false,
     isNew: true,
-    isPublishedInMarketplace: false,
+    isPublishedInMarketplace: true,  // auto-publish to marketplace by default
     attributes: {},
     variants: [],
     tierPricing: [{ minQty: 2, discountPercent: 10, label: 'Duo', labelAr: 'عرض الثنائي' }],
@@ -872,6 +872,26 @@ export default function Admin() {
                     <div className="font-bold text-sm">تصدير CSV</div>
                     <div className="text-[11px] text-[#9A8A6B]">تصدير الطلبات</div>
                   </button>
+                </div>
+              </div>
+
+              {/* Referral + Welcome banner */}
+              <div className="bg-gradient-to-l from-[#A02A5B] to-[#7A1F44] text-white rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+                <div className="relative flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <h3 className="font-extrabold flex items-center gap-2"><Sparkles size={18} /> ادعُ تجار آخرين — وسوّق لمنصتك</h3>
+                    <p className="text-xs text-white/70 mt-1">شارك رابطك مع تجار تعرفهم. كل تاجر ينضم = منتجات أكثر في السوق العام = زوار أكثر = مبيعات أكثر للجميع.</p>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-4 py-2.5">
+                    <span className="text-xs text-white/60 shrink-0">رابطك:</span>
+                    <input
+                      readOnly
+                      value={`${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${currentSlug}`}
+                      className="bg-transparent text-xs text-white font-mono outline-none w-full min-w-[200px]"
+                      onClick={(e) => { (e.target as HTMLInputElement).select(); try { navigator.clipboard.writeText((e.target as HTMLInputElement).value); showToast('تم نسخ رابط الإحالة ✓') } catch {} }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -2114,69 +2134,56 @@ export default function Admin() {
           {/* ═══ BILLING TAB ══════════════════════════════════════════════ */}
           {tab === 'account-billing' && (
             <div className="mt-4 space-y-4">
-              <div className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white rounded-2xl p-6 relative overflow-hidden">
-                <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#C9A96A]/15 rounded-full blur-3xl" />
-                <div className="relative flex items-center justify-between gap-4 flex-wrap">
-                  <div>
-                    <div className="text-xs text-[#C9A96A] tracking-widest mb-1">باقتك الحالية</div>
-                    <div className="text-3xl font-extrabold">
-                      {currentStore?.plan === 'free_trial' ? 'تجريبية'
-                        : currentStore?.plan === 'starter' ? 'ستارتر'
-                        : currentStore?.plan === 'pro' ? 'برو'
-                        : currentStore?.plan === 'vip' ? 'VIP' : '—'}
-                    </div>
-                    <div className="text-xs text-white/60 mt-1">
-                      {currentStore?.status === 'active' ? '✓ الباقة فعّالة' : '⚠ يحتاج تجديد'}
-                      {currentStore?.planExpiresAt && ` • تنتهي في ${new Date(currentStore.planExpiresAt).toLocaleDateString('ar-DZ')}`}
-                    </div>
+              {/* Free forever banner */}
+              <div className="bg-gradient-to-l from-[#C9A96A] to-[#B8945A] text-white rounded-2xl p-8 relative overflow-hidden text-center">
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+                <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+                <div className="relative">
+                  <div className="text-[10px] font-bold bg-white text-[#C9A96A] px-3 py-1 rounded-full inline-block mb-4">كل المزايا مجانية</div>
+                  <div className="text-5xl font-extrabold mb-2">مجاني 100%</div>
+                  <div className="text-white/80 text-sm mb-6">للأبد — بدون اشتراك، بدون عمولة، بدون بطاقة بنكية</div>
+                  <div className="grid md:grid-cols-2 gap-3 text-right max-w-md mx-auto">
+                    {[
+                      'متاجر غير محدودة',
+                      'منتجات غير محدودة',
+                      'طلبات غير محدودة',
+                      'الدفع عند الاستلام (COD)',
+                      'شحن 58 ولاية',
+                      '10 شركات توصيل',
+                      'السوق العام (Marketplace)',
+                      'تتبع Meta + TikTok Pixel',
+                    ].map(feature => (
+                      <div key={feature} className="flex items-center gap-2 text-white/90 text-sm">
+                        <Check size={16} className="text-white shrink-0" />
+                        <span>{feature}</span>
+                      </div>
+                    ))}
                   </div>
-                  <button className="bg-gradient-to-l from-[#C9A96A] to-[#B8945A] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2">
-                    <Crown size={16}/> ترقية الباقة
-                  </button>
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { id: 'free_trial', name: 'تجريبية', price: '0', period: '14 يوم', features: ['متجر واحد', 'منتجات غير محدودة', 'الدفع عند الاستلام'] },
-                  { id: 'starter', name: 'ستارتر', price: '2,500', period: 'دج/شهر', features: ['كل مزايا التجريبية', 'نطاق فرعي مخصص', 'تتبع Meta + TikTok'] },
-                  { id: 'pro', name: 'برو', price: '6,900', period: 'دج/شهر', features: ['كل مزايا ستارتر', 'نطاق مخصص', 'متجريات متقدمة'] },
-                  { id: 'vip', name: 'VIP', price: '15,000', period: 'دج/شهر', features: ['كل مزايا برو', 'متاجر متعددة', 'مدير حساب مخصص'] },
-                ].map(p => {
-                  const isCurrent = currentStore?.plan === p.id
-                  return (
-                    <div
-                      key={p.id}
-                      className={`bg-white border rounded-2xl p-5 ${isCurrent ? 'border-[#C9A96A] shadow-lg' : 'border-[#EDE6D8]'}`}
-                    >
-                      {isCurrent && <div className="text-[10px] bg-[#C9A96A] text-white px-2 py-0.5 rounded-full inline-block mb-2 font-bold">باقتك</div>}
-                      <div className="font-bold text-lg">{p.name}</div>
-                      <div className="mt-2">
-                        <span className="text-2xl font-extrabold">{p.price}</span>
-                        <span className="text-xs text-[#9A8A6B]"> {p.period}</span>
-                      </div>
-                      <ul className="mt-3 space-y-1.5 text-xs">
-                        {p.features.map(f => (
-                          <li key={f} className="flex items-start gap-1.5">
-                            <Check size={12} className="text-[#C9A96A] mt-0.5 shrink-0" />
-                            <span className="text-[#7A6F5A]">{f}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <button
-                        disabled={isCurrent}
-                        className="w-full mt-4 py-2 rounded-full text-xs font-bold transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#1A1A1E] text-white hover:bg-black"
-                      >
-                        {isCurrent ? 'الباقة الحالية' : 'ترقية'}
-                      </button>
-                    </div>
-                  )
-                })}
+              {/* Why free? explanation */}
+              <div className="bg-[#FFFBF0] border border-[#F5E6C8] rounded-2xl p-5">
+                <h4 className="font-bold text-[#8D6E3A] flex items-center gap-2"><Sparkles size={16} /> لماذا مجاني؟</h4>
+                <p className="text-xs text-[#7A6F5A] mt-2 leading-6">
+                  هدفنا هو بناء أكبر سوق جزائري للتجارة الإلكترونية. كل تاجر ينضم = منتجات أكثر في السوق العام = زوار أكثر = مبيعات أكثر للجميع. نكبر معك، لذلك المنصة مجانية للأبد. في المستقبل سنضيف ميزات اختيارية مدفوعة (إعلانات ممولة، تحليلات متقدمة) — لكن الأساس سيبقى مجاناً دائماً.
+                </p>
               </div>
 
-              <div className="bg-[#FFFBF0] border border-[#F5E6C8] rounded-2xl p-5">
-                <h4 className="font-bold text-[#8D6E3A] flex items-center gap-2"><CreditCard size={16}/> سجل الفواتير</h4>
-                <p className="text-xs text-[#9A8A6B] mt-1">لا توجد فواتير بعد — أنت في الباقة التجريبية المجانية.</p>
+              {/* Quick stats */}
+              <div className="grid md:grid-cols-3 gap-3">
+                <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5 text-center">
+                  <div className="text-3xl font-extrabold text-[#C9A96A]">{products.length}</div>
+                  <div className="text-xs text-[#9A8A6B] mt-1">منتجاتك في المتجر</div>
+                </div>
+                <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5 text-center">
+                  <div className="text-3xl font-extrabold text-[#A02A5B]">{products.filter(p => (p as any).isPublishedInMarketplace).length}</div>
+                  <div className="text-xs text-[#9A8A6B] mt-1">منشورة في السوق العام</div>
+                </div>
+                <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5 text-center">
+                  <div className="text-3xl font-extrabold text-[#8D6E3A]">{products.reduce((sum, p) => sum + ((p as any).marketplaceViews || 0), 0)}</div>
+                  <div className="text-xs text-[#9A8A6B] mt-1">مشاهدات في السوق العام</div>
+                </div>
               </div>
             </div>
           )}

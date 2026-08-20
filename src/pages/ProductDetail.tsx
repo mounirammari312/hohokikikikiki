@@ -408,8 +408,9 @@ export default function ProductDetail(){
     if(!form.name.trim() || form.name.trim().length<3) e.name='الاسم مطلوب (3 أحرف على الأقل)'
     if(!validateDZPhone(form.phone)) e.phone='رقم هاتف غير صحيح. مثال: 0550123456'
     if(!form.wilaya) e.wilaya='اختر الولاية'
-    if(!form.commune.trim()) e.commune='البلدية مطلوبة'
-    if(!form.address.trim()) e.address='العنوان مطلوب'
+    // commune + address are OPTIONAL — the merchant will confirm them by phone.
+    // This is the high-converting COD strategy: minimal friction = more orders.
+    // The merchant calls the customer to confirm delivery details anyway.
     if(variantMissing) e.variant='اختر اللون والمقاس'
     if(effectiveStock<=0) e.stock='المنتج غير متوفر بهذا المتغير'
     if(qty>effectiveStock) e.qty=`الكمية المطلوبة أكبر من المخزون (${effectiveStock})`
@@ -836,15 +837,13 @@ export default function ProductDetail(){
                       {errors.wilaya && <p className="text-amber-300 text-xs mt-1">{errors.wilaya}</p>}
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-white/80">البلدية *</label>
-                      <input value={form.commune} onChange={e=>setForm({...form,commune:e.target.value})} placeholder="مثال: باب الزوار" className="mt-1 w-full rounded-xl px-3 py-2.5 bg-white text-[#1A1A1E] text-sm outline-none"/>
-                      {errors.commune && <p className="text-amber-300 text-xs mt-1">{errors.commune}</p>}
+                      <label className="text-xs font-bold text-white/60">البلدية (اختياري)</label>
+                      <input value={form.commune} onChange={e=>setForm({...form,commune:e.target.value})} placeholder="سيتم التأكيد هاتفياً" className="mt-1 w-full rounded-xl px-3 py-2.5 bg-white text-[#1A1A1E] text-sm outline-none"/>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-white/80">العنوان بالتفصيل *</label>
-                    <input value={form.address} onChange={e=>setForm({...form,address:e.target.value})} placeholder="الحي، الشارع، رقم المنزل..." className="mt-1 w-full rounded-xl px-3 py-2.5 bg-white text-[#1A1A1E] text-sm outline-none"/>
-                    {errors.address && <p className="text-amber-300 text-xs mt-1">{errors.address}</p>}
+                    <label className="text-xs font-bold text-white/60">العنوان بالتفصيل (اختياري)</label>
+                    <input value={form.address} onChange={e=>setForm({...form,address:e.target.value})} placeholder="سيتم التأكيد هاتفياً" className="mt-1 w-full rounded-xl px-3 py-2.5 bg-white text-[#1A1A1E] text-sm outline-none"/>
                   </div>
                   {hasVariants && (
                     <div className="bg-white/10 border border-white/15 rounded-xl p-3">

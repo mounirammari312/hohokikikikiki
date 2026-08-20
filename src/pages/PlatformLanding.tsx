@@ -28,48 +28,8 @@ import {
 
 const PLATFORM_APEX = ((import.meta as any).env?.VITE_PLATFORM_APEX || 'amugar.saas').toLowerCase()
 
-const plans = [
-  {
-    id: 'free_trial',
-    name: 'تجريبي',
-    price: '0',
-    period: '14 يوم',
-    desc: 'جرّب كل المزايا مجاناً',
-    features: ['متجر واحد', 'منتجات غير محدودة', 'طلبات غير محدودة', 'الدفع عند الاستلام', 'حساب الشحن لـ 58 ولاية'],
-    cta: 'ابدأ مجاناً',
-    accent: false,
-  },
-  {
-    id: 'starter',
-    name: 'ستارتر',
-    price: '2,500',
-    period: 'دج/شهر',
-    desc: 'للتجار الصغار',
-    features: ['كل مزايا التجريبي', 'نطاق فرعي مخصص', 'لوحة تحكم كاملة', 'تتبع Meta + TikTok Pixel', 'دعم بالبريد'],
-    cta: 'اشترك الآن',
-    accent: false,
-  },
-  {
-    id: 'pro',
-    name: 'برو',
-    price: '6,900',
-    period: 'دج/شهر',
-    desc: 'الأكثر شعبية',
-    features: ['كل مزايا ستارتر', 'نطاق مخصص (mystore.dz)', 'متجريات متقدمة', 'أولوية الدعم', 'متغيرات لانهائية'],
-    cta: 'اشترك الآن',
-    accent: true,
-  },
-  {
-    id: 'vip',
-    name: 'VIP',
-    price: '15,000',
-    period: 'دج/شهر',
-    desc: 'للتجار الكبار',
-    features: ['كل مزايا برو', 'متاجر متعددة', 'API كامل', 'مدير حساب مخصص', 'تخصيص الهوية البصرية'],
-    cta: 'تواصل معنا',
-    accent: false,
-  },
-]
+// No paid plans — Amugar is 100% free forever.
+// The pricing section is replaced with a "free forever" banner.
 
 const features = [
   { icon: Package, t: 'إدارة المنتجات', d: 'أضف منتجات بصور متعددة، متغيرات (ألوان/مقاسات)، أسعار بالجملة، وحقول مخصصة حسب تخصص متجرك.', c: '#C9A96A' },
@@ -89,11 +49,11 @@ const integrations = [
 ]
 
 const faqs = [
-  { q: 'هل أحتاج خبرة تقنية لإنشاء متجر؟', a: 'لا، المنصة لا تتطلب أي كود. تملأ نموذج التسجيل، ويُنشأ متجرك تلقائياً مع منتجات تجريبية ولوحة تحكم كاملة. كل ما تحتاجه هو بريد إلكتروني وكلمة مرور.' },
-  { q: 'كم تكلفة إنشاء متجر؟', a: 'الخطة التجريبية مجانية لمدة 14 يوماً بدون بطاقة بنكية. بعدها تختار الخطة المناسبة: ستارتر (2,500 دج/شهر)، برو (6,900 دج/شهر)، أو VIP (15,000 دج/شهر).' },
+  { q: 'هل أحتاج خبرة تقنية لإنشاء متجر؟', a: 'لا، المنصة لا تتطلب أي كود. تملأ نموذج التسجيل، ويُنشأ متجرك تلقائياً مع لوحة تحكم كاملة. كل ما تحتاجه هو بريد إلكتروني وكلمة مرور.' },
+  { q: 'كم تكلفة المنصة؟', a: 'مجانية 100% — للأبد. بدون اشتراك، بدون عمولة، بدون بطاقة بنكية. كل المزايا متاحة للجميع: متاجر غير محدودة، منتجات غير محدودة، طلبات غير محدودة، ماركت بليس، شركات توصيل، تتبع الإعلانات.' },
   { q: 'هل يدعم الدفع عند الاستلام (COD)؟', a: 'نعم، نظام COD كامل مدمج في كل المتاجر. كل طلب يأتيك في لوحة التحكم مع كشف الطلبات المكررة تلقائياً وحماية من الإرسال المزدوج.' },
-  { q: 'كيف يعمل الشحن للولايات؟', a: 'حاسبة شحن مدمجة لكل 58 ولاية جزائرية مع أسعار قابلة للتخصيص. يمكنك أيضاً ربط متجرك بـ Yalidine و ZR Express لإنشاء بوالص الشحن تلقائياً.' },
-  { q: 'هل يمكنني ربط نطاقي الخاص؟', a: 'نعم، في خطة برو وما فوق. يمكنك ربط نطاق مخصص مثل mystore.dz مع شهادة SSL مجانية. في الخطة المجانية تحصل على نطاق فرعي slug.amugar.saas.' },
+  { q: 'كيف يعمل الشحن للولايات؟', a: 'حاسبة شحن مدمجة لكل 58 ولاية جزائرية مع أسعار قابلة للتخصيص. يمكنك أيضاً ربط متجرك بـ 10 شركات توصيل جزائرية لإنشاء بوالص الشحن تلقائياً.' },
+  { q: 'ما هو السوق العام (Marketplace)؟', a: 'كل منتج تضيفه يظهر تلقائياً في السوق العام على amugar.saas/marketplace — مجاناً. آلاف الزبائن يتصفحون المنتجات يومياً، مما يزيد مبيعاتك بدون أي جهد إضافي. يمكنك إخفاء أي منتج من السوق بنقرة واحدة.' },
   { q: 'هل المنصة تدعم Meta Pixel و TikTok Pixel؟', a: 'نعم، مدمجان تلقائياً مع أحداث ViewContent، AddToCart، InitiateCheckout، Purchase. تُسجل المفاتيح من لوحة التحكم في تبويب "التتبع".' },
 ]
 
@@ -104,10 +64,9 @@ export default function PlatformLanding() {
   const [showLogin, setShowLogin] = useState(false)
   const [faqOpen, setFaqOpen] = useState<number | null>(0)
   const [form, setForm] = useState({
-    fullName: '', email: '', password: '', phone: '',
-    storeName: '', storeNameAr: '', slug: '',
+    fullName: '', email: '', password: '',
+    storeName: '',  // Arabic name — the ONLY store field required
   })
-  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -125,24 +84,40 @@ export default function PlatformLanding() {
   }
 
   // ─── Auto-slugify ──────────────────────────────────────────────────
-  const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'store-' + Date.now().toString(36)
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!form.fullName || !form.email || !form.password || !form.storeName) {
-      setError('يرجى ملء جميع الحقول المطلوبة')
+      setError('يرجى ملء جميع الحقول')
       return
     }
     setLoading(true)
     try {
-      const res = await authRegister(form)
+      // Auto-generate slug from store name, storeNameAr = storeName (Arabic),
+      // phone is optional and omitted. The form is now minimal: 4 fields only.
+      const slug = slugify(form.storeName)
+      // Check for referral code in URL (?ref=STORE_SLUG)
+      // This is the viral growth mechanism: merchants share their ref link,
+      // new merchants who sign up via that link get tracked.
+      const refCode = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('ref')
+        : null
+      const res = await authRegister({
+        fullName: form.fullName,
+        email: form.email,
+        password: form.password,
+        storeName: form.storeName,  // Arabic name used as both name + nameAr
+        storeNameAr: form.storeName,
+        slug,  // auto-generated, merchant doesn't see/edit it
+        ...(refCode ? { phone: `REF:${refCode}` } : {}),  // store ref code in phone temporarily
+      })
       try {
         localStorage.setItem('amugar_token', res.token)
         localStorage.setItem('amugar_saas_user', JSON.stringify(res.user))
         localStorage.setItem('amugar_saas_active_store', res.storeId)
       } catch {}
-      const slug = form.slug || slugify(form.storeName)
       localStorage.setItem('amugar_saas_active_slug', slug)
 
       const hostname = window.location.hostname.replace(/^www\./, '')
@@ -209,7 +184,7 @@ export default function PlatformLanding() {
           <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-[#1A1A1E]">
             <a href="#features" className="hover:text-[#C9A96A] transition">المزايا</a>
             <a href="#integrations" className="hover:text-[#C9A96A] transition">التكاملات</a>
-            <a href="#pricing" className="hover:text-[#C9A96A] transition">الأسعار</a>
+            <a href="#free" className="hover:text-[#C9A96A] transition">مجاني 100%</a>
             <a href="#faq" className="hover:text-[#C9A96A] transition">الأسئلة الشائعة</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -243,24 +218,25 @@ export default function PlatformLanding() {
                 <Sparkles size={14} className="text-[#C9A96A]" /> منصة SaaS متعددة المتاجر • إطلاق 2026
               </span>
               <h1 className="text-[36px] md:text-[56px] font-extrabold leading-[1.05] text-[#1A1A1E] mt-6">
-                أنشئ متجرك الإلكتروني<br />
-                <span className="bg-gradient-to-l from-[#C9A96A] via-[#A02A5B] to-[#7A1F44] bg-clip-text text-transparent">في أقل من دقيقة</span>
+                متجرك الإلكتروني<br />
+                <span className="bg-gradient-to-l from-[#C9A96A] via-[#A02A5B] to-[#7A1F44] bg-clip-text text-transparent">مجاني 100% — للأبد</span>
               </h1>
               <p className="text-[#5A5340] text-lg leading-8 mt-6 max-w-[560px]">
-                منصة جزائرية متكاملة لإنشاء متاجر الدفع عند الاستلام. احصل على متجر باسمك الخاص، لوحة تحكم احترافية، حاسبة شحن لـ 58 ولاية، وتتبع تلقائي لكل الطلبات — بدون كود وبدون خبرة تقنية.
+                منصة جزائرية متكاملة لإنشاء متاجر الدفع عند الاستلام. متجر باسمك الخاص، لوحة تحكم احترافية، حاسبة شحن لـ 58 ولاية، 10 شركات توصيل، ومنتجاتك تظهر تلقائياً في السوق العام — كل هذا مجاناً، بدون اشتراك وبدون عمولة.
               </p>
               <div className="flex flex-wrap gap-3 mt-8">
                 <button onClick={() => setShowRegister(true)} className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition shadow-xl shadow-[#1A1A1E]/15">
-                  <Rocket size={18} /> ابدأ متجرك الآن
+                  <Rocket size={18} /> أنشئ متجرك مجاناً
                 </button>
-                <a href="#pricing" className="bg-white border border-[#EDE6D8] text-[#1A1A1E] px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:bg-[#F5EFE6] transition">
-                  شاهد الأسعار
+                <a href="#free" className="bg-white border border-[#EDE6D8] text-[#1A1A1E] px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:bg-[#F5EFE6] transition">
+                  لماذا مجاني؟
                 </a>
               </div>
               <div className="flex items-center gap-6 mt-8 text-sm text-[#7A6F5A]">
-                <span className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> 14 يوم تجربة مجانية</span>
+                <span className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> مجاني للأبد</span>
                 <span className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> بدون بطاقة بنكية</span>
-                <span className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> دعم بالعربية</span>
+                <span className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> بدون عمولة</span>
+                <span className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> منتجاتك في السوق العام</span>
               </div>
             </div>
 
@@ -394,40 +370,50 @@ export default function PlatformLanding() {
         </div>
       </section>
 
-      {/* ═══ Pricing ══════════════════════════════════════════════════ */}
-      <section id="pricing" className="py-20 bg-gradient-to-b from-[#1A1A1E] to-[#0D0D0F]">
+      {/* ═══ Free Forever ═════════════════════════════════════════════ */}
+      <section id="free" className="py-20 bg-gradient-to-b from-[#1A1A1E] to-[#0D0D0F]">
         <div className="max-w-[1280px] mx-auto px-4 md:px-6">
           <div className="text-center mb-14">
-            <span className="text-[#C9A96A] text-xs font-bold tracking-widest">PRICING</span>
-            <h2 className="text-[36px] font-extrabold text-white mt-3">خطط بسيطة، شفافة</h2>
-            <p className="text-white/50 mt-3">14 يوم تجربة مجانية على كل الخطط — بدون بطاقة بنكية</p>
+            <span className="text-[#C9A96A] text-xs font-bold tracking-widest">FREE FOREVER</span>
+            <h2 className="text-[36px] font-extrabold text-white mt-3">مجاني 100% — للأبد</h2>
+            <p className="text-white/50 mt-3">بدون اشتراك • بدون عمولة • بدون بطاقة بنكية</p>
           </div>
-          <div className="grid md:grid-cols-4 gap-4">
-            {plans.map(p => (
-              <div key={p.id} className={`rounded-3xl p-6 border transition-all ${p.accent ? 'bg-gradient-to-b from-[#A02A5B] to-[#7A1F44] border-[#A02A5B] text-white shadow-2xl scale-105' : 'bg-white/[0.04] border-white/10 text-white hover:bg-white/[0.08]'}`}>
-                {p.accent && <div className="text-[10px] font-bold bg-white text-[#A02A5B] px-3 py-1 rounded-full inline-block mb-3">الأكثر شعبية</div>}
-                <div className="font-bold text-lg">{p.name}</div>
-                <div className="mt-3">
-                  <span className="text-3xl font-extrabold">{p.price}</span>
-                  <span className="text-sm text-white/50"> {p.period}</span>
-                </div>
-                <div className={`text-xs mt-1 ${p.accent ? 'text-white/70' : 'text-white/50'}`}>{p.desc}</div>
-                <ul className="mt-5 space-y-3 text-sm">
-                  {p.features.map(f => (
-                    <li key={f} className="flex gap-2">
-                      <Check size={16} className={`shrink-0 mt-0.5 ${p.accent ? 'text-white' : 'text-[#C9A96A]'}`} />
-                      <span className={p.accent ? 'text-white/90' : 'text-white/80'}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  onClick={() => setShowRegister(true)}
-                  className={`mt-6 w-full py-3 rounded-full font-bold text-sm transition ${p.accent ? 'bg-white text-[#A02A5B] hover:bg-[#FDF2F6]' : 'bg-white/10 text-white hover:bg-white/20'}`}
-                >
-                  {p.cta}
-                </button>
+          <div className="max-w-2xl mx-auto">
+            {/* Big FREE card */}
+            <div className="bg-gradient-to-b from-[#C9A96A] to-[#B8945A] rounded-3xl p-8 text-center shadow-2xl">
+              <div className="text-[10px] font-bold bg-white text-[#C9A96A] px-3 py-1 rounded-full inline-block mb-4">كل المزايا مجانية</div>
+              <div className="text-6xl font-extrabold text-white mb-2">0 دج</div>
+              <div className="text-white/80 text-sm mb-6">للأبد — بدون حد زمني</div>
+              <div className="grid md:grid-cols-2 gap-3 text-right">
+                {[
+                  'متاجر غير محدودة',
+                  'منتجات غير محدودة',
+                  'طلبات غير محدودة',
+                  'الدفع عند الاستلام (COD)',
+                  'شحن 58 ولاية',
+                  '10 شركات توصيل',
+                  'السوق العام (Marketplace)',
+                  'تتبع Meta + TikTok Pixel',
+                  'لوحة تحكم احترافية',
+                  'نطاق فرعي مجاني',
+                ].map(feature => (
+                  <div key={feature} className="flex items-center gap-2 text-white/90 text-sm">
+                    <Check size={16} className="text-white shrink-0" />
+                    <span>{feature}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+              <button
+                onClick={() => setShowRegister(true)}
+                className="mt-8 bg-white text-[#1A1A1E] px-8 py-4 rounded-full font-extrabold hover:bg-[#FDF2F6] transition shadow-xl"
+              >
+                أنشئ متجرك الآن — مجاناً
+              </button>
+            </div>
+            {/* Why free? explanation */}
+            <div className="mt-8 bg-white/[0.04] border border-white/10 rounded-2xl p-6 text-white/60 text-sm leading-7">
+              <b className="text-[#C9A96A]">لماذا مجاني؟</b> هدفنا هو بناء أكبر سوق جزائري للتجارة الإلكترونية. كل تاجر ينضم = منتجات أكثر في السوق العام = زوار أكثر = مبيعات أكثر للجميع. نكبر معك، لذلك المنصة مجانية للأبد. في المستقبل سنضيف ميزات اختيارية مدفوعة (إعلانات ممولة، تحليلات متقدمة) — لكن الأساس سيبقى مجاناً دائماً.
+            </div>
           </div>
         </div>
       </section>
@@ -485,7 +471,7 @@ export default function PlatformLanding() {
             <div className="font-bold text-white text-sm mb-3">روابط</div>
             <div className="space-y-2 text-xs">
               <a href="#features" className="block hover:text-white transition">المزايا</a>
-              <a href="#pricing" className="block hover:text-white transition">الأسعار</a>
+              <a href="#free" className="block hover:text-white transition">مجاني 100%</a>
               <a href="#faq" className="block hover:text-white transition">الأسئلة الشائعة</a>
               <a href="/super-admin" className="block hover:text-white transition">لوحة المدير العام</a>
             </div>
@@ -504,64 +490,57 @@ export default function PlatformLanding() {
         </div>
       </footer>
 
-      {/* ═══ Register Modal ════════════════════════════════════════════ */}
+      {/* ═══ Register Modal — SIMPLIFIED (4 fields only) ══════════════ */}
       {showRegister && (
         <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center p-4 bg-[#1A1A1E]/70 backdrop-blur-md overflow-y-auto" onClick={() => setShowRegister(false)}>
           <div className="bg-white rounded-[28px] p-7 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-[#EDE6D8] my-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-extrabold text-xl text-[#1A1A1E]">أنشئ متجرك في دقيقة</h3>
+              <h3 className="font-extrabold text-xl text-[#1A1A1E]">أنشئ متجرك مجاناً</h3>
               <button onClick={() => setShowRegister(false)} className="w-8 h-8 rounded-full bg-[#FFFCF8] border border-[#EDE6D8] grid place-items-center hover:bg-white"><X size={16} /></button>
             </div>
+            {/* Free badge */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-4 text-center text-xs font-bold text-emerald-700">
+              مجاني 100% — بدون بطاقة بنكية، بدون اشتراك، بدون عمولة
+            </div>
             <form onSubmit={handleRegister} className="space-y-3">
+              {/* Field 1: Full name */}
               <div className="relative">
                 <User size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
-                <input value={form.fullName} onChange={e => setForm({...form, fullName: e.target.value})} placeholder="الاسم الكامل *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" />
+                <input value={form.fullName} onChange={e => setForm({...form, fullName: e.target.value})} placeholder="الاسم الكامل" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-3 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" />
               </div>
+              {/* Field 2: Email */}
               <div className="relative">
                 <Mail size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
-                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="البريد الإلكتروني *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" dir="rtl" />
+                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="البريد الإلكتروني" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-3 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" dir="rtl" />
               </div>
+              {/* Field 3: Password */}
               <div className="relative">
                 <Lock size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
-                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" dir="rtl" />
+                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-3 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" dir="rtl" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B8AA8E] hover:text-[#1A1A1E]">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
-              <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="الهاتف (اختياري)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] text-right" dir="rtl" />
-              <div className="border-t border-[#EDE6D8] pt-3 mt-3">
-                <div className="text-xs font-bold text-[#7A6F5A] mb-2">معلومات المتجر</div>
-                <input value={form.storeName} onChange={e => {
-                  const v = e.target.value
-                  setForm(prev => ({ ...prev, storeName: v, slug: slugManuallyEdited ? prev.slug : slugify(v) }))
-                }} placeholder="اسم المتجر (فرنسي/إنجليزي) *" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] text-right" />
-                <input value={form.storeNameAr} onChange={e => setForm({...form, storeNameAr: e.target.value})} placeholder="اسم المتجر (عربي)" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A] text-right mt-2" />
-                <div className="flex items-center gap-2 mt-2">
-                  {(() => {
-                    const hostname = typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : PLATFORM_APEX
-                    const isVercelFree = hostname.includes('vercel.app') || hostname.includes('localhost') || hostname === '127.0.0.1'
-                    if (isVercelFree) {
-                      return (
-                        <>
-                          <span className="text-xs text-[#9A8A6B] truncate">{hostname}/?store=</span>
-                          <input value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} onFocus={() => setSlugManuallyEdited(true)} placeholder="my-store" className="flex-1 min-w-0 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
-                        </>
-                      )
-                    }
-                    return (
-                      <>
-                        <span className="text-xs text-[#9A8A6B]">https://</span>
-                        <input value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} onFocus={() => setSlugManuallyEdited(true)} placeholder="my-store" className="flex-1 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#C9A96A]" />
-                        <span className="text-xs text-[#9A8A6B]">.{hostname}</span>
-                      </>
-                    )
-                  })()}
-                </div>
+              {/* Field 4: Store name (Arabic) */}
+              <div className="relative">
+                <Store size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
+                <input value={form.storeName} onChange={e => setForm({...form, storeName: e.target.value})} placeholder="اسم متجرك" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-3 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" />
+              </div>
+              {/* Hint: your store will be live instantly */}
+              <div className="bg-[#FFFBF0] border border-[#F5E6C8] rounded-xl px-3 py-2 text-[11px] text-[#8D6E3A] leading-5">
+                متجرك سيكون حياً فوراً! منتجاتك ستظهر تلقائياً في السوق العام (<a href="/marketplace" target="_blank" className="underline font-bold">/marketplace</a>) ويمكنك البدء في البيع مباشرة.
               </div>
               {error && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>}
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50">
-                {loading ? 'جاري الإنشاء...' : 'إنشاء المتجر →'}
+              <button type="submit" disabled={loading} className="w-full bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white py-3.5 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                {loading ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> جاري الإنشاء...</>
+                ) : (
+                  <>إنشاء متجري مجاناً →</>
+                )}
               </button>
-              <p className="text-[11px] text-[#9A8A6B] text-center">بالضغط على "إنشاء المتجر" أنت توافق على شروط الخدمة وسياسة الخصوصية</p>
+              <p className="text-[11px] text-[#9A8A6B] text-center">مجاني للأبد — بدون أي التزام</p>
             </form>
+            <div className="mt-4 text-center text-sm text-[#9A8A6B]">
+              لديك حساب بالفعل؟ <button type="button" onClick={() => { setShowRegister(false); setShowLogin(true) }} className="text-[#A02A5B] font-bold hover:underline">سجّل الدخول</button>
+            </div>
           </div>
         </div>
       )}

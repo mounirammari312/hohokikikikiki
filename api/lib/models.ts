@@ -84,11 +84,13 @@ const ProductSchema = new mongoose.Schema({
   // from the storefront + dashboard without losing historical order data.
   deletedAt: { type: String, default: null },
   // ─── Marketplace fields ───────────────────────────────────────────────
-  // When true, this product appears in the public Amugar Marketplace
-  // (browseable at /marketplace). The merchant toggles this per-product
-  // from their dashboard. When false, the product only appears in the
-  // merchant's own store (/<slug>).
-  isPublishedInMarketplace: { type: Boolean, default: false },
+  // DEFAULT: true — every new product is automatically published to the
+  // public Amugar Marketplace. This is the core of our "free platform"
+  // strategy: more products in the marketplace = more visitors = more
+  // sales for merchants = more merchants join. The merchant can opt
+  // out per-product from the dashboard if they don't want a specific
+  // product visible publicly.
+  isPublishedInMarketplace: { type: Boolean, default: true },
   // When the product was published to the marketplace (for sorting by
   // "newest arrivals" in the marketplace). Null = never published.
   marketplacePublishedAt: { type: String, default: null },
