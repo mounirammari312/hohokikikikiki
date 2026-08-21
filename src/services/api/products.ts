@@ -1,161 +1,131 @@
-import { Product } from './types';
+/**
+ * Products service.
+ *
+ * DEPRECATED SYNC API:
+ *   getProducts(), getProductById(), addProduct(), updateProduct(), …
+ *   These still exist for backwards-compatibility with the existing UI
+ *   (which calls them synchronously in render). They read from an
+ *   in-memory cache that is kept fresh by `syncProducts()` (called by
+ *   the App on mount and after every mutation).
+ *
+ * NEW ASYNC API:
+ *   Use the `*Api` functions exported from ./client for direct fetch
+ *   access. They keep the cache consistent automatically.
+ *
+ * Migration path: once the UI components are converted to async/await
+ * (e.g. via React Query / SWR), the sync shims below can be removed.
+ */
 
-const STORAGE_KEY = 'amugar_products_db';
+import { seedProducts } from './seed'
+import type { Product } from './types'
+import { getActiveDomainSync } from './domains'
+import {
+  fetchProducts, createProductApi, updateProductApi, deleteProductApi,
+  duplicateProductApi, toggleProductFlagApi,
+} from './client'
 
-const DEFAULT_PRODUCTS: Product[] = [
-  {
-    id: 'p1',
-    name: 'سماعات لاسلكية ANC برو بخاصية عزل الضوضاء وصوت نقي 9D',
-    price: 3200,
-    originalPrice: 7500,
-    image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80',
-    images: ['https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80'],
-    category: 'إلكترونيات',
-    rating: 4.9,
-    reviewsCount: 342,
-    salesCount: 1420,
-    storeName: 'TechStore DZ',
-    isChoice: true,
-    isFlashDeal: true,
-    stockLeft: 8,
-    freeShipping: true,
-    description: 'سماعات بلوتوث 5.3 فائقة الجودة تدعم عزل الضوضاء النشط حتى 35dB مع بطارية تدوم 30 ساعة وشحن سريع.',
-    colors: ['أسود كربوني', 'أبيض لؤلؤي'],
-  },
-  {
-    id: 'p2',
-    name: 'ساعة ذكية AMOLED مقاومة للماء مع شاشة لمس وإجراء المكالمات',
-    price: 4900,
-    originalPrice: 9800,
-    image: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=600&auto=format&fit=crop&q=80',
-    category: 'إلكترونيات',
-    rating: 4.8,
-    reviewsCount: 198,
-    salesCount: 890,
-    storeName: 'Algeria Smart',
-    isChoice: true,
-    isFlashDeal: true,
-    stockLeft: 14,
-    freeShipping: true,
-    colors: ['برتقالي رياضي', 'أسود ملكي'],
-  },
-  {
-    id: 'p3',
-    name: 'حقيبة ظهر رجالية عصرية مقاومة للماء مع منفذ شحن USB',
-    price: 2600,
-    originalPrice: 5200,
-    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80',
-    category: 'أزياء',
-    rating: 4.7,
-    reviewsCount: 112,
-    salesCount: 650,
-    storeName: 'Fashion Hub',
-    isChoice: false,
-    isFlashDeal: true,
-    stockLeft: 22,
-    freeShipping: false,
-    colors: ['رمادي داكن', 'أسود'],
-  },
-  {
-    id: 'p4',
-    name: 'مصباح مكتبي LED ذكي مع شاحن لاسلكي سريع 15W',
-    price: 3400,
-    originalPrice: 6800,
-    image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80',
-    category: 'المنزل',
-    rating: 4.9,
-    reviewsCount: 87,
-    salesCount: 430,
-    storeName: 'HomeStyle DZ',
-    isChoice: true,
-    isFlashDeal: true,
-    stockLeft: 6,
-    freeShipping: true,
-  },
-  {
-    id: 'p5',
-    name: 'ماكينة حلاقة وتشذيب احترافية بتصميم معدني عتيق T9',
-    price: 1950,
-    originalPrice: 3900,
-    image: 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=600&auto=format&fit=crop&q=80',
-    category: 'عناية وجمال',
-    rating: 4.8,
-    reviewsCount: 520,
-    salesCount: 2300,
-    storeName: 'Barber Pro DZ',
-    isChoice: true,
-    freeShipping: true,
-  },
-  {
-    id: 'p6',
-    name: 'طقم أواني طهي جرانيت غير لاصق 10 قطع إيطالي التصميم',
-    price: 14500,
-    originalPrice: 22000,
-    image: 'https://images.unsplash.com/photo-1584990347449-39bbf8703c15?w=600&auto=format&fit=crop&q=80',
-    category: 'المنزل والمطبخ',
-    rating: 4.9,
-    reviewsCount: 144,
-    salesCount: 510,
-    storeName: 'Cuisine VIP',
-    isChoice: true,
-    freeShipping: true,
-  },
-  {
-    id: 'p7',
-    name: 'حذاء رياضي مريح للجري والأنشطة اليومية خفيف الوزن',
-    price: 3800,
-    originalPrice: 6500,
-    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80',
-    category: 'أزياء',
-    rating: 4.6,
-    reviewsCount: 275,
-    salesCount: 1100,
-    storeName: 'Sport Express',
-    isChoice: false,
-    freeShipping: false,
-    sizes: ['40', '41', '42', '43', '44'],
-  },
-  {
-    id: 'p8',
-    name: 'كاميرا مراقبة خارجية ذكية 360° برؤية ليلية ملونة وواي فاي',
-    price: 5800,
-    originalPrice: 9500,
-    image: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=600&auto=format&fit=crop&q=80',
-    category: 'إلكترونيات',
-    rating: 4.9,
-    reviewsCount: 160,
-    salesCount: 780,
-    storeName: 'Security Plus',
-    isChoice: true,
-    freeShipping: true,
-  }
-];
+// ─── In-memory cache (kept in sync with the API by syncProducts()) ──────────
 
-export async function getProducts(): Promise<Product[]> {
+let cache: Product[] = [...seedProducts] as Product[]
+let loaded = false
+const waiting: Array<() => void> = []
+
+/** Background-load products from the API on app startup. */
+export async function syncProducts(): Promise<Product[]> {
   try {
-    const local = localStorage.getItem(STORAGE_KEY);
-    if (local) {
-      const parsed = JSON.parse(local);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (e) {
-    console.error('Error reading localStorage products:', e);
+    const list = await fetchProducts()
+    cache = list
+    loaded = true
+    waiting.forEach(fn => fn())
+    waiting.length = 0
+    return list
+  } catch (err) {
+    loaded = true // Mark as loaded to unblock waiters (use seed fallback)
+    waiting.forEach(fn => fn())
+    waiting.length = 0
+    return cache
   }
-  return DEFAULT_PRODUCTS;
 }
 
-export async function getProductById(id: string): Promise<Product | null> {
-  const products = await getProducts();
-  return products.find((p) => p.id === id) || null;
+/** Backwards-compat: kick off the sync (no-op if already started). */
+export function ensureProducts(): Product[] {
+  if (!loaded) void syncProducts()
+  return cache
 }
 
-export async function saveProduct(product: Product): Promise<void> {
-  const products = await getProducts();
-  const index = products.findIndex((p) => p.id === product.id);
-  if (index >= 0) {
-    products[index] = product;
-  } else {
-    products.push(product);
+/** Synchronous accessor — returns cached products (or seed data on first run). */
+export function getProducts(): Product[] { return cache }
+export function getProductById(id: string): Product | undefined {
+  return cache.find(p => p._id === id)
+}
+
+export function searchProducts(q: string): Product[] {
+  if (!q) return cache
+  const s = q.toLowerCase()
+  return cache.filter(p =>
+    p.name.toLowerCase().includes(s) ||
+    p.nameAr.includes(q) ||
+    p.category.includes(s as any)
+  )
+}
+
+export function getProductsByCategory(cat: string): Product[] {
+  if (cat === 'all') return cache
+  return cache.filter(p => p.category === cat)
+}
+
+// ─── Mutations (async — return the updated list) ────────────────────────────
+
+export async function addProduct(data: Omit<Product,'_id'|'createdAt'> & Partial<Pick<Product,'_id'|'createdAt'>>): Promise<Product> {
+  const list = await createProductApi(data)
+  cache = list
+  return list.find(p => p.nameAr === data.nameAr && p.price === data.price) || list[0]
+}
+
+export async function updateProduct(id: string, patch: Partial<Product>): Promise<Product[]> {
+  const list = await updateProductApi(id, patch)
+  cache = list
+  return list
+}
+
+export async function deleteProduct(id: string): Promise<Product[]> {
+  const list = await deleteProductApi(id)
+  cache = list
+  return list
+}
+
+export async function duplicateProduct(id: string): Promise<Product | null> {
+  const list = await duplicateProductApi(id)
+  cache = list
+  // The duplicated product is the most recent one matching the original's name + ' نسخة'
+  return list.find(p => p.nameAr.includes('نسخة')) || null
+}
+
+export async function toggleProductFlag(id: string, flag: 'isFeatured' | 'isNew'): Promise<Product[]> {
+  const list = await toggleProductFlagApi(id, flag)
+  cache = list
+  return list
+}
+
+export function updateProductStock(id: string, delta: number) {
+  // Synchronous stock mutation is no longer supported — callers should
+  // use updateProduct(id, { stock: newStock }) instead.
+  const p = cache.find(x => x._id === id)
+  if (p) {
+    p.stock = Math.max(0, p.stock + delta)
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+}
+
+// ─── Sync-compat shims (call the async version, ignore the promise) ─────────
+// These exist so the existing UI code that doesn't `await` the result
+// still works — the UI reads from `cache` on the next render.
+
+export function addProductSync(data: Parameters<typeof addProduct>[0]) {
+  void addProduct(data)
+}
+export function updateProductSync(id: string, patch: Partial<Product>) {
+  void updateProduct(id, patch)
+}
+export function deleteProductSync(id: string) {
+  void deleteProduct(id)
 }

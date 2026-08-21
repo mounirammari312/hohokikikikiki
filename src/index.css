@@ -1,18 +1,161 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  body {
-    font-family: 'Cairo', system-ui, -apple-system, sans-serif;
-  }
-}
+* { font-family: 'Cairo', system-ui, -apple-system, sans-serif; }
+/* scroll-behavior: smooth applies to USER-INITIATED scrolls only (anchor clicks,
+   hash changes). Programmatic window.scrollTo(..., {behavior:'auto'}) overrides
+   this for route changes so navigation feels instant.
+   scroll-padding-top: 80px leaves space for the sticky header when scrolling
+   to an anchor (e.g. #order form, #collection section). */
+html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+.cormorant { font-family: 'Cormorant Garamond', serif; }
+.manrope { font-family: 'Manrope', sans-serif; }
 
-/* Custom scrollbar */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #C9A96A; border-radius: 999px; }
+::-webkit-scrollbar-track { background: #F5EFE6; }
+
+/* Hide number arrows */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Gold gradient */
+.gold-gradient { background: linear-gradient(135deg, #D4AF37 0%, #C9A96A 50%, #B8945A 100%); }
+.gold-text { background: linear-gradient(135deg, #D4AF37, #B8945A); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.glass { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); background: rgba(255,255,255,0.72); }
+
+/* Rose — لمسة وردية غامقة راقية 2026 — تُستخدم باعتدال فقط */
+:root {
+  --rose: #A02A5B; --rose-dark:#7A1F44; --rose-light:#FFF0F5; --rose-border:#F6C0D4; --rose-soft:#FDF2F6;
+  /* ─── Tenant theme colors ─────────────────────────────────────────
+     These are written by TenantContext whenever the active store's
+     settings change. Components that DON'T have access to the store
+     object (e.g. ProductCard, which is rendered deep in the tree)
+     can read these CSS variables instead of being passed the colors
+     as props. Defaults match defaultSettings in src/services/api/seed.ts. */
+  --color-primary: #C9A96A;
+  --color-secondary: #1A1A1E;
+  --color-bg: #FFFCF8;
+  --color-card: #FFFFFF;
+  --color-text: #1A1A1E;
+  --color-accent: #A02A5B;
 }
-.no-scrollbar {
+.rose-gradient { background: linear-gradient(135deg, #A02A5B 0%, #7A1F44 100%); }
+.rose-dot { background: radial-gradient(circle at 30% 30%, #C13B6F, #A02A5B); }
+
+/* Slider / horizontal scroll containers */
+.thumb-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary, #C9A96A) transparent;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+}
+.thumb-scroll::-webkit-scrollbar { height: 4px; }
+.thumb-scroll::-webkit-scrollbar-track { background: transparent; }
+.thumb-scroll::-webkit-scrollbar-thumb { background: var(--color-primary, #C9A96A); border-radius: 999px; }
+
+/* Hide scrollbar but keep scrollable (for chip rows that look cleaner without it) */
+.scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Shimmer for images */
+@keyframes shimmer { 0%{opacity:0.6} 50%{opacity:1} 100%{opacity:0.6} }
+
+/* ═══ Premium Design System ═══════════════════════════════════════ */
+/* Smooth transitions everywhere — applied AFTER the existing
+   `* { font-family }` rule so font transitions don't cause repaints. */
+* { transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform; transition-duration: 200ms; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* Premium card shadow */
+.card-shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03); }
+.card-shadow-hover:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04); transform: translateY(-2px); }
+
+/* Premium button — animated shine sweep on hover */
+.btn-premium { position: relative; overflow: hidden; }
+.btn-premium::after { content: ''; position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%); transform: translateX(-100%); transition: transform 0.6s; pointer-events: none; }
+.btn-premium:hover::after { transform: translateX(100%); }
+
+/* Skeleton shimmer */
+@keyframes shimmer-skeleton { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer-skeleton 1.5s infinite; }
+
+/* Glass effect */
+.glass-card { background: rgba(255,255,255,0.7); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255,255,255,0.3); }
+
+/* Gradient text — uses tenant theme colors */
+.gradient-text { background: linear-gradient(135deg, var(--color-primary, #C9A96A), var(--color-accent, #A02A5B)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+/* Smooth image zoom on hover */
+.img-zoom { overflow: hidden; }
+.img-zoom img { transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+.img-zoom:hover img { transform: scale(1.08); }
+
+/* Badge pulse */
+@keyframes badge-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.badge-pulse { animation: badge-pulse 2s ease-in-out infinite; }
+
+/* Slide in animation */
+@keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+/* PWA install banner slide-up (from bottom, more pronounced) */
+@keyframes slideUp { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+
+/* Stagger animation delays */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+
+/* Slide-in from side (mobile menu) */
+@keyframes slide-in-right { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+.animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+/* Social icon bounce on hover */
+.social-bounce { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.social-bounce:hover { transform: translateY(-3px) scale(1.08); }
+
+/* Subtle top border gradient (footer) */
+.gradient-top-border { position: relative; }
+.gradient-top-border::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--color-primary, #C9A96A), var(--color-accent, #A02A5B), transparent); opacity: 0.6; }
+
+/* Hero gradient overlay animation — slow sweeping accent tint */
+@keyframes hero-overlay { 0%, 100% { opacity: 0.25; transform: translateX(-3%); } 50% { opacity: 0.5; transform: translateX(3%); } }
+.hero-overlay-anim { animation: hero-overlay 8s ease-in-out infinite; }
+
+/* Arrow slide-in on hover (category cards) */
+.arrow-slide { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.group:hover .arrow-slide { transform: translateX(-4px); }
+
+/* ═══ Marketplace Rich UI — Marquee + Toast animations ═══════════════════ */
+
+/* Marquee — horizontal infinite scroll (RTL: content moves left-to-right
+   visually, but in RTL we want the natural reading direction, so we use
+   a translateX that goes from 0% to -50% (half the doubled content). */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Toast progress bar shrink */
+@keyframes shrinkBar {
+  0% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+
+/* Tabular numbers — prevents digit width jitter when count updates */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  -moz-font-feature-settings: "tnum";
+  -webkit-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
 }

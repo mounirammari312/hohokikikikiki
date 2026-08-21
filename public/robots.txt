@@ -1,3 +1,16 @@
 User-agent: *
 Allow: /
-Sitemap: https://amugar.com/sitemap.xml
+Allow: /shop
+Allow: /product/
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /super-admin
+Disallow: /super-admin/*
+Disallow: /api/auth/
+Disallow: /api/stores
+Disallow: /api/super-admin/
+Disallow: /*?store=
+Disallow: /*?storeId=
+
+# Sitemap
+Sitemap: https://amugar.saas/sitemap.xml
