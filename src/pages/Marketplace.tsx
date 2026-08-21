@@ -1,853 +1,768 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Flame, 
-  Zap, 
-  ShieldCheck, 
-  Truck, 
-  Tag, 
-  ChevronLeft, 
-  ChevronRight, 
-  Star, 
-  ShoppingBag, 
-  Heart, 
-  Sparkles, 
-  Clock, 
-  TrendingUp, 
-  Gift, 
-  CheckCircle2, 
-  SlidersHorizontal,
-  Store,
-  ArrowRight,
-  Eye,
-  BadgePercent
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
-import { useWishlist } from '../context/WishlistContext';
+/**
+ * Marketplace — Temu/AliExpress-style rich marketplace.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ *  Features:
+ *    - LEFT SIDEBAR (persistent on desktop, drawer on mobile):
+ *      • Logo + "أنشئ متجرك" CTA
+ *      • Main categories with icons
+ *      • Price range filter
+ *      • Store filter (browse by merchant)
+ *      • Clear filters button
+ *
+ *    - TOP BAR:
+ *      • Search (full width)
+ *      • Sort dropdown
+ *      • Live viewers counter ("X browsing now")
+ *
+ *    - LIVE TICKER (animated marquee of recent orders)
+ *    - BANNER CAROUSEL (auto-rotating 5 promotional banners)
+ *    - CIRCULAR CATEGORIES (horizontal scrolling icons)
+ *    - TRUST BADGES (COD, 58 wilayas, verified, secure, returns)
+ *    - COUPON BANNER (500 DZD discount, copy-to-clipboard)
+ *
+ *    - FLASH DEALS section (with live countdown timer)
+ *    - TRENDING section (most viewed)
+ *    - NEW ARRIVALS section (recently published)
+ *    - TOP STORES ranking (sidebar, desktop only)
+ *
+ *    - ALL PRODUCTS grid (paginated)
+ *
+ *    - PRODUCT CARDS (Enhanced AliExpress/Temu style):
+ *      • Image with discount ribbon
+ *      • New badge, Flash badge
+ *      • Wishlist heart button
+ *      • Quick add-to-cart (hover reveal)
+ *      • Store name + verified badge
+ *      • Star rating + reviews count
+ *      • Price in red + original price strikethrough
+ *      • "Sold X today" badge
+ *      • "COD" + "Free delivery" badges
+ *      • Pulsing low stock indicator
+ *
+ *    - FLOATING BUTTONS (back to top + cart, desktop)
+ *    - BOTTOM MOBILE NAV (Home / Browse / Cart / Account)
+ *    - TOAST NOTIFICATIONS (recent orders, every 25-40s)
+ *    - APP DOWNLOAD BANNER (with QR code)
+ *
+ *  This page is PUBLIC — no auth required. Anyone can browse.
+ */
 
-// Types
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  originalPrice: number;
-  image: string;
-  category: string;
-  rating: number;
-  reviewsCount: number;
-  salesCount: number;
-  storeName: string;
-  isChoice?: boolean;
-  isFlashDeal?: boolean;
-  stockLeft?: number;
-  freeShipping?: boolean;
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  Search, Star, TrendingUp, X, Package, Truck, ShieldCheck, Store as StoreIcon,
+  Eye, ChevronLeft, ChevronRight, Menu, Flame, Sparkles, Tag, Home as HomeIcon,
+  Smartphone, Shirt, Heart, Droplet, Watch, Book, Gamepad2, Dumbbell, Baby,
+  Wrench, Palette, Gift, Zap, Crown, ShoppingBag, CheckCircle2
+} from 'lucide-react'
+import { fetchMarketplaceProducts, fetchMarketplaceStores, trackMarketplaceView } from '../services/api/client'
+import type { MarketplaceProduct } from '../services/api/client'
+import type { TenantStore } from '../services/api/types'
+import { formatDZD } from '../lib/utils'
+import { SmartImage } from '../components/SmartImage'
+import { useCart } from '../context/CartContext'
+import { useWishlist } from '../context/WishlistContext'
+
+// Marketplace UI components
+import { CountdownTimer } from '../components/marketplace/CountdownTimer'
+import { LiveTicker } from '../components/marketplace/LiveTicker'
+import { LiveViewers } from '../components/marketplace/LiveViewers'
+import { BannerCarousel } from '../components/marketplace/BannerCarousel'
+import { CategoriesCircle } from '../components/marketplace/CategoriesCircle'
+import { CouponBanner } from '../components/marketplace/CouponBanner'
+import { EnhancedMarketplaceProductCard } from '../components/marketplace/EnhancedProductCard'
+import { TopStores } from '../components/marketplace/TopStores'
+import { TrustBadges } from '../components/marketplace/TrustBadges'
+import { FloatingButtons } from '../components/marketplace/FloatingButtons'
+import { BottomMobileNav } from '../components/marketplace/BottomMobileNav'
+import { ToastNotifications } from '../components/marketplace/ToastNotifications'
+import { AppDownloadBanner } from '../components/marketplace/AppDownloadBanner'
+
+// ─── Main marketplace categories (sidebar) ──────────────────────────────────
+const MAIN_CATEGORIES = [
+  { key: 'all',           labelAr: 'كل الفئات',    icon: ShoppingBag },
+  { key: 'electronics',   labelAr: 'إلكترونيات',    icon: Smartphone },
+  { key: 'fashion',       labelAr: 'موضة وملابس',   icon: Shirt },
+  { key: 'beauty',        labelAr: 'جمال وعناية',   icon: Heart },
+  { key: 'jewelry',       labelAr: 'مجوهرات',        icon: Crown },
+  { key: 'watches',       labelAr: 'ساعات',          icon: Watch },
+  { key: 'home',          labelAr: 'منزل ومطبخ',     icon: HomeIcon },
+  { key: 'perfume',       labelAr: 'عطور',           icon: Droplet },
+  { key: 'books',         labelAr: 'كتب وقرطاسية',   icon: Book },
+  { key: 'toys',          labelAr: 'ألعاب',          icon: Gamepad2 },
+  { key: 'sports',        labelAr: 'رياضة ولياقة',   icon: Dumbbell },
+  { key: 'baby',          labelAr: 'أطفال ورضع',     icon: Baby },
+  { key: 'tools',         labelAr: 'أدوات وDIY',     icon: Wrench },
+  { key: 'art',           labelAr: 'فن وحرف يدوية',  icon: Palette },
+  { key: 'gifts',         labelAr: 'هدايا',           icon: Gift },
+  { key: 'general',       labelAr: 'أخرى',           icon: Package },
+]
+
+// Sub-categories mapping (maps product.category from seed domains to main categories)
+const CATEGORY_MAP: Record<string, string> = {
+  necklace: 'jewelry', ring: 'jewelry', earring: 'jewelry', bracelet: 'jewelry',
+  dress: 'fashion', abaya: 'fashion', hijab: 'fashion', bag: 'fashion', shoes: 'fashion',
+  perfume: 'perfume', makeup: 'beauty', skincare: 'beauty', hair: 'beauty',
+  general: 'general',
 }
 
-interface StoreItem {
-  id: string;
-  name: string;
-  logo: string;
-  rating: number;
-  sales: string;
-  badge: string;
-  verified: boolean;
-}
+const SORT_OPTIONS = [
+  { value: 'newest', labelAr: 'الأحدث' },
+  { value: 'popular', labelAr: 'الأكثر رواجاً' },
+  { value: 'price_low', labelAr: 'السعر: الأقل أولاً' },
+  { value: 'price_high', labelAr: 'السعر: الأعلى أولاً' },
+] as const
 
-// Sample Data tailored for Algerian Marketplace
-const sampleFlashDeals: Product[] = [
-  {
-    id: 'f1',
-    name: 'سماعات لاسلكية ANC برو بخاصية عزل الضوضاء وصوت نقي 9D',
-    price: 3200,
-    originalPrice: 7500,
-    image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80',
-    category: 'إلكترونيات',
-    rating: 4.9,
-    reviewsCount: 342,
-    salesCount: 1420,
-    storeName: 'TechStore DZ',
-    isChoice: true,
-    isFlashDeal: true,
-    stockLeft: 8,
-    freeShipping: true,
-  },
-  {
-    id: 'f2',
-    name: 'ساعة ذكية مقاومة للماء مع شاشة AMOLED وقياس نبضات القلب',
-    price: 4900,
-    originalPrice: 9800,
-    image: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=600&auto=format&fit=crop&q=80',
-    category: 'إلكترونيات',
-    rating: 4.8,
-    reviewsCount: 198,
-    salesCount: 890,
-    storeName: 'Algeria Smart',
-    isChoice: true,
-    isFlashDeal: true,
-    stockLeft: 14,
-    freeShipping: true,
-  },
-  {
-    id: 'f3',
-    name: 'حقيبة ظهر رجالية عصرية مقاومة للماء مع منفذ شحن USB',
-    price: 2600,
-    originalPrice: 5200,
-    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80',
-    category: 'أزياء',
-    rating: 4.7,
-    reviewsCount: 112,
-    salesCount: 650,
-    storeName: 'Fashion Hub',
-    isChoice: false,
-    isFlashDeal: true,
-    stockLeft: 22,
-    freeShipping: false,
-  },
-  {
-    id: 'f4',
-    name: 'مصباح مكتبي LED ذكي مع شاحن لاسلكي سريع 15W',
-    price: 3400,
-    originalPrice: 6800,
-    image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80',
-    category: 'المنزل',
-    rating: 4.9,
-    reviewsCount: 87,
-    salesCount: 430,
-    storeName: 'HomeStyle DZ',
-    isChoice: true,
-    isFlashDeal: true,
-    stockLeft: 6,
-    freeShipping: true,
-  },
-];
+export default function Marketplace() {
+  const { slug: storeSlug } = useParams()
+  const navigate = useNavigate()
+  const [products, setProducts] = useState<MarketplaceProduct[]>([])
+  const [stores, setStores] = useState<TenantStore[]>([])
+  const [storesWithCounts, setStoresWithCounts] = useState<(TenantStore & { productCount?: number })[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [loading, setLoading] = useState(true)
 
-const sampleProducts: Product[] = [
-  ...sampleFlashDeals,
-  {
-    id: 'p5',
-    name: 'ماكينة حلاقة وتشذيب احترافية بتصميم معدني عتيق T9',
-    price: 1950,
-    originalPrice: 3900,
-    image: 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=600&auto=format&fit=crop&q=80',
-    category: 'عناية وجمال',
-    rating: 4.8,
-    reviewsCount: 520,
-    salesCount: 2300,
-    storeName: 'Barber Pro DZ',
-    isChoice: true,
-    freeShipping: true,
-  },
-  {
-    id: 'p6',
-    name: 'طقم أواني طهي جرانيت غير لاصق 10 قطع إيطالي التصميم',
-    price: 14500,
-    originalPrice: 22000,
-    image: 'https://images.unsplash.com/photo-1584990347449-39bbf8703c15?w=600&auto=format&fit=crop&q=80',
-    category: 'المنزل والمطبخ',
-    rating: 4.9,
-    reviewsCount: 144,
-    salesCount: 510,
-    storeName: 'Cuisine VIP',
-    isChoice: true,
-    freeShipping: true,
-  },
-  {
-    id: 'p7',
-    name: 'حذاء رياضي مريح للجري والأنشطة اليومية خفيف الوزن',
-    price: 3800,
-    originalPrice: 6500,
-    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80',
-    category: 'أزياء',
-    rating: 4.6,
-    reviewsCount: 275,
-    salesCount: 1100,
-    storeName: 'Sport Express',
-    isChoice: false,
-    freeShipping: false,
-  },
-  {
-    id: 'p8',
-    name: 'كاميرا مراقبة خارجية ذكية 360° برؤية ليلية ملونة وواي فاي',
-    price: 5800,
-    originalPrice: 9500,
-    image: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=600&auto=format&fit=crop&q=80',
-    category: 'إلكترونيات',
-    rating: 4.9,
-    reviewsCount: 160,
-    salesCount: 780,
-    storeName: 'Security Plus',
-    isChoice: true,
-    freeShipping: true,
-  },
-];
+  // Filters
+  const [q, setQ] = useState('')
+  const [category, setCategory] = useState('all')
+  const [sort, setSort] = useState<'newest' | 'popular' | 'price_low' | 'price_high'>('newest')
+  const [minPrice, setMinPrice] = useState(0)
+  const [maxPrice, setMaxPrice] = useState(0)
+  const [storeId, setStoreId] = useState('')
 
-const sampleTopStores: StoreItem[] = [
-  {
-    id: 's1',
-    name: 'TechStore DZ',
-    logo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
-    rating: 4.9,
-    sales: '15k+ مبيعة',
-    badge: 'متجر رسمي مميز',
-    verified: true,
-  },
-  {
-    id: 's2',
-    name: 'Algeria Smart',
-    logo: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=150&auto=format&fit=crop&q=80',
-    rating: 4.8,
-    sales: '8.4k+ مبيعة',
-    badge: 'المرتبة الأولى بالإلكترونيات',
-    verified: true,
-  },
-  {
-    id: 's3',
-    name: 'Fashion Hub DZ',
-    logo: 'https://images.unsplash.com/photo-1529374255404-311a2a4f1fd9?w=150&auto=format&fit=crop&q=80',
-    rating: 4.9,
-    sales: '12k+ مبيعة',
-    badge: 'علامة أزياء معتمدة',
-    verified: true,
-  },
-  {
-    id: 's4',
-    name: 'HomeStyle VIP',
-    logo: 'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=150&auto=format&fit=crop&q=80',
-    rating: 4.8,
-    sales: '6.2k+ مبيعة',
-    badge: 'أفضل منتجات المنزل',
-    verified: true,
-  },
-];
+  // Mobile sidebar drawer
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
-const heroSlides = [
-  {
-    id: 1,
-    title: 'تخفيضات كبرى لموسم 2026',
-    subtitle: 'خصومات تصل حتى 70% على أحدث الإلكترونيات والأزياء مع دفع عند الاستلام',
-    tag: '⚡ عروض الصاعقة المحدودة',
-    badgeText: 'تخفيض 70%',
-    image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&auto=format&fit=crop&q=80',
-    link: '#flash-deals',
-    bgGradient: 'from-red-600 via-orange-600 to-amber-600',
-  },
-  {
-    id: 2,
-    title: 'منتجات Amugar Choice الحصرية',
-    subtitle: 'شحن فوري ومجاني لـ 58 ولاية وضمان استرجاع حقيقي خلال 7 أيام',
-    tag: '⭐ الاختيار المعتمد',
-    badgeText: 'توصيل مجاني',
-    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=1200&auto=format&fit=crop&q=80',
-    link: '#feed',
-    bgGradient: 'from-blue-700 via-indigo-700 to-purple-800',
-  },
-];
+  // If viewing a specific store's marketplace page (/marketplace/store/:slug)
+  const [storeProfile, setStoreProfile] = useState<TenantStore | null>(null)
 
-const categories = [
-  { id: 'all', name: '🔥 الكل', icon: Sparkles },
-  { id: 'choice', name: '⭐ Amugar Choice', icon: Star },
-  { id: 'tech', name: '📱 إلكترونيات', icon: Zap },
-  { id: 'fashion', name: '👗 أزياء وموضة', icon: Tag },
-  { id: 'home', name: '🏠 المنزل والمطبخ', icon: Store },
-  { id: 'beauty', name: '💄 عناية وجمال', icon: Sparkles },
-  { id: 'deals', name: '⚡ عروض الصاعقة', icon: Flame },
-];
+  // Fetch products
+  const fetchProducts = useCallback(async () => {
+    setLoading(true)
+    try {
+      let categoryFilter = category
+      const res = await fetchMarketplaceProducts({
+        q: q || undefined,
+        category: categoryFilter !== 'all' ? categoryFilter : undefined,
+        sort,
+        page,
+        limit: 24,
+        minPrice: minPrice > 0 ? minPrice : undefined,
+        maxPrice: maxPrice > 0 ? maxPrice : undefined,
+        storeId: storeId || undefined,
+      })
+      let fetchedProducts = res.products || []
 
-export const Marketplace: React.FC = () => {
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [activeTab, setActiveTab] = useState<'recommended' | 'bestseller' | 'priceAsc' | 'rating'>('recommended');
-  const [liveViewers, setLiveViewers] = useState(1482);
-  const [liveToast, setLiveToast] = useState<{ name: string; city: string; item: string } | null>(null);
+      // Client-side main-category filtering
+      if (category !== 'all' && !CATEGORY_MAP[category]) {
+        const subCats = Object.entries(CATEGORY_MAP).filter(([, main]) => main === category).map(([sub]) => sub)
+        if (subCats.length > 0) {
+          fetchedProducts = fetchedProducts.filter(p => subCats.includes(p.category))
+        }
+      }
 
-  // Time Countdown for Flash Deals (HH:MM:SS)
-  const [timeLeft, setTimeLeft] = useState({ hours: 4, minutes: 28, seconds: 45 });
+      setProducts(fetchedProducts)
+      setTotal(res.total || 0)
+      setTotalPages(res.totalPages || 1)
+      if (page === 1 && res.stores) {
+        setStores(res.stores)
+      }
+    } catch (err) {
+      console.error('[marketplace] fetch failed:', err)
+      setProducts([])
+    } finally {
+      setLoading(false)
+    }
+  }, [q, category, sort, page, minPrice, maxPrice, storeId])
 
-  const { addToCart } = useCart();
-  const { addToWishlist, wishlist } = useWishlist();
+  useEffect(() => { void fetchProducts() }, [fetchProducts])
+  useEffect(() => { setPage(1) }, [q, category, sort, minPrice, maxPrice, storeId])
 
-  // Slide Auto-play
+  // Fetch top stores list — deferred to background, non-blocking
+  // (uses the stores already returned by fetchMarketplaceProducts as fallback)
   useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % heroSlides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
+    // Only fetch top-stores if we don't already have stores from the main query
+    if (storesWithCounts.length > 0) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const { stores: list } = await fetchMarketplaceStores()
+        if (cancelled) return
+        setStoresWithCounts(list || [])
+      } catch {
+        // Non-critical
+      }
+    })()
+    return () => { cancelled = true }
+  }, [storesWithCounts.length])
 
-  // Flash Deals Countdown
+  // If storeSlug is provided, fetch that store's profile
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
-        if (prev.minutes > 0) return { ...prev, minutes: 59, seconds: 59 };
-        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        return { hours: 6, minutes: 0, seconds: 0 };
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    if (storeSlug) {
+      void (async () => {
+        try {
+          const { fetchMarketplaceStore } = await import('../services/api/client')
+          const { store, products } = await fetchMarketplaceStore(storeSlug)
+          setStoreProfile(store)
+          setProducts(products)
+          setTotal(products.length)
+          setTotalPages(1)
+        } catch {
+          setStoreProfile(null)
+        } finally {
+          setLoading(false)
+        }
+      })()
+    } else {
+      setStoreProfile(null)
+    }
+  }, [storeSlug])
 
-  // Social Proof Toasts & Viewers Jitter
-  useEffect(() => {
-    const cities = ['الجزائر العاصمة', 'وهران', 'قسنطينة', 'سطيف', 'عنابة', 'تلمسان', 'باتنة', 'جيجل', 'البليدة'];
-    const buyers = ['أحمد ب.', 'كريم م.', 'سارة ع.', 'ياسين ك.', 'أمينة ط.', 'محمد ر.'];
-    const items = ['سماعات ANC برو', 'ساعة ذكية AMOLED', 'ماكينة T9 الاحترافية', 'حقيبة ظهر USB'];
+  const handleProductClick = (p: MarketplaceProduct) => {
+    void trackMarketplaceView(p._id)
+    const store = stores.find(s => s._id === p.storeId) || storeProfile
+    if (store) {
+      navigate(`/product/${p._id}?store=${encodeURIComponent(store.slug)}`)
+    }
+  }
 
-    const toastInterval = setInterval(() => {
-      const randomCity = cities[Math.floor(Math.random() * cities.length)];
-      const randomBuyer = buyers[Math.floor(Math.random() * buyers.length)];
-      const randomItem = items[Math.floor(Math.random() * items.length)];
+  // Sections for the main page (first page, no filters)
+  const isMainPage = page === 1 && !q && category === 'all' && !storeId && !storeSlug
 
-      setLiveToast({ name: randomBuyer, city: randomCity, item: randomItem });
-      setLiveViewers((prev) => prev + Math.floor(Math.random() * 7) - 3);
+  const flashDeals = useMemo(() => {
+    if (!isMainPage) return []
+    return products.filter(p => p.compareAtPrice && p.compareAtPrice > p.price).slice(0, 6)
+  }, [products, isMainPage])
 
-      setTimeout(() => setLiveToast(null), 4000);
-    }, 9000);
+  const trending = useMemo(() => {
+    if (!isMainPage) return []
+    return [...products].sort((a, b) => (b.marketplaceViews || 0) - (a.marketplaceViews || 0)).slice(0, 6)
+  }, [products, isMainPage])
 
-    return () => clearInterval(toastInterval);
-  }, []);
+  const newArrivals = useMemo(() => {
+    if (!isMainPage) return []
+    return [...products].sort((a, b) => {
+      const aTime = (a as any).marketplacePublishedAt || ''
+      const bTime = (b as any).marketplacePublishedAt || ''
+      return bTime.localeCompare(aTime)
+    }).slice(0, 6)
+  }, [products, isMainPage])
 
-  const filteredProducts = sampleProducts.filter((product) => {
-    if (activeCategory === 'all') return true;
-    if (activeCategory === 'choice') return product.isChoice;
-    if (activeCategory === 'deals') return product.isFlashDeal;
-    if (activeCategory === 'tech') return product.category.includes('إلكترونيات');
-    if (activeCategory === 'fashion') return product.category.includes('أزياء');
-    if (activeCategory === 'home') return product.category.includes('المنزل');
-    if (activeCategory === 'beauty') return product.category.includes('عناية');
-    return true;
-  });
+  // Pool of product names for the live ticker & toast notifications
+  const productNamesPool = useMemo(() => {
+    return products.slice(0, 30).map(p => p.nameAr).filter(Boolean)
+  }, [products])
 
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (activeTab === 'bestseller') return b.salesCount - a.salesCount;
-    if (activeTab === 'priceAsc') return a.price - b.price;
-    if (activeTab === 'rating') return b.rating - a.rating;
-    return 0; // 'recommended'
-  });
+  const hasActiveFilters = q || category !== 'all' || minPrice || maxPrice || storeId
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7] text-gray-900 pb-20 font-sans antialiased selection:bg-orange-500 selection:text-white" dir="rtl">
-      
-      {/* 1. Top Ticker / Trust Bar */}
-      <div className="bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900 text-white text-xs py-2 px-4 border-b border-neutral-700">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 bg-red-600/90 text-white px-2 py-0.5 rounded-full font-bold text-[10px] animate-pulse">
-              <Flame className="w-3 h-3" /> مباشر
-            </span>
-            <span className="text-gray-300 hidden sm:inline">
-              عروض وتخفيضات حصرية لـ 58 ولاية • الدفع عند الاستلام 100% مضمون
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4 text-gray-300">
-            <div className="flex items-center gap-1.5">
-              <Eye className="w-3.5 h-3.5 text-orange-400" />
-              <span><strong className="text-white">{liveViewers.toLocaleString()}</strong> متسوق يتصفحون الآن</span>
+    <div className="min-h-screen bg-[#F8F9FA] flex">
+      {/* ═══ SIDEBAR ═════════════════════════════════════════════════════ */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-[#1A1A1E]/60 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+      <aside className={`fixed lg:sticky top-0 right-0 z-50 lg:z-0 h-screen w-[280px] shrink-0 bg-white border-l border-[#E5E7EB] flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
+        {/* Logo */}
+        <div className="px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-between shrink-0">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1A1A1E] to-[#3D3D45] grid place-items-center">
+              <img src="/logo.webp" alt="Amugar" className="w-7 h-7 object-contain" />
             </div>
-            <div className="hidden md:flex items-center gap-1.5">
-              <Truck className="w-3.5 h-3.5 text-green-400" />
-              <span>توصيل سريع لباب المنزل أو المكتب</span>
+            <div>
+              <div className="font-extrabold text-sm leading-tight text-[#1A1A1E]">Amugar</div>
+              <div className="text-[10px] tracking-widest text-[#9A8A6B]">MARKETPLACE</div>
             </div>
-          </div>
+          </Link>
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden w-8 h-8 rounded-full bg-[#F3F4F6] grid place-items-center">
+            <X size={16} />
+          </button>
         </div>
-      </div>
 
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-6">
-
-        {/* 2. Hero Bento Grid (AliExpress / Temu 2026 Style) */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          
-          {/* Main Hero Slider (8 Cols) */}
-          <div className="lg:col-span-8 relative rounded-2xl overflow-hidden shadow-sm bg-neutral-900 min-h-[320px] sm:min-h-[380px] flex items-center">
-            {heroSlides.map((slide, index) => (
-              <motion.div
-                key={slide.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: index === activeSlide ? 1 : 0 }}
-                transition={{ duration: 0.6 }}
-                className={`absolute inset-0 bg-cover bg-center ${index === activeSlide ? 'z-10' : 'z-0 pointer-events-none'}`}
-                style={{ backgroundImage: `url(${slide.image})` }}
-              >
-                {/* Gradient Overlay for Readability */}
-                <div className={`absolute inset-0 bg-gradient-to-l ${slide.bgGradient} opacity-85 mix-blend-multiply`} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                <div className="relative z-20 h-full flex flex-col justify-center px-6 sm:px-10 max-w-xl text-white py-8">
-                  <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-amber-200 mb-3 w-fit border border-white/20">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {slide.tag}
-                  </div>
-
-                  <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight mb-2">
-                    {slide.title}
-                  </h1>
-
-                  <p className="text-sm sm:text-base text-gray-100/90 mb-6 line-clamp-2">
-                    {slide.subtitle}
-                  </p>
-
-                  <div className="flex items-center gap-3">
-                    <a
-                      href={slide.link}
-                      className="bg-white text-gray-900 hover:bg-amber-400 hover:text-gray-950 font-bold text-sm px-6 py-3 rounded-xl shadow-lg transition-all duration-200 flex items-center gap-2 group"
-                    >
-                      تسوق الآن
-                      <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    </a>
-
-                    <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-white">
-                      {slide.badgeText}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-
-            {/* Slide Navigation Controls */}
-            <div className="absolute bottom-4 left-6 z-20 flex items-center gap-2">
-              {heroSlides.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveSlide(i)}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    i === activeSlide ? 'w-8 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'
-                  }`}
-                  aria-label={`Slide ${i + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Side Bento Cards (4 Cols) */}
-          <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
-            
-            {/* Card 1: New User Welcome Zone */}
-            <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-red-600 rounded-2xl p-5 text-white relative overflow-hidden shadow-sm flex flex-col justify-between">
-              <div className="absolute -left-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none" />
-              
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="bg-black/30 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                    <Gift className="w-3.5 h-3.5 text-yellow-300" /> هدية الترحيب
-                  </span>
-                  <span className="text-xs font-bold text-yellow-200">للأعضاء الجدد</span>
-                </div>
-                <h3 className="text-xl font-extrabold leading-snug">قسيمة بقيمة 500 دج</h3>
-                <p className="text-xs text-amber-100 mt-1">تطبق تلقائياً على أول طلب مع توصيل مجاني</p>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between">
-                <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-lg border border-dashed border-white/50 text-xs font-mono font-bold tracking-wider">
-                  AMUGAR2026
-                </div>
-                <button 
-                  onClick={() => alert('تم نسخ القسيمة بنجاح!')}
-                  className="bg-white text-orange-600 hover:bg-yellow-100 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  نسخ القسيمة
-                </button>
-              </div>
-            </div>
-
-            {/* Card 2: Super Deal / Lightning Pick */}
-            <div className="bg-white rounded-2xl p-4 border border-gray-200/80 shadow-sm flex items-center gap-4 relative overflow-hidden">
-              <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 relative">
-                <img 
-                  src="https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=300&auto=format&fit=crop&q=80" 
-                  alt="Super Deal" 
-                  className="w-full h-full object-cover"
-                />
-                <span className="absolute top-1 right-1 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                  -58%
-                </span>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1 text-[11px] font-bold text-red-600 mb-1">
-                  <Zap className="w-3.5 h-3.5 fill-red-600" />
-                  <span>عرض الصاعقة اليومي</span>
-                </div>
-                <h4 className="text-xs font-bold text-gray-900 truncate">سماعات لاسلكية ANC برو</h4>
-                <div className="flex items-baseline gap-1.5 mt-1">
-                  <span className="text-base font-extrabold text-red-600">3,200 دج</span>
-                  <span className="text-xs text-gray-400 line-through">7,500 دج</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2 mt-2 overflow-hidden">
-                  <div className="bg-gradient-to-r from-red-600 to-orange-500 h-full w-[82%]" />
-                </div>
-                <p className="text-[10px] text-gray-500 mt-1">المتبقي: 8 قطع فقط</p>
-              </div>
-            </div>
-
-          </div>
-        </section>
-
-        {/* 3. Sticky Quick Category Navigation Bar */}
-        <section className="sticky top-0 z-30 bg-white/95 backdrop-blur-md py-2.5 px-3 rounded-2xl shadow-sm border border-gray-200/70">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
-            {categories.map((cat) => {
-              const Icon = cat.icon;
-              const isActive = activeCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
-                    isActive 
-                      ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md shadow-orange-500/20' 
-                      : 'bg-gray-100/80 hover:bg-gray-200/70 text-gray-700'
-                  }`}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-orange-500'}`} />
-                  {cat.name}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* 4. Lightning Flash Deals Bar (Temu / AliExpress Lightning Deals) */}
-        <section id="flash-deals" className="bg-gradient-to-r from-red-600 via-orange-600 to-red-700 rounded-2xl p-4 sm:p-5 text-white shadow-md relative overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-yellow-300">
-                <Flame className="w-5 h-5 fill-yellow-300 animate-bounce" />
-              </div>
-              <div>
-                <h2 className="text-lg sm:text-xl font-black flex items-center gap-2">
-                  عروض الصاعقة FLASH DEALS
-                </h2>
-                <p className="text-xs text-orange-100">أسعار حصرية تنتهي قريباً مع شحن فوري</p>
-              </div>
-            </div>
-
-            {/* Countdown Clock */}
-            <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/20 self-start sm:self-auto">
-              <Clock className="w-4 h-4 text-yellow-300" />
-              <span className="text-xs font-medium text-gray-200">ينتهي العرض خلال:</span>
-              <div className="flex items-center gap-1 font-mono font-bold text-sm">
-                <span className="bg-white text-gray-900 px-1.5 py-0.5 rounded">{String(timeLeft.hours).padStart(2, '0')}</span>
-                <span>:</span>
-                <span className="bg-white text-gray-900 px-1.5 py-0.5 rounded">{String(timeLeft.minutes).padStart(2, '0')}</span>
-                <span>:</span>
-                <span className="bg-white text-gray-900 px-1.5 py-0.5 rounded">{String(timeLeft.seconds).padStart(2, '0')}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Flash Deals Horizontal Carousel / Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-            {sampleFlashDeals.map((deal) => {
-              const discountPercent = Math.round(((deal.originalPrice - deal.price) / deal.originalPrice) * 100);
-              return (
-                <div 
-                  key={deal.id}
-                  className="bg-white rounded-xl p-3 text-gray-900 shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between"
-                >
-                  <div className="relative rounded-lg overflow-hidden bg-gray-50 aspect-square mb-2.5">
-                    <img 
-                      src={deal.image} 
-                      alt={deal.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <span className="absolute top-2 right-2 bg-red-600 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-md shadow">
-                      -{discountPercent}%
-                    </span>
-                    {deal.isChoice && (
-                      <span className="absolute bottom-2 right-2 bg-amber-500 text-slate-950 text-[10px] font-extrabold px-1.5 py-0.5 rounded">
-                        Choice
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <h3 className="text-xs font-bold text-gray-800 line-clamp-2 leading-relaxed mb-1">
-                      {deal.name}
-                    </h3>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-base font-black text-red-600">{deal.price.toLocaleString()} دج</span>
-                      <span className="text-[11px] text-gray-400 line-through">{deal.originalPrice.toLocaleString()} دج</span>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-gray-100 rounded-full h-2 mt-2 overflow-hidden">
-                      <div className="bg-gradient-to-r from-red-600 to-orange-500 h-full w-[76%]" />
-                    </div>
-                    <div className="flex justify-between items-center text-[10px] text-gray-500 mt-1">
-                      <span>تم بيع {deal.salesCount}+</span>
-                      <span className="text-red-600 font-bold">باقي {deal.stockLeft} قطع</span>
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={() => addToCart({
-                      id: deal.id,
-                      name: deal.name,
-                      price: deal.price,
-                      image: deal.image,
-                      quantity: 1
-                    })}
-                    className="w-full mt-3 bg-gray-900 hover:bg-orange-600 text-white text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    شراء سريع
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* 5. Top Stores / Amugar Verified Merchants */}
-        <section className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-200/80 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Store className="w-5 h-5 text-orange-600" />
-              <h2 className="text-base sm:text-lg font-extrabold text-gray-900">متاجر مميزة وموثوقة (Amugar Verified)</h2>
-            </div>
-            <Link to="/stores" className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
-              عرض كل المتاجر <ChevronLeft className="w-3.5 h-3.5" />
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-3 py-4 space-y-5">
+          {/* Navigation */}
+          <div>
+            <div className="text-[10px] font-bold text-[#9A8A6B] tracking-widest px-2 mb-1.5">التصفح</div>
+            <Link to="/marketplace" className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition ${!storeSlug && category === 'all' ? 'bg-[#1A1A1E] text-white' : 'text-[#4B5563] hover:bg-[#F3F4F6]'}`}>
+              <HomeIcon size={16} />
+              <span className="flex-1 text-right font-medium">الرئيسية</span>
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {sampleTopStores.map((st) => (
-              <div 
-                key={st.id}
-                className="p-3 rounded-xl border border-gray-100 bg-gray-50/60 hover:bg-white hover:border-orange-200 hover:shadow-sm transition-all duration-200 text-center flex flex-col items-center"
-              >
-                <div className="w-14 h-14 rounded-full overflow-hidden mb-2 border-2 border-orange-500/30 p-0.5 bg-white">
-                  <img src={st.logo} alt={st.name} className="w-full h-full object-cover rounded-full" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <h4 className="text-xs font-bold text-gray-900">{st.name}</h4>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 fill-blue-500/20" />
-                </div>
-                <span className="text-[10px] text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded-full mt-1">
-                  {st.badge}
-                </span>
-                <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-2">
-                  <span className="flex items-center text-amber-500 font-bold">
-                    <Star className="w-3 h-3 fill-amber-500 ml-0.5" /> {st.rating}
-                  </span>
-                  <span>•</span>
-                  <span>{st.sales}</span>
-                </div>
+          {/* Categories */}
+          <div>
+            <div className="text-[10px] font-bold text-[#9A8A6B] tracking-widest px-2 mb-1.5">الفئات</div>
+            <div className="space-y-0.5">
+              {MAIN_CATEGORIES.map(cat => {
+                const Icon = cat.icon
+                const active = category === cat.key
+                return (
+                  <button
+                    key={cat.key}
+                    onClick={() => { setCategory(cat.key); setStoreId(''); setSidebarOpen(false) }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition ${active ? 'bg-[#1A1A1E] text-white' : 'text-[#4B5563] hover:bg-[#F3F4F6]'}`}
+                  >
+                    <Icon size={16} className={active ? 'text-[#C9A96A]' : 'text-[#9A8A6B]'} />
+                    <span className="flex-1 text-right font-medium">{cat.labelAr}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Price filter */}
+          <div>
+            <div className="text-[10px] font-bold text-[#9A8A6B] tracking-widest px-2 mb-1.5">نطاق السعر</div>
+            <div className="px-2 space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={minPrice || ''}
+                  onChange={e => setMinPrice(Number(e.target.value) || 0)}
+                  placeholder="من"
+                  className="w-full bg-[#F3F4F6] border border-[#E5E7EB] rounded-lg px-2 py-1.5 text-xs outline-none focus:border-[#C9A96A]"
+                />
+                <span className="text-[#9A8A6B] text-xs">—</span>
+                <input
+                  type="number"
+                  value={maxPrice || ''}
+                  onChange={e => setMaxPrice(Number(e.target.value) || 0)}
+                  placeholder="إلى"
+                  className="w-full bg-[#F3F4F6] border border-[#E5E7EB] rounded-lg px-2 py-1.5 text-xs outline-none focus:border-[#C9A96A]"
+                />
               </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 6. Feed Section: Recommended For You */}
-        <section id="feed" className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-orange-600" />
-              <h2 className="text-lg sm:text-xl font-extrabold text-gray-900">موصى به لك (Recommended Feed)</h2>
-            </div>
-
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl self-start sm:self-auto text-xs font-bold">
-              <button
-                onClick={() => setActiveTab('recommended')}
-                className={`px-3 py-1.5 rounded-lg transition-colors ${activeTab === 'recommended' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-              >
-                الموصى بها
-              </button>
-              <button
-                onClick={() => setActiveTab('bestseller')}
-                className={`px-3 py-1.5 rounded-lg transition-colors ${activeTab === 'bestseller' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-              >
-                الأكثر طلباً
-              </button>
-              <button
-                onClick={() => setActiveTab('rating')}
-                className={`px-3 py-1.5 rounded-lg transition-colors ${activeTab === 'rating' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-              >
-                الأعلى تقييماً
-              </button>
-              <button
-                onClick={() => setActiveTab('priceAsc')}
-                className={`px-3 py-1.5 rounded-lg transition-colors ${activeTab === 'priceAsc' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-              >
-                الأقل سعراً
-              </button>
+              <button onClick={() => { setMinPrice(0); setMaxPrice(0) }} className="text-[10px] text-[#9A8A6B] hover:text-[#1A1A1E]">مسح السعر</button>
             </div>
           </div>
 
-          {/* Product Grid (2 Cols Mobile / 4-5 Cols Desktop) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-            {sortedProducts.map((prod) => {
-              const discount = Math.round(((prod.originalPrice - prod.price) / prod.originalPrice) * 100);
-              const isFav = wishlist?.some((w) => w.id === prod.id);
-
-              return (
-                <div 
-                  key={prod.id}
-                  className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between group"
+          {/* Stores */}
+          {stores.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold text-[#9A8A6B] tracking-widest px-2 mb-1.5">المتاجر ({stores.length})</div>
+              <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
+                <button
+                  onClick={() => setStoreId('')}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition ${!storeId ? 'bg-[#F3F4F6] font-bold text-[#1A1A1E]' : 'text-[#4B5563] hover:bg-[#F3F4F6]'}`}
                 >
-                  <div className="relative aspect-square bg-gray-50 overflow-hidden">
-                    <img 
-                      src={prod.image} 
-                      alt={prod.name} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                  <StoreIcon size={12} />
+                  <span className="flex-1 text-right">كل المتاجر</span>
+                </button>
+                {stores.map(s => (
+                  <button
+                    key={s._id}
+                    onClick={() => setStoreId(s._id)}
+                    className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition ${storeId === s._id ? 'bg-[#F3F4F6] font-bold text-[#1A1A1E]' : 'text-[#4B5563] hover:bg-[#F3F4F6]'}`}
+                  >
+                    <StoreIcon size={12} className="text-[#9A8A6B]" />
+                    <span className="flex-1 text-right truncate">{s.nameAr || s.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-                    {/* Discount & Choice Badges */}
-                    <div className="absolute top-2 right-2 flex flex-col gap-1">
-                      <span className="bg-red-600 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow">
-                        -{discount}%
-                      </span>
-                      {prod.isChoice && (
-                        <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded shadow">
-                          Choice
-                        </span>
-                      )}
-                    </div>
+          {/* Clear filters */}
+          {hasActiveFilters && (
+            <button
+              onClick={() => { setQ(''); setCategory('all'); setMinPrice(0); setMaxPrice(0); setStoreId('') }}
+              className="w-full bg-[#F3F4F6] text-[#4B5563] hover:bg-[#E5E7EB] py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+            >
+              <X size={14} /> مسح كل الفلاتر
+            </button>
+          )}
+        </div>
 
-                    {/* Wishlist Button */}
-                    <button
-                      onClick={() => addToWishlist({
-                        id: prod.id,
-                        name: prod.name,
-                        price: prod.price,
-                        image: prod.image,
-                      })}
-                      className={`absolute top-2 left-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center transition-colors shadow ${
-                        isFav ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-                      }`}
-                      aria-label="Add to Wishlist"
-                    >
-                      <Heart className={`w-4 h-4 ${isFav ? 'fill-red-500' : ''}`} />
-                    </button>
+        {/* Bottom: Create store CTA */}
+        <div className="border-t border-[#E5E7EB] p-3 shrink-0">
+          <Link to="/" className="block bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white rounded-xl p-3 text-center hover:shadow-lg transition">
+            <div className="font-bold text-sm flex items-center justify-center gap-1.5">
+              <StoreIcon size={14} /> أنشئ متجرك
+            </div>
+            <div className="text-[10px] text-white/60 mt-0.5">مجاناً — في أقل من دقيقة</div>
+          </Link>
+        </div>
+      </aside>
+
+      {/* ═══ MAIN CONTENT ═══════════════════════════════════════════════ */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top bar — Mobile-first design */}
+        <header className="sticky top-0 z-30 bg-white border-b border-[#E5E7EB] shadow-sm">
+          {/* Row 1: Logo + Search + Cart (mobile) */}
+          <div className="px-3 md:px-6 pt-2.5 pb-2 flex items-center gap-2">
+            {/* Mobile menu button */}
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-9 h-9 rounded-xl bg-[#F3F4F6] grid place-items-center shrink-0 active:scale-95 transition" aria-label="القائمة">
+              <Menu size={18} />
+            </button>
+
+            {/* Mobile: Logo (compact) */}
+            <Link to="/marketplace" className="lg:hidden flex items-center gap-1.5 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1A1A1E] to-[#3D3D45] grid place-items-center">
+                <img src="/logo.webp" alt="Amugar" className="w-6 h-6 object-contain" />
+              </div>
+            </Link>
+
+            {/* Search */}
+            <div className="flex-1 min-w-0">
+              <div className="relative">
+                <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9A8A6B]" />
+                <input
+                  value={q}
+                  onChange={e => setQ(e.target.value)}
+                  placeholder="ابحث عن منتج..."
+                  className="w-full bg-[#F3F4F6] border border-[#E5E7EB] rounded-full py-2 pr-9 pl-4 text-xs md:text-sm outline-none focus:border-[#C9A96A] focus:bg-white transition"
+                />
+                {q && (
+                  <button onClick={() => setQ('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9A8A6B] hover:text-[#1A1A1E]">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Sort (mobile: icon only, desktop: full) */}
+            <select
+              value={sort}
+              onChange={e => setSort(e.target.value as any)}
+              className="bg-white border border-[#E5E7EB] rounded-full px-2 md:px-3 py-1.5 md:py-2 text-[10px] md:text-xs font-bold outline-none cursor-pointer hover:bg-[#F3F4F6] transition shrink-0"
+              aria-label="ترتيب"
+            >
+              {SORT_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.labelAr}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Row 2: Live viewers + quick stats (mobile only, scrollable) */}
+          <div className="lg:hidden px-3 pb-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+            <LiveViewers />
+            <div className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 rounded-full px-2.5 py-1 text-[10px] font-bold shrink-0">
+              <Package size={10} />
+              <span className="tabular-nums">{total}</span>
+              <span>منتج</span>
+            </div>
+            <div className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 rounded-full px-2.5 py-1 text-[10px] font-bold shrink-0">
+              <StoreIcon size={10} />
+              <span className="tabular-nums">{stores.length}</span>
+              <span>متجر</span>
+            </div>
+          </div>
+
+          {/* Desktop: Live viewers in top-right */}
+          <div className="hidden lg:flex px-6 pb-3 items-center justify-end">
+            <LiveViewers />
+          </div>
+        </header>
+
+        {/* Live ticker (only on main page) */}
+        {isMainPage && !storeProfile && (
+          <LiveTicker productNames={productNamesPool} />
+        )}
+
+        {/* Content area */}
+        <main className="flex-1 p-3 sm:p-4 md:p-6 pb-24 lg:pb-6">
+          {/* Store profile header (when viewing /marketplace/store/:slug) */}
+          {storeProfile && (
+            <div className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white rounded-2xl p-6 mb-6 relative overflow-hidden">
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#C9A96A]/15 rounded-full blur-3xl" />
+              <div className="relative flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-white grid place-items-center shrink-0">
+                  <StoreIcon size={24} className="text-[#1A1A1E]" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-extrabold">{storeProfile.nameAr || storeProfile.name}</h1>
+                  <p className="text-white/60 text-sm mt-1">{products.length} منتج منشور في السوق العام</p>
+                </div>
+                <Link to={`/?store=${storeProfile.slug}`} className="mr-auto bg-white text-[#1A1A1E] px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 hover:bg-[#FFFCF8] transition">
+                  <StoreIcon size={14} /> زيارة المتجر
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ Main page hero zone ═════════════════════════════════════════ */}
+          {isMainPage && !storeProfile && (
+            <>
+              {/* Banner Carousel — mobile: shorter, desktop: taller */}
+              <BannerCarousel className="mb-3" />
+
+              {/* Circular categories — always visible, scrollable on mobile */}
+              <div className="bg-white border border-[#E5E7EB] rounded-2xl mb-3">
+                <CategoriesCircle active={category} onSelect={setCategory} />
+              </div>
+
+              {/* Trust badges — horizontal scroll on mobile, grid on desktop */}
+              <TrustBadges className="mb-3" />
+
+              {/* Coupon banner */}
+              <CouponBanner className="mb-4" />
+            </>
+          )}
+
+          {/* Hero stats banner (only when filters active — replaces the carousel) */}
+          {!isMainPage && !storeProfile && (
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#F3F4F6] grid place-items-center shrink-0">
+                <Search size={18} className="text-[#9A8A6B]" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-sm text-[#1A1A1E]">
+                  {hasActiveFilters ? 'نتائج البحث' : 'كل المنتجات'}
+                </div>
+                <div className="text-xs text-[#9A8A6B]">
+                  {loading ? 'جاري التحميل...' : `${total} منتج`}
+                </div>
+              </div>
+              <LiveViewers className="hidden sm:inline-flex" />
+            </div>
+          )}
+
+          {/* ═══ Flash Deals section ════════════════════════════════════════ */}
+          {flashDeals.length > 0 && (
+            <div className="mb-4 bg-gradient-to-l from-[#DC2626]/5 via-[#F59E0B]/5 to-[#DC2626]/5 border border-[#DC2626]/20 rounded-2xl p-3">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#DC2626] to-[#B91C1C] grid place-items-center shrink-0 shadow-md">
+                    <Zap size={18} className="text-white" />
                   </div>
-
-                  <div className="p-3 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="text-[10px] text-gray-500 font-medium mb-1 flex items-center justify-between">
-                        <span>{prod.storeName}</span>
-                        {prod.freeShipping && (
-                          <span className="text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">
-                            توصيل مجاني
-                          </span>
-                        )}
-                      </div>
-
-                      <Link to={`/product/${prod.id}`}>
-                        <h3 className="text-xs sm:text-sm font-bold text-gray-900 line-clamp-2 leading-snug hover:text-orange-600 transition-colors">
-                          {prod.name}
-                        </h3>
-                      </Link>
-                    </div>
-
-                    <div className="mt-3 pt-2 border-t border-gray-100">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-base sm:text-lg font-black text-gray-900">
-                          {prod.price.toLocaleString()} <span className="text-xs font-bold text-orange-600">دج</span>
-                        </span>
-                        <span className="text-xs text-gray-400 line-through">
-                          {prod.originalPrice.toLocaleString()} دج
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px] text-gray-500 mt-1">
-                        <div className="flex items-center text-amber-500 font-bold">
-                          <Star className="w-3.5 h-3.5 fill-amber-500 ml-0.5" />
-                          <span>{prod.rating}</span>
-                          <span className="text-gray-400 font-normal mr-0.5">({prod.reviewsCount})</span>
-                        </div>
-                        <span>تم بيع {prod.salesCount}+</span>
-                      </div>
-
-                      {/* Quick Add to Cart Button */}
-                      <button
-                        onClick={() => addToCart({
-                          id: prod.id,
-                          name: prod.name,
-                          price: prod.price,
-                          image: prod.image,
-                          quantity: 1,
-                        })}
-                        className="w-full mt-3 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold py-2 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5"
-                      >
-                        <ShoppingBag className="w-3.5 h-3.5" />
-                        إضافة إلى السلة
-                      </button>
-                    </div>
+                  <div>
+                    <h2 className="text-base md:text-lg font-extrabold text-[#1A1A1E]">عروض اليوم</h2>
+                    <p className="text-[10px] md:text-[11px] text-[#9A8A6B]">خصومات حصرية لفترة محدودة</p>
                   </div>
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] md:text-[11px] text-[#9A8A6B] font-medium hidden sm:inline">ينتهي خلال</span>
+                  <CountdownTimer hours={8} />
+                </div>
+              </div>
+              {/* Mobile: horizontal scroll carousel; Desktop: 6-col grid */}
+              <div className="flex lg:grid lg:grid-cols-6 gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1 lg:mx-0 lg:px-0 lg:overflow-visible">
+                {flashDeals.map(p => (
+                  <div key={p._id} className="w-[140px] sm:w-[170px] lg:w-auto shrink-0 lg:shrink">
+                    <EnhancedMarketplaceProductCard
+                      p={p}
+                      stores={stores}
+                      onClick={() => handleProductClick(p)}
+                      flash
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ═══ Trending section ═══════════════════════════════════════════ */}
+          {trending.length > 0 && (
+            <Section title="الأكثر رواجاً" subtitle="منتجات يبحث عنها الجميع" icon={Flame} iconBg="from-[#A02A5B] to-[#7A1F44]">
+              <div className="flex lg:grid lg:grid-cols-6 gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1 lg:mx-0 lg:px-0 lg:overflow-visible">
+                {trending.map(p => (
+                  <div key={p._id} className="w-[140px] sm:w-[170px] lg:w-auto shrink-0 lg:shrink">
+                    <EnhancedMarketplaceProductCard
+                      p={p}
+                      stores={stores}
+                      onClick={() => handleProductClick(p)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* ═══ New arrivals section ════════════════════════════════════════ */}
+          {newArrivals.length > 0 && (
+            <Section title="وصل حديثاً" subtitle="أحدث المنتجات في السوق" icon={Sparkles} iconBg="from-[#C9A96A] to-[#B8945A]">
+              <div className="flex lg:grid lg:grid-cols-6 gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1 lg:mx-0 lg:px-0 lg:overflow-visible">
+                {newArrivals.map(p => (
+                  <div key={p._id} className="w-[140px] sm:w-[170px] lg:w-auto shrink-0 lg:shrink">
+                    <EnhancedMarketplaceProductCard
+                      p={p}
+                      stores={stores}
+                      onClick={() => handleProductClick(p)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* ═══ Top Stores (mobile: horizontal carousel, desktop: sidebar) ═══ */}
+          {isMainPage && !storeProfile && storesWithCounts.length > 0 && (
+            <div className="lg:hidden mb-4">
+              <TopStores stores={storesWithCounts} layout="carousel" limit={8} />
+            </div>
+          )}
+
+          {/* ═══ Main grid + Top Stores (two-column on desktop) ═══════════════ */}
+          <div className="mt-2 lg:mt-6 grid lg:grid-cols-[1fr_280px] gap-4">
+            {/* Main product grid */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="text-base md:text-lg font-extrabold text-[#1A1A1E]">
+                    {storeProfile ? 'منتجات المتجر' : hasActiveFilters ? 'نتائج البحث' : 'كل المنتجات'}
+                  </h2>
+                  <p className="text-[10px] md:text-xs text-[#9A8A6B] mt-0.5">
+                    {loading ? 'جاري التحميل...' : `${total} منتج`}
+                  </p>
+                </div>
+                {totalPages > 1 && (
+                  <div className="text-xs text-[#9A8A6B]">
+                    صفحة {page} من {totalPages}
+                  </div>
+                )}
+              </div>
+
+              {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="bg-white border border-[#E5E7EB] rounded-xl sm:rounded-2xl overflow-hidden">
+                      <div className="aspect-square skeleton" />
+                      <div className="p-2 sm:p-2.5 space-y-2">
+                        <div className="h-3 skeleton rounded" />
+                        <div className="h-4 w-1/2 skeleton rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : products.length === 0 ? (
+                <div className="bg-white border border-[#E5E7EB] rounded-2xl p-8 sm:p-12 text-center">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#F3F4F6] grid place-items-center mx-auto mb-3">
+                    <Search size={20} className="sm:hidden text-[#9A8A6B]" />
+                    <Search size={24} className="hidden sm:block text-[#9A8A6B]" />
+                  </div>
+                  <div className="font-bold text-sm sm:text-base text-[#1A1A1E]">لا توجد منتجات مطابقة</div>
+                  <p className="text-xs sm:text-sm text-[#9A8A6B] mt-1">جرّب تغيير الفلاتر أو كلمة البحث</p>
+                  {hasActiveFilters && (
+                    <button onClick={() => { setQ(''); setCategory('all'); setMinPrice(0); setMaxPrice(0); setStoreId('') }} className="mt-4 bg-[#1A1A1E] text-white px-4 sm:px-5 py-2 rounded-full text-xs font-bold">
+                      مسح الفلاتر
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+                  {products.map(p => (
+                    <EnhancedMarketplaceProductCard
+                      key={p._id}
+                      p={p}
+                      stores={stores}
+                      onClick={() => handleProductClick(p)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-8">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="bg-white border border-[#E5E7EB] rounded-full w-10 h-10 grid place-items-center disabled:opacity-40 hover:bg-[#F3F4F6] transition"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                  {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
+                    const p = i + 1
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        className={`w-10 h-10 rounded-full text-sm font-bold transition ${page === p ? 'bg-[#1A1A1E] text-white' : 'bg-white border border-[#E5E7EB] text-[#4B5563] hover:bg-[#F3F4F6]'}`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  })}
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="bg-white border border-[#E5E7EB] rounded-full w-10 h-10 grid place-items-center disabled:opacity-40 hover:bg-[#F3F4F6] transition"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Right sidebar: Top Stores (desktop only, main page only) */}
+            {isMainPage && !storeProfile && storesWithCounts.length > 0 && (
+              <div className="hidden lg:block">
+                <div className="sticky top-20 space-y-4">
+                  <TopStores stores={storesWithCounts} />
+
+                  {/* "Create your store" promo card */}
+                  <div className="bg-gradient-to-br from-[#C9A96A]/10 to-[#A02A5B]/10 border border-[#C9A96A]/30 rounded-2xl p-4">
+                    <div className="w-10 h-10 rounded-xl bg-white grid place-items-center mb-2 shadow-sm">
+                      <StoreIcon size={18} className="text-[#C9A96A]" />
+                    </div>
+                    <h3 className="font-extrabold text-sm text-[#1A1A1E] mb-1">متجر مجاني 100%</h3>
+                    <p className="text-[11px] text-[#4B5563] leading-5 mb-3">
+                      أنشئ متجرك في أقل من دقيقة، انشر منتجاتك في السوق العام مجاناً، واحصل على عملاء جدد.
+                    </p>
+                    <Link to="/" className="block bg-[#1A1A1E] text-white text-center py-2 rounded-xl text-xs font-bold hover:bg-[#2D2D35] transition">
+                      أنشئ متجرك الآن
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </section>
 
-        {/* 7. Guarantees & Trust Badges */}
-        <section className="bg-white rounded-2xl p-6 border border-gray-200/80 shadow-sm">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center mb-2">
-                <Truck className="w-6 h-6" />
+          {/* App download banner */}
+          {isMainPage && !storeProfile && (
+            <AppDownloadBanner className="mt-8" />
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer className="bg-[#1A1A1E] text-white/40 py-6 px-4 md:px-6 mt-8 pb-24 lg:pb-6">
+          <div className="max-w-[1200px] mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-white/10 grid place-items-center">
+                <img src="/logo.webp" alt="Amugar" className="w-5 h-5 object-contain" />
               </div>
-              <h4 className="text-sm font-bold text-gray-900">شحن لـ 58 ولاية</h4>
-              <p className="text-xs text-gray-500 mt-0.5">توصيل سريع حتى باب منزلك أو أقرب مكتب</p>
+              <span className="text-white/60 font-bold">Amugar Marketplace</span>
             </div>
-
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center mb-2">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h4 className="text-sm font-bold text-gray-900">الدفع عند الاستلام</h4>
-              <p className="text-xs text-gray-500 mt-0.5">افحص طلبك وتأكد من الجودة قبل الدفع</p>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2">
-                <BadgePercent className="w-6 h-6" />
-              </div>
-              <h4 className="text-sm font-bold text-gray-900">ضمان أفضل سعر</h4>
-              <p className="text-xs text-gray-500 mt-0.5">أسعار مباشرة من التاجر دون وسطاء</p>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-2">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <h4 className="text-sm font-bold text-gray-900">ضمان استرجاع 7 أيام</h4>
-              <p className="text-xs text-gray-500 mt-0.5">استبدال أو استرجاع مضمون في حالة وجود عيب</p>
+            <div className="flex gap-4">
+              <Link to="/" className="hover:text-white transition">المنصة</Link>
+              <Link to="/marketplace" className="hover:text-white transition">السوق</Link>
+              <a href="#" className="hover:text-white transition">شروط الاستخدام</a>
             </div>
           </div>
-        </section>
+        </footer>
+      </div>
 
-      </main>
-
-      {/* 8. Live Real-time Social Proof Toast */}
-      <AnimatePresence>
-        {liveToast && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, x: 20 }}
-            animate={{ opacity: 1, y: 0, x: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 right-6 z-50 bg-white/95 backdrop-blur-md border border-gray-200/90 rounded-2xl p-3.5 shadow-2xl flex items-center gap-3 max-w-sm"
-          >
-            <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-            <div className="text-xs">
-              <p className="text-gray-900 font-bold">
-                اشترى <span className="text-orange-600">{liveToast.name}</span> من ({liveToast.city}) للتو
-              </p>
-              <p className="text-gray-500 text-[11px] truncate">{liveToast.item}</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      {/* ═══ Floating UI (overlay) ═════════════════════════════════════════ */}
+      <FloatingButtons />
+      <BottomMobileNav />
+      <ToastNotifications productNames={productNamesPool} />
     </div>
-  );
-};
+  )
+}
 
-export default Marketplace;
+// ─── Section wrapper (title + icon + content) ───────────────────────────────
+function Section({ title, subtitle, icon: Icon, iconBg, children }: {
+  title: string
+  subtitle: string
+  icon: any
+  iconBg: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${iconBg} grid place-items-center shrink-0`}>
+          <Icon size={16} className="text-white" />
+        </div>
+        <div>
+          <h2 className="text-lg font-extrabold text-[#1A1A1E]">{title}</h2>
+          <p className="text-[11px] text-[#9A8A6B]">{subtitle}</p>
+        </div>
+      </div>
+      {children}
+    </div>
+  )
+}
 
