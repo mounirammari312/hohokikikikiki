@@ -251,7 +251,7 @@ const PRODUCTS_PATH = '/api/products'
 
 export async function fetchProducts(): Promise<Product[]> {
   const { products } = await cachedGet<{ products: Product[] }>(
-    PRODUCTS_PATH, 'amugar_products_v3', { products: seedProducts as Product[] }
+    PRODUCTS_PATH, 'amugar_products_v4', { products: [] as Product[] }
   )
   return products || []
 }
@@ -756,7 +756,7 @@ export async function fetchAnalyticsCountries(storeId: string): Promise<{ countr
 const ORDERS_PATH = '/api/orders'
 
 export async function fetchOrders(): Promise<Order[]> {
-  const { orders } = await cachedGet<{ orders: Order[] }>(ORDERS_PATH, 'amugar_orders_v3', { orders: [] as Order[] })
+  const { orders } = await cachedGet<{ orders: Order[] }>(ORDERS_PATH, 'amugar_orders_v4', { orders: [] as Order[] })
   return orders || []
 }
 export async function fetchOrderByNumber(orderNumber: string): Promise<Order | undefined> {
@@ -811,7 +811,7 @@ export async function addWilayaApi(data: WilayaRate): Promise<WilayaRate[]> {
 const SETTINGS_PATH = '/api/settings'
 
 export async function fetchSettings(): Promise<StoreSettings> {
-  const { settings } = await cachedGet<{ settings: StoreSettings }>(SETTINGS_PATH, 'amugar_settings_v3', { settings: defaultSettings })
+  const { settings } = await cachedGet<{ settings: StoreSettings }>(SETTINGS_PATH, 'amugar_settings_v4', { settings: defaultSettings })
   return settings || defaultSettings
 }
 export async function saveSettingsApi(data: StoreSettings): Promise<StoreSettings> {
@@ -825,14 +825,14 @@ export async function saveSettingsApi(data: StoreSettings): Promise<StoreSetting
   // after saving in /admin" — the old code only invalidated the cache,
   // leaving the stale localStorage entry as the fallback for any later
   // failed fetch.
-  primeCache(SETTINGS_PATH, 'amugar_settings_v3', { settings })
+  primeCache(SETTINGS_PATH, 'amugar_settings_v4', { settings })
   return settings
 }
 export async function updateSettingsApi(patch: Partial<StoreSettings>): Promise<StoreSettings> {
   const { settings } = await apiFetch<{ settings: StoreSettings }>(SETTINGS_PATH, {
     method: 'PATCH', body: JSON.stringify(patch),
   })
-  primeCache(SETTINGS_PATH, 'amugar_settings_v3', { settings })
+  primeCache(SETTINGS_PATH, 'amugar_settings_v4', { settings })
   return settings
 }
 
@@ -841,7 +841,7 @@ export async function updateSettingsApi(patch: Partial<StoreSettings>): Promise<
 const DOMAINS_PATH = '/api/domains'
 
 export async function fetchDomains(): Promise<StoreDomain[]> {
-  const { domains } = await cachedGet<{ domains: StoreDomain[] }>(DOMAINS_PATH, 'amugar_domains_v3', { domains: presetDomains as StoreDomain[] })
+  const { domains } = await cachedGet<{ domains: StoreDomain[] }>(DOMAINS_PATH, 'amugar_domains_v4', { domains: presetDomains as StoreDomain[] })
   return domains || (presetDomains as StoreDomain[])
 }
 export async function createCustomDomainApi(data: Omit<StoreDomain, 'id'>): Promise<StoreDomain[]> {

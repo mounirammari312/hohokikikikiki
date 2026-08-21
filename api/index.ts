@@ -2348,12 +2348,12 @@ async function activateDomain(ctx: RouteCtx) {
   if (!domain) {
     // If not found in current store, check if it's a preset domain
     // from store_default (the demo store). Preset domains (jewelry,
-    // fashion, beauty) are seeded only into store_default — so for
-    // any other store we need to copy the domain into the current
-    // store before activating it.
+    // fashion, beauty, electronics, home_appliances, digital, general)
+    // are seeded into every new store via seedStoreData — but stores
+    // created BEFORE a new preset was added won't have it.
     const preset = await DomainModel.findOne({ storeId: DEFAULT_STORE_ID, id }).lean() as any
     if (preset) {
-      // Copy the preset domain into the current store
+      // Copy the preset domain from store_default into the current store
       const copy = {
         ...preset,
         _id: `${ctx.storeId}__${preset.id}`,
@@ -2365,6 +2365,27 @@ async function activateDomain(ctx: RouteCtx) {
         { upsert: true }
       ).catch(() => {})
       domain = await DomainModel.findOne({ storeId: ctx.storeId, id }).lean()
+    } else {
+      // ─── Fallback: use the in-memory presetDomains from seed.ts ──────
+      // store_default might not have the new preset either (e.g. if the
+      // deployment was upgraded but ensureSeeded() didn't run yet, or
+      // if store_default's seed was already done and we added a new
+      // preset afterwards). The in-memory presetDomains array always
+      // has the latest presets, so we can copy from there.
+      const inMemoryPreset = (presetDomains as any[]).find(p => p.id === id)
+      if (inMemoryPreset) {
+        const copy = {
+          ...inMemoryPreset,
+          _id: `${ctx.storeId}__${inMemoryPreset.id}`,
+          storeId: ctx.storeId,
+        }
+        await DomainModel.updateOne(
+          { storeId: ctx.storeId, id: inMemoryPreset.id },
+          { $set: copy },
+          { upsert: true }
+        ).catch(() => {})
+        domain = await DomainModel.findOne({ storeId: ctx.storeId, id }).lean()
+      }
     }
   }
   if (!domain) return { data: { error: 'NOT_FOUND' }, status: 404 }
