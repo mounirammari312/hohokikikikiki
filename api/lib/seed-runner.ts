@@ -99,33 +99,6 @@ async function doPlatformSeed(): Promise<void> {
   // Always seed the demo store's catalog (idempotent — only inserts if empty)
   await seedStoreData(DEFAULT_STORE_ID)
 
-  // ─── Sync preset domains for ALL existing stores ──────────────────
-  // When we add new preset domains (e.g. electronics, home_appliances,
-  // digital), existing stores created BEFORE the addition won't have
-  // them. This loop iterates over every store + upserts every preset
-  // domain into it. It's idempotent (uses updateOne with upsert:true)
-  // so it's safe to run on every cold start.
-  // Performance: bounded by store count (typically <100 stores), runs
-  // in <1s. Each store gets a bulkWrite of 7 preset domains.
-  try {
-    const allStores = await TenantStoreModel.find({}, { _id: 1 }).lean()
-    if (allStores.length > 0) {
-      for (const store of allStores) {
-        for (const preset of presetDomains) {
-          await DomainModel.updateOne(
-            { storeId: store._id, id: preset.id },
-            { $set: { ...preset, storeId: store._id, _id: `${store._id}__${preset.id}` } },
-            { upsert: true }
-          ).catch(() => {})
-        }
-      }
-      console.log(`[seed] synced preset domains for ${allStores.length} store(s)`)
-    }
-  } catch (err) {
-    // Non-critical — don't fail the seed
-    console.warn('[seed] preset domain sync skipped:', err)
-  }
-
   // ─── Migrate legacy stores: switch from specialized domains → "domain_general" ──
   // Old deployments had `activeDomainId: "domain_jewelry"` (or fashion/beauty)
   // as the default for every new merchant. This caused confusion — a merchant
@@ -436,9 +409,10 @@ export async function seedStoreData(storeId: string, domainId?: string): Promise
       storeId,
       ...defaultSettings,
       activeDomainId: chosenDomainId,
-      // Override the jewelry-themed defaults with the chosen domain's texts
-      storeName: chosenPreset?.name || defaultSettings.storeName,
-      storeNameAr: chosenPreset?.nameAr || defaultSettings.storeNameAr,
+      // Override the default settings' texts with the chosen domain's texts
+      // (heroBadge, heroTitleAr, heroSubtitleAr, footerDescriptionAr).
+      // We do NOT override storeName / storeNameAr — those come from the
+      // merchant's registration form (e.g. "متجر محمد للإلكترونيات").
       heroBadge: chosenPreset?.heroBadge || defaultSettings.heroBadge,
       heroTitleAr: chosenPreset?.heroTitleAr || defaultSettings.heroTitleAr,
       heroSubtitleAr: chosenPreset?.heroSubtitleAr || defaultSettings.heroSubtitleAr,

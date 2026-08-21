@@ -403,46 +403,6 @@ const MarketplaceActivitySchema = new mongoose.Schema({
 }, { _id: false, versionKey: false, strict: false })
 MarketplaceActivitySchema.index({ createdAt: -1 })
 
-// ─── StoreVisit (per-visitor tracking — analytics for merchants) ────────────
-// A visit is logged every time someone opens a tenant store's storefront
-// or product detail page. The merchant can see:
-//   - total visits + unique visitors (per day/week/month)
-//   - traffic sources (referrer: direct, facebook, instagram, tiktok, ...)
-//   - top products by views
-//   - visit timeline (last 7/30 days)
-//
-// Privacy: we store NO PII (no IP, no user agent, no cookie). We only store
-// a stable anonymous visitorId (random + stored in localStorage) so we
-// can count unique visitors without tracking identity.
-const StoreVisitSchema = new mongoose.Schema({
-  _id: STRING_ID,
-  storeId: { type: String, required: true, index: true },
-  // 'store' = storefront visit, 'product' = product detail view
-  type: { type: String, enum: ['store', 'product'], default: 'store', index: true },
-  // For 'product' type only — the product that was viewed
-  productId: { type: String, default: '' },
-  // Anonymous visitor ID (random string, stored in localStorage on client)
-  // Used to count unique visitors without storing PII
-  visitorId: { type: String, default: '', index: true },
-  // Referrer source — extracted from document.referrer on the client
-  // Examples: 'direct' (no referrer), 'facebook.com', 'instagram.com',
-  // 'tiktok.com', 'google.com', 'wa.me' (WhatsApp), 't.me' (Telegram)
-  source: { type: String, default: 'direct', index: true },
-  // Device type (extracted from user agent — coarse, no version)
-  // 'mobile', 'tablet', 'desktop'
-  device: { type: String, enum: ['mobile', 'tablet', 'desktop'], default: 'mobile' },
-  // Country (derived from IP via Vercel's x-vercel-ip-country header)
-  country: { type: String, default: '' },
-  createdAt: { type: String, default: () => new Date().toISOString() },
-}, { _id: false, versionKey: false, strict: false })
-// Indexes for common analytics queries:
-//   - by store + day (timeline)
-//   - by store + source (traffic sources breakdown)
-//   - by store + product (top products)
-StoreVisitSchema.index({ storeId: 1, createdAt: -1 })
-StoreVisitSchema.index({ storeId: 1, source: 1 })
-StoreVisitSchema.index({ storeId: 1, productId: 1 })
-
 export const TenantStoreModel =
   mongoose.models.TenantStore || mongoose.model('TenantStore', TenantStoreSchema)
 export const MerchantUserModel =
@@ -465,5 +425,3 @@ export const BannerModel =
   mongoose.models.Banner || mongoose.model('Banner', BannerSchema)
 export const MarketplaceActivityModel =
   mongoose.models.MarketplaceActivity || mongoose.model('MarketplaceActivity', MarketplaceActivitySchema)
-export const StoreVisitModel =
-  mongoose.models.StoreVisit || mongoose.model('StoreVisit', StoreVisitSchema)

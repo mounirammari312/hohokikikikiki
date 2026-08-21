@@ -11,7 +11,7 @@
  * which don't require a tenant context.
  */
 
-import { seedProducts, seedWilayas, defaultSettings, presetDomains } from './seed'
+import { defaultSettings, presetDomains } from './seed'
 import type {
   Product, Order, OrderStatus, WilayaRate, StoreSettings, StoreDomain,
   TenantStore, MerchantUser,
@@ -19,6 +19,20 @@ import type {
 import { getToken } from '../../context/TenantContext'
 
 // ─── Cache helpers ──────────────────────────────────────────────────────────
+//
+// CRITICAL: every cache entry (both in-memory and in localStorage) MUST be
+// keyed per-tenant. Otherwise data from store A leaks into store B when:
+//   - Two merchants share the same browser (e.g. public PC)
+//   - A merchant logs out + logs in as a different store
+//   - A visitor browses store A then store B
+//
+// We achieve this by appending the active store's storeId/slug to BOTH:
+//   - the in-memory cache key (getCacheKey)
+//   - the localStorage key (getLsKey)
+//
+// The localStorage key is built dynamically on every read/write so that
+// switching stores (via ?store= or ?storeId= or login) automatically
+// isolates the cache.
 
 const memCache = new Map<string, { data: any; ts: number }>()
 const MEM_TTL = 30_000
@@ -29,6 +43,16 @@ const MEM_TTL = 30_000
 function getCacheKey(path: string): string {
   const slug = getActiveStoreSlug() || getActiveStoreId() || 'default'
   return `${path}__${slug}`
+}
+
+/** Build a per-tenant localStorage key. This is the fix for the
+ *  "data leakage between stores" bug — previously the lsKey was
+ *  hardcoded (e.g. `amugar_products_v4`) and was shared across all
+ *  stores on the same browser. Now it's `amugar_products_v5__<storeId>`
+ *  so each store's data is isolated. */
+function getLsKey(baseKey: string): string {
+  const slug = getActiveStoreSlug() || getActiveStoreId() || 'default'
+  return `${baseKey}__${slug}`
 }
 
 function isBrowser() {
@@ -47,6 +71,27 @@ function lsGet<T>(key: string, fallback: T): T {
 function lsSet(key: string, data: unknown) {
   if (!isBrowser()) return
   try { localStorage.setItem(key, JSON.stringify(data)) } catch {}
+}
+
+/** Clear ALL Amugar cache entries from localStorage for the CURRENT tenant.
+ *  Called when the active store changes (login, logout, store switch) so
+ *  that stale data from a previous store doesn't leak into the new one. */
+export function clearTenantCache(): void {
+  if (!isBrowser()) return
+  try {
+    // Remove all amugar_* keys that match the current tenant suffix
+    const currentSuffix = getActiveStoreSlug() || getActiveStoreId() || 'default'
+    const keysToRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith('amugar_') && k.endsWith(`__${currentSuffix}`)) {
+        keysToRemove.push(k)
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k))
+    // Also clear the in-memory cache for the current tenant
+    memCache.clear()
+  } catch {}
 }
 
 // ─── Tenant + auth header injection ──────────────────────────────────────────
@@ -185,11 +230,12 @@ async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs = 12000):
 
 async function cachedGet<T>(
   path: string,
-  lsKey: string,
+  lsKeyBase: string,
   fallback: T,
   opts: { onRefetch?: (data: T) => void } = {}
 ): Promise<T> {
   const cacheKey = getCacheKey(path)
+  const lsKey = getLsKey(lsKeyBase)  // per-tenant localStorage key
   const mem = memCache.get(cacheKey)
   const now = Date.now()
   if (mem && now - mem.ts < MEM_TTL) {
@@ -230,8 +276,9 @@ export function invalidateAll() { memCache.clear() }
  * stale cached value until the next server fetch (which may never come
  * if the network is flaky).
  */
-function primeCache(path: string, lsKey: string, data: unknown) {
+function primeCache(path: string, lsKeyBase: string, data: unknown) {
   const cacheKey = getCacheKey(path)
+  const lsKey = getLsKey(lsKeyBase)  // per-tenant localStorage key
   memCache.set(cacheKey, { data, ts: Date.now() })
   lsSet(lsKey, data)
   // Dispatch a synthetic storage event so the SAME tab also refreshes
@@ -251,7 +298,7 @@ const PRODUCTS_PATH = '/api/products'
 
 export async function fetchProducts(): Promise<Product[]> {
   const { products } = await cachedGet<{ products: Product[] }>(
-    PRODUCTS_PATH, 'amugar_products_v4', { products: [] as Product[] }
+    PRODUCTS_PATH, 'amugar_products_v5', { products: [] as Product[] }
   )
   return products || []
 }
@@ -551,212 +598,12 @@ export async function fetchBanners(): Promise<{ banners: MarketplaceBanner[] }> 
   }
 }
 
-// ─── Visit tracking (fire-and-forget, never blocks UI) ──────────────────────
-
-const VISITOR_KEY = 'amugar_visitor_id'
-
-/** Get or create a stable anonymous visitor ID (stored in localStorage).
- *  Used to count unique visitors without storing PII. */
-function getVisitorId(): string {
-  if (typeof window === 'undefined') return ''
-  try {
-    let id = localStorage.getItem(VISITOR_KEY)
-    if (!id) {
-      id = 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10)
-      localStorage.setItem(VISITOR_KEY, id)
-    }
-    return id
-  } catch {
-    return ''
-  }
-}
-
-/** Extract traffic source from document.referrer.
- *  Returns a hostname (e.g. 'facebook.com') or 'direct' if no referrer. */
-function getReferrerSource(): string {
-  if (typeof document === 'undefined') return 'direct'
-  try {
-    const ref = document.referrer
-    if (!ref) return 'direct'
-    const u = new URL(ref)
-    // Don't count self-referrals as a source
-    if (u.hostname === window.location.hostname) return 'direct'
-    return u.hostname.replace(/^www\./, '')
-  } catch {
-    return 'direct'
-  }
-}
-
-/** Detect device type from user agent (coarse — mobile/tablet/desktop). */
-function getDevice(): 'mobile' | 'tablet' | 'desktop' {
-  if (typeof navigator === 'undefined') return 'mobile'
-  const ua = navigator.userAgent || ''
-  if (/tablet|ipad/i.test(ua)) return 'tablet'
-  if (/mobile|android|iphone/i.test(ua)) return 'mobile'
-  return 'desktop'
-}
-
-/**
- * Log a visit to the backend. Fire-and-forget — never throws, never blocks.
- * Called automatically by the storefront on page load.
- */
-export function trackVisit(storeId: string, type: 'store' | 'product' = 'store', productId?: string): void {
-  if (typeof window === 'undefined' || !storeId) return
-  // Don't track visits from the merchant themselves (they're in the dashboard)
-  // — we check this via a flag set by the Admin page.
-  if (sessionStorage.getItem('amugar_is_admin') === '1') return
-
-  const payload = {
-    storeId,
-    type,
-    productId: productId || '',
-    visitorId: getVisitorId(),
-    source: getReferrerSource(),
-    device: getDevice(),
-  }
-
-  // Use sendBeacon for fire-and-forget (doesn't block page navigation)
-  // Falls back to fetch if sendBeacon is unavailable.
-  try {
-    if (navigator.sendBeacon) {
-      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
-      navigator.sendBeacon('/api/visit', blob)
-      return
-    }
-  } catch {
-    // ignore
-  }
-  // Fallback: fetch with keepalive (also non-blocking)
-  try {
-    void fetch('/api/visit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      keepalive: true,
-    }).catch(() => {})
-  } catch {
-    // ignore — never block the page
-  }
-}
-
-// ─── Analytics API (merchant dashboard) ─────────────────────────────────────
-
-export interface AnalyticsOverview {
-  totalVisits: number
-  uniqueVisitors: number
-  todayVisits: number
-  weekVisits: number
-  monthVisits: number
-  productViews: number
-  storeViews: number
-  conversionRate: number
-  orderCount: number
-}
-
-export interface AnalyticsTimelinePoint {
-  date: string
-  visits: number
-  uniqueVisitors: number
-  productViews: number
-}
-
-export interface AnalyticsSource {
-  source: string
-  visits: number
-  percentage: number
-}
-
-export interface AnalyticsTopProduct {
-  productId: string
-  productNameAr: string
-  views: number
-  image: string
-  price: number
-}
-
-export interface AnalyticsDevice {
-  device: string
-  visits: number
-}
-
-export interface AnalyticsCountry {
-  country: string
-  visits: number
-}
-
-/** GET /api/stores/:id/analytics/overview */
-export async function fetchAnalyticsOverview(storeId: string): Promise<AnalyticsOverview> {
-  try {
-    return await apiFetch<AnalyticsOverview>(`/api/stores/${encodeURIComponent(storeId)}/analytics/overview`)
-  } catch {
-    return {
-      totalVisits: 0, uniqueVisitors: 0, todayVisits: 0, weekVisits: 0, monthVisits: 0,
-      productViews: 0, storeViews: 0, conversionRate: 0, orderCount: 0,
-    }
-  }
-}
-
-/** GET /api/stores/:id/analytics/timeline?days=7 */
-export async function fetchAnalyticsTimeline(storeId: string, days = 7): Promise<{ timeline: AnalyticsTimelinePoint[] }> {
-  try {
-    return await apiFetch<{ timeline: AnalyticsTimelinePoint[] }>(
-      `/api/stores/${encodeURIComponent(storeId)}/analytics/timeline?days=${days}`
-    )
-  } catch {
-    return { timeline: [] }
-  }
-}
-
-/** GET /api/stores/:id/analytics/sources */
-export async function fetchAnalyticsSources(storeId: string): Promise<{ sources: AnalyticsSource[]; totalVisits: number }> {
-  try {
-    return await apiFetch<{ sources: AnalyticsSource[]; totalVisits: number }>(
-      `/api/stores/${encodeURIComponent(storeId)}/analytics/sources`
-    )
-  } catch {
-    return { sources: [], totalVisits: 0 }
-  }
-}
-
-/** GET /api/stores/:id/analytics/top-products */
-export async function fetchAnalyticsTopProducts(storeId: string): Promise<{ topProducts: AnalyticsTopProduct[] }> {
-  try {
-    return await apiFetch<{ topProducts: AnalyticsTopProduct[] }>(
-      `/api/stores/${encodeURIComponent(storeId)}/analytics/top-products`
-    )
-  } catch {
-    return { topProducts: [] }
-  }
-}
-
-/** GET /api/stores/:id/analytics/devices */
-export async function fetchAnalyticsDevices(storeId: string): Promise<{ devices: AnalyticsDevice[] }> {
-  try {
-    return await apiFetch<{ devices: AnalyticsDevice[] }>(
-      `/api/stores/${encodeURIComponent(storeId)}/analytics/devices`
-    )
-  } catch {
-    return { devices: [] }
-  }
-}
-
-/** GET /api/stores/:id/analytics/countries */
-export async function fetchAnalyticsCountries(storeId: string): Promise<{ countries: AnalyticsCountry[] }> {
-  try {
-    return await apiFetch<{ countries: AnalyticsCountry[] }>(
-      `/api/stores/${encodeURIComponent(storeId)}/analytics/countries`
-    )
-  } catch {
-    return { countries: [] }
-  }
-}
-
 // ─── Public API: Orders ─────────────────────────────────────────────────────
 
 const ORDERS_PATH = '/api/orders'
 
 export async function fetchOrders(): Promise<Order[]> {
-  const { orders } = await cachedGet<{ orders: Order[] }>(ORDERS_PATH, 'amugar_orders_v4', { orders: [] as Order[] })
+  const { orders } = await cachedGet<{ orders: Order[] }>(ORDERS_PATH, 'amugar_orders_v5', { orders: [] as Order[] })
   return orders || []
 }
 export async function fetchOrderByNumber(orderNumber: string): Promise<Order | undefined> {
@@ -790,7 +637,7 @@ export async function deleteOrderApi(id: string): Promise<Order[]> {
 const WILAYAS_PATH = '/api/wilayas'
 
 export async function fetchWilayas(): Promise<WilayaRate[]> {
-  const { wilayas } = await cachedGet<{ wilayas: WilayaRate[] }>(WILAYAS_PATH, 'amugar_wilayas_v3', { wilayas: seedWilayas as WilayaRate[] })
+  const { wilayas } = await cachedGet<{ wilayas: WilayaRate[] }>(WILAYAS_PATH, 'amugar_wilayas_v5', { wilayas: [] as WilayaRate[] })
   return wilayas || []
 }
 export async function updateWilayaRateApi(code: string, data: Partial<WilayaRate>): Promise<WilayaRate[]> {
@@ -811,7 +658,7 @@ export async function addWilayaApi(data: WilayaRate): Promise<WilayaRate[]> {
 const SETTINGS_PATH = '/api/settings'
 
 export async function fetchSettings(): Promise<StoreSettings> {
-  const { settings } = await cachedGet<{ settings: StoreSettings }>(SETTINGS_PATH, 'amugar_settings_v4', { settings: defaultSettings })
+  const { settings } = await cachedGet<{ settings: StoreSettings }>(SETTINGS_PATH, 'amugar_settings_v5', { settings: defaultSettings })
   return settings || defaultSettings
 }
 export async function saveSettingsApi(data: StoreSettings): Promise<StoreSettings> {
@@ -825,14 +672,14 @@ export async function saveSettingsApi(data: StoreSettings): Promise<StoreSetting
   // after saving in /admin" — the old code only invalidated the cache,
   // leaving the stale localStorage entry as the fallback for any later
   // failed fetch.
-  primeCache(SETTINGS_PATH, 'amugar_settings_v4', { settings })
+  primeCache(SETTINGS_PATH, 'amugar_settings_v5', { settings })
   return settings
 }
 export async function updateSettingsApi(patch: Partial<StoreSettings>): Promise<StoreSettings> {
   const { settings } = await apiFetch<{ settings: StoreSettings }>(SETTINGS_PATH, {
     method: 'PATCH', body: JSON.stringify(patch),
   })
-  primeCache(SETTINGS_PATH, 'amugar_settings_v4', { settings })
+  primeCache(SETTINGS_PATH, 'amugar_settings_v5', { settings })
   return settings
 }
 
@@ -841,7 +688,7 @@ export async function updateSettingsApi(patch: Partial<StoreSettings>): Promise<
 const DOMAINS_PATH = '/api/domains'
 
 export async function fetchDomains(): Promise<StoreDomain[]> {
-  const { domains } = await cachedGet<{ domains: StoreDomain[] }>(DOMAINS_PATH, 'amugar_domains_v4', { domains: presetDomains as StoreDomain[] })
+  const { domains } = await cachedGet<{ domains: StoreDomain[] }>(DOMAINS_PATH, 'amugar_domains_v5', { domains: presetDomains as StoreDomain[] })
   return domains || (presetDomains as StoreDomain[])
 }
 export async function createCustomDomainApi(data: Omit<StoreDomain, 'id'>): Promise<StoreDomain[]> {

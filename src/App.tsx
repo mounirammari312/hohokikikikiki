@@ -10,6 +10,7 @@ import { ensureProducts, syncProducts } from './services/api/products'
 import { syncWilayas } from './services/api/wilayas'
 import { syncSettings } from './services/api/settings'
 import { syncDomains } from './services/api/domains'
+import { invalidateAll } from './services/api/client'
 
 // ─── Code splitting via React.lazy ─────────────────────────────────────────
 // Each page is loaded on-demand only when the user navigates to it.
@@ -101,11 +102,21 @@ function TenantStorefront() {
   const prevTenantRef = useRef<string | null>(null)
   useEffect(() => {
     if (isPlatformHost && !hasTenantContext) return  // skip sync if no tenant
-    // If the tenant actually CHANGED (not just a re-render), force a
-    // fresh sync so the new store's data loads immediately. The cache
-    // uses per-tenant keys, so this won't affect other stores' caches.
+
+    // ─── CRITICAL: clear ALL cache when the tenant actually changes ────
+    // This is the fix for "I open store B and see store A's products".
+    // When the active store changes (login, store switch, ?store= change),
+    // we MUST wipe the in-memory cache so stale data from the previous
+    // store doesn't leak into the new one. The localStorage is now keyed
+    // per-tenant (getLsKey) so it's already isolated — but the in-memory
+    // cache needs to be cleared explicitly because it was populated with
+    // the OLD tenant's data under the OLD cache key.
     const tenantChanged = prevTenantRef.current !== null && prevTenantRef.current !== tenantKey
+    if (tenantChanged) {
+      invalidateAll()  // wipe in-memory cache
+    }
     prevTenantRef.current = tenantKey
+
     // Kick off background syncs — these update the cache without
     // blocking the render. Pages that already have cached data will
     // show it instantly and re-render when the fresh data arrives.

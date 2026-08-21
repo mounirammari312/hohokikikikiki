@@ -24,17 +24,12 @@ import {
 } from './client'
 
 // ─── In-memory cache (kept in sync with the API by syncProducts()) ──────────
-// IMPORTANT: cache starts EMPTY — we do NOT seed it with seedProducts anymore.
+// IMPORTANT: cache starts EMPTY — we do NOT seed it with seedProducts.
 // Previously, the cache was initialized with `[...seedProducts]` (the 18
-// jewelry products). This caused two major problems:
-//   1. Every new merchant would briefly see jewelry products on their
-//      storefront before the API returned their (empty) product list.
-//   2. If the API call failed, the merchant would see jewelry products
-//      permanently — completely unrelated to what they actually sell.
-//
-// Now the cache starts as `[]`. The UI shows a proper empty state while
-// `syncProducts()` loads the real products from the API. This is the
-// correct behavior: products come ONLY from the API, never from local seed.
+// jewelry products). This caused merchants to see jewelry products in
+// their store before the API returned their (empty) product list.
+// Now the cache starts as `[]` — products come ONLY from the API.
+
 let cache: Product[] = []
 let loaded = false
 const waiting: Array<() => void> = []
@@ -49,7 +44,7 @@ export async function syncProducts(): Promise<Product[]> {
     waiting.length = 0
     return list
   } catch (err) {
-    loaded = true // Mark as loaded to unblock waiters (cache stays empty)
+    loaded = true // Mark as loaded to unblock waiters (use seed fallback)
     waiting.forEach(fn => fn())
     waiting.length = 0
     return cache

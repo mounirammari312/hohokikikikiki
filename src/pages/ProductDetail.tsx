@@ -6,7 +6,6 @@ import { getProductById, syncProducts } from '../services/api/products'
 import { getWilayas } from '../services/api/wilayas'
 import { getDomainById, getDomains } from '../services/api/domains'
 import { createOrder } from '../services/api/orders'
-import { trackVisit } from '../services/api/client'
 import { calcItemTotal, formatDZD, validateDZPhone } from '../lib/utils'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
@@ -60,23 +59,6 @@ export default function ProductDetail(){
     })
     return () => { cancelled = true }
   }, [id])
-
-  // ─── Track the product view (for merchant analytics) ────────────────
-  // Fire-and-forget. Tracks once per product ID load (uses a session
-  // ref so navigating back to the same product doesn't double-count).
-  const trackedRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (!product?._id || trackedRef.current === product._id) return
-    trackedRef.current = product._id
-    const urlParams = new URLSearchParams(window.location.search)
-    const sid = product.storeId || urlParams.get('storeId') || ''
-    if (sid) {
-      trackVisit(sid, 'product', product._id)
-      // Also fire the existing Tracking.viewContent() for the merchant's pixel
-      Tracking.viewContent(product._id, product.price || 0)
-    }
-  }, [product?._id, product?.storeId, product?.price])
-
   const wilayas = useMemo(()=> getWilayas(), [])
   const [qty, setQty] = useState(1)
   const [selectedImg, setSelectedImg] = useState(0)
