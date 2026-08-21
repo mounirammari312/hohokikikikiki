@@ -40,15 +40,16 @@ export function TopStores({ stores: fallbackStores = [], className = '', limit =
   const [topStores, setTopStores] = useState<TopStore[]>([])
   const [loaded, setLoaded] = useState(false)
 
+  // Pull real top-stores from the API — deferred by 2s to avoid blocking initial render
   useEffect(() => {
     let cancelled = false
-    void (async () => {
+    const t = setTimeout(async () => {
       const { stores: ranked } = await fetchTopStores(limit)
       if (cancelled) return
       setTopStores(ranked)
       setLoaded(true)
-    })()
-    return () => { cancelled = true }
+    }, 2000)
+    return () => { cancelled = true; clearTimeout(t) }
   }, [limit])
 
   // Use real data if available; otherwise fall back to client-side ranked stores

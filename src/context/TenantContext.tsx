@@ -307,14 +307,18 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (getToken()) {
       void refreshUser()
+      // Safety net: force loading=false after a short delay even if
+      // refreshUser() never resolves (e.g. slow network, hung request).
+      // Reduced from 1500ms to 600ms — a cached user from localStorage
+      // is good enough to render the dashboard while the API call is
+      // in flight; we don't need to block the UI for 1.5 seconds.
+      const t = setTimeout(() => setLoading(false), 600)
+      return () => clearTimeout(t)
     } else {
       // No token — make sure we don't sit in the loading state forever.
       setUser(null)
+      setLoading(false)
     }
-    // Safety net: force loading=false after a short delay even if
-    // refreshUser() never resolves (e.g. slow network, hung request).
-    const t = setTimeout(() => setLoading(false), 1500)
-    return () => clearTimeout(t)
   }, [refreshUser])
 
   // ─── Apply theme colors as CSS variables on <html> ────────────────

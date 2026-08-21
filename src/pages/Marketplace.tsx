@@ -181,17 +181,23 @@ export default function Marketplace() {
   useEffect(() => { void fetchProducts() }, [fetchProducts])
   useEffect(() => { setPage(1) }, [q, category, sort, minPrice, maxPrice, storeId])
 
-  // Fetch top stores list (for the ranking sidebar widget)
+  // Fetch top stores list — deferred to background, non-blocking
+  // (uses the stores already returned by fetchMarketplaceProducts as fallback)
   useEffect(() => {
+    // Only fetch top-stores if we don't already have stores from the main query
+    if (storesWithCounts.length > 0) return
+    let cancelled = false
     void (async () => {
       try {
         const { stores: list } = await fetchMarketplaceStores()
+        if (cancelled) return
         setStoresWithCounts(list || [])
       } catch {
         // Non-critical
       }
     })()
-  }, [])
+    return () => { cancelled = true }
+  }, [storesWithCounts.length])
 
   // If storeSlug is provided, fetch that store's profile
   useEffect(() => {

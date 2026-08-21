@@ -99,6 +99,45 @@ async function doPlatformSeed(): Promise<void> {
   // Always seed the demo store's catalog (idempotent — only inserts if empty)
   await seedStoreData(DEFAULT_STORE_ID)
 
+  // ─── Migrate legacy stores: switch from "domain_jewelry" default → "domain_general" ──
+  // Old deployments had `activeDomainId: "domain_jewelry"` as the default
+  // for every new merchant. This caused confusion — a merchant selling
+  // electronics would see jewelry-themed storefront. This migration
+  // updates existing stores that STILL have the jewelry default (and
+  // never explicitly switched) to the new "domain_general" default.
+  // We detect "never explicitly switched" by checking if the settings
+  // doc has `activeDomainId === 'domain_jewelry'` AND no products
+  // with `domainId === 'domain_jewelry'` (i.e. the merchant never
+  // added jewelry products → they just have the default).
+  try {
+    const jewelryStores = await SettingsModel.find({ activeDomainId: 'domain_jewelry' }).lean()
+    if (jewelryStores.length > 0) {
+      let migrated = 0
+      for (const s of jewelryStores) {
+        // Check if the store has ANY jewelry products (prod_001..prod_008)
+        // If yes → they're a real jewelry store, skip migration
+        const hasJewelryProducts = await ProductModel.countDocuments({
+          storeId: s.storeId,
+          domainId: 'domain_jewelry',
+          deletedAt: null,
+        })
+        if (hasJewelryProducts === 0) {
+          await SettingsModel.updateOne(
+            { _id: s._id },
+            { $set: { activeDomainId: 'domain_general', updatedAt: new Date().toISOString() } }
+          )
+          migrated++
+        }
+      }
+      if (migrated > 0) {
+        console.log(`[seed] migrated ${migrated} store(s) from domain_jewelry → domain_general`)
+      }
+    }
+  } catch (err) {
+    // Non-critical — don't fail the seed
+    console.warn('[seed] domain migration skipped:', err)
+  }
+
   // ─── Super admin account ───────────────────────────────────────────
   // CRITICAL: Check by BOTH email AND _id to avoid E11000 duplicate key
   // error on serverless. On Vercel, multiple instances can run

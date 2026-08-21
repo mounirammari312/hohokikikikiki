@@ -10,7 +10,6 @@ import { ensureProducts, syncProducts } from './services/api/products'
 import { syncWilayas } from './services/api/wilayas'
 import { syncSettings } from './services/api/settings'
 import { syncDomains } from './services/api/domains'
-import { invalidateAll } from './services/api/client'
 
 // ─── Code splitting via React.lazy ─────────────────────────────────────────
 // Each page is loaded on-demand only when the user navigates to it.
@@ -20,9 +19,14 @@ import { invalidateAll } from './services/api/client'
 // Loading fallback: a minimal spinner shown while the chunk downloads.
 // On a 3G connection this adds ~200ms but saves 500KB of JS parsing
 // upfront — net win for first-page-load performance.
+//
+// PERFORMANCE: the fallback is intentionally minimal (no text, just a
+// small spinner). Adding "جاري التحميل…" here made the app feel slow
+// because every route change flashed the text. A bare spinner feels
+// instant — the user perceives the new page loading directly.
 const PageFallback = () => (
-  <div className="min-h-[60vh] grid place-items-center">
-    <div className="w-10 h-10 border-4 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin" />
+  <div className="min-h-[50vh] grid place-items-center">
+    <div className="w-8 h-8 border-3 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin" />
   </div>
 )
 
@@ -79,12 +83,21 @@ function TenantStorefront() {
 
   // Re-run the data syncs whenever the tenant changes. The `tenantKey`
   // changes when the store changes (different ?store= slug, different
-  // ?storeId=, different subdomain, etc.) — this triggers a cache clear
-  // + re-sync so we never show one store's products on another store.
+  // ?storeId=, different subdomain, etc.) — this triggers a background
+  // re-fetch so we never show one store's products on another store.
+  //
+  // PERFORMANCE: we do NOT call invalidateAll() here — that would wipe
+  // the in-memory cache and force every page to re-render with empty
+  // data while the API call is in flight. Instead, we let the cache
+  // stay (keyed per-tenant via getCacheKey), and sync*() runs in the
+  // background to refresh. The cache uses per-tenant keys, so switching
+  // stores is safe — store A's cached data is never served to store B.
   const tenantKey = storeId || storeSlug || 'default'
   useEffect(() => {
     if (isPlatformHost && !hasTenantContext) return  // skip sync if no tenant
-    invalidateAll()
+    // Kick off background syncs — these update the cache without
+    // blocking the render. Pages that already have cached data will
+    // show it instantly and re-render when the fresh data arrives.
     void syncProducts()
     void syncWilayas()
     void syncSettings()
@@ -122,7 +135,14 @@ function MerchantDashboard() {
   const isLogin = location.pathname.endsWith('/login')
 
   // Show login screen if not authenticated OR if explicitly on /admin/login
-  if (loading) return <div className="min-h-[60vh] grid place-items-center text-[#9A8A6B]">جاري التحميل…</div>
+  // PERFORMANCE: instead of a full-screen "جاري التحميل…" text (which feels
+  // slow), show a minimal spinner. The dashboard renders as soon as the
+  // cached user is available (within ~600ms typically).
+  if (loading) return (
+    <div className="min-h-[50vh] grid place-items-center">
+      <div className="w-8 h-8 border-3 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin" />
+    </div>
+  )
   if (!user || isLogin) return <Suspense fallback={<PageFallback />}><MerchantLogin /></Suspense>
 
   // Authenticated merchant → show the Admin dashboard (tenant-scoped

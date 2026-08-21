@@ -141,16 +141,18 @@ export function BannerCarousel({ className = '' }: { className?: string }) {
   const touchStartX = useRef<number | null>(null)
 
   // Pull banners from the API on mount
+  // DEFERRED: delay first fetch by 2s — show default banners immediately,
+  // then swap to server banners when they arrive (avoids blocking initial render)
   useEffect(() => {
     let cancelled = false
-    void (async () => {
+    const t = setTimeout(async () => {
       const { banners: remote } = await fetchBanners()
       if (cancelled) return
       if (remote && remote.length > 0) {
         setBanners(remote as Banner[])
       }
-    })()
-    return () => { cancelled = true }
+    }, 2000)
+    return () => { cancelled = true; clearTimeout(t) }
   }, [])
 
   useEffect(() => {

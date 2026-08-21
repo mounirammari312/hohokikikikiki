@@ -26,8 +26,13 @@ export function LiveViewers({ className = '' }: { className?: string }) {
   })
 
   // Pull the real value from the server on mount + every 60s
+  // DEFERRED: only fetch after 3s to avoid blocking the initial page load.
+  // The user sees the cached/random number immediately, then it updates
+  // with the real value from the server a moment later.
   useEffect(() => {
     let cancelled = false
+    let intervalId: ReturnType<typeof setInterval> | null = null
+
     const pull = async () => {
       const stats = await fetchMarketplaceStats()
       if (cancelled) return
@@ -36,9 +41,18 @@ export function LiveViewers({ className = '' }: { className?: string }) {
         sessionStorage.setItem(STORAGE_KEY, String(stats.viewersNow))
       }
     }
-    void pull()
-    const id = setInterval(pull, 60000)
-    return () => { cancelled = true; clearInterval(id) }
+
+    // Delay first fetch by 3s to let the rest of the page load
+    const initialTimeout = setTimeout(() => {
+      void pull()
+      intervalId = setInterval(pull, 60000)
+    }, 3000)
+
+    return () => {
+      cancelled = true
+      clearTimeout(initialTimeout)
+      if (intervalId) clearInterval(intervalId)
+    }
   }, [])
 
   // Local drift ±5% every 8 seconds (gives a "alive" feel between server pulls)

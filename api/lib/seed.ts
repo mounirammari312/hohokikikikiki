@@ -116,6 +116,33 @@ export const presetDomains: StoreDomain[] = [
       ]
     },
     isPreset: true
+  },
+  // ─── General / Generic store (DEFAULT for all new merchants) ──────────────
+  // This preset is what every NEW store starts with. It's intentionally
+  // neutral so the merchant doesn't see jewelry/fashion/beauty content
+  // that doesn't match what they actually sell. They can switch to a
+  // specialized preset from the dashboard if they want.
+  {
+    id: 'domain_general',
+    name: 'Amugar Store',
+    nameAr: 'متجر أموغار',
+    descriptionAr: 'متجر عام — أضف منتجاتك وابدأ البيع. يمكنك تخصيص النمط من لوحة التحكم.',
+    heroBadge: 'متجرك • 2026',
+    heroTitleAr: 'مرحباً بك في متجرك',
+    heroSubtitleAr: 'أضف منتجاتك الأولى وابدأ البيع. الدفع عند الاستلام، توصيل لكل الولايات، لوحة تحكم احترافية.',
+    heroImage: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1400&q=80',
+    footerDescriptionAr: 'متجر جزائري بمنتجات متنوعة. الدفع عند الاستلام في 58 ولاية، جودة مضمونة وخدمة سريعة.',
+    categories: [
+      { key: 'general', label: 'General', labelAr: 'عام' },
+    ],
+    attributeSchema: [],
+    variantConfig: {
+      hasColor: false,
+      hasSize: false,
+      sizeOptions: [],
+      colorPresets: [],
+    },
+    isPreset: true
   }
 ]
 
@@ -463,7 +490,7 @@ export const defaultSettings: StoreSettings = {
   footerDescriptionAr: "متجر جزائري بلمسة عصرية. منتجات بجودة عالية، مقاومة ومتينة. الدفع عند الاستلام في 58 ولاية.",
   instagram: "@amugar.dz",
   enableRoseEdition: true,
-  activeDomainId: "domain_jewelry",
+  activeDomainId: "domain_general",
 
   // Delivery integrations (default: disabled, empty credentials)
   // LEGACY flat fields kept for backwards-compat with older clients

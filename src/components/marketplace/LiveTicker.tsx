@@ -62,16 +62,27 @@ export function LiveTicker({ productNames, className = '' }: Props) {
   )
 
   // Pull real activity on mount + every 60s
+  // DEFERRED: delay first fetch by 3s to avoid blocking initial page load
   useEffect(() => {
     let cancelled = false
+    let intervalId: ReturnType<typeof setInterval> | null = null
+
     const pull = async () => {
       const { activity } = await fetchRecentActivity(20)
       if (cancelled) return
       setRealActivity(activity)
     }
-    void pull()
-    const id = setInterval(pull, 60000)
-    return () => { cancelled = true; clearInterval(id) }
+
+    const initialTimeout = setTimeout(() => {
+      void pull()
+      intervalId = setInterval(pull, 60000)
+    }, 3000)
+
+    return () => {
+      cancelled = true
+      clearTimeout(initialTimeout)
+      if (intervalId) clearInterval(intervalId)
+    }
   }, [])
 
   // Build display batch — prefer real, supplement with fake if < 12 real entries

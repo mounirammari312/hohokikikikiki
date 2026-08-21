@@ -27,16 +27,18 @@ export function CouponBanner({ className = '' }: { className?: string }) {
   const [claimed, setClaimed] = useState(false)
 
   // Pull active coupons on mount
+  // DEFERRED: delay first fetch by 2s — show default coupon immediately,
+  // then swap to server coupon when it arrives
   useEffect(() => {
     let cancelled = false
-    void (async () => {
+    const t = setTimeout(async () => {
       const { coupons } = await fetchActiveCoupons()
       if (cancelled) return
       if (coupons && coupons.length > 0) {
         setCoupon(coupons[0]) // show the most recent active coupon
       }
-    })()
-    return () => { cancelled = true }
+    }, 2000)
+    return () => { cancelled = true; clearTimeout(t) }
   }, [])
 
   const code = coupon?.code || DEFAULT_COUPON_CODE
