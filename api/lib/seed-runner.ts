@@ -422,17 +422,30 @@ export async function seedStoreData(storeId: string, domainId?: string): Promise
     // If a domainId was provided (chosen during registration), use it
     // instead of the default "domain_general". This is how the merchant
     // picks their store type (jewelry / fashion / electronics / etc.).
+    //
+    // CRITICAL: we also copy the domain's hero/store/footer texts into
+    // the settings. Otherwise the store would show the defaultSettings'
+    // jewelry-themed texts ("منتجات تُبرز أناقتك", "COLLECTION 2026")
+    // even though the activeDomainId is e.g. "domain_electronics".
     const chosenDomainId = domainId && presetDomains.find(p => p.id === domainId)
       ? domainId
       : 'domain_general'
+    const chosenPreset = (presetDomains as any[]).find(p => p.id === chosenDomainId) || (presetDomains as any[]).find(p => p.id === 'domain_general')
     await SettingsModel.create({
       _id: settingsDocId(storeId),
       storeId,
       ...defaultSettings,
       activeDomainId: chosenDomainId,
+      // Override the jewelry-themed defaults with the chosen domain's texts
+      storeName: chosenPreset?.name || defaultSettings.storeName,
+      storeNameAr: chosenPreset?.nameAr || defaultSettings.storeNameAr,
+      heroBadge: chosenPreset?.heroBadge || defaultSettings.heroBadge,
+      heroTitleAr: chosenPreset?.heroTitleAr || defaultSettings.heroTitleAr,
+      heroSubtitleAr: chosenPreset?.heroSubtitleAr || defaultSettings.heroSubtitleAr,
+      footerDescriptionAr: chosenPreset?.footerDescriptionAr || defaultSettings.footerDescriptionAr,
       deliveryProviders: defaultDeliveryProviders(),
     })
-    console.log(`[seed] inserted default settings for store ${storeId} (domain: ${chosenDomainId})`)
+    console.log(`[seed] inserted default settings for store ${storeId} (domain: ${chosenDomainId}, texts from: ${chosenPreset?.nameAr || 'default'})`)
   } else {
     // Merge any new default fields that didn't exist in the DB yet
     const update: Partial<StoreSettings> = {}
