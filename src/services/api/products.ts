@@ -16,7 +16,6 @@
  * (e.g. via React Query / SWR), the sync shims below can be removed.
  */
 
-import { seedProducts } from './seed'
 import type { Product } from './types'
 import { getActiveDomainSync } from './domains'
 import {
@@ -25,8 +24,18 @@ import {
 } from './client'
 
 // ─── In-memory cache (kept in sync with the API by syncProducts()) ──────────
-
-let cache: Product[] = [...seedProducts] as Product[]
+// IMPORTANT: cache starts EMPTY — we do NOT seed it with seedProducts anymore.
+// Previously, the cache was initialized with `[...seedProducts]` (the 18
+// jewelry products). This caused two major problems:
+//   1. Every new merchant would briefly see jewelry products on their
+//      storefront before the API returned their (empty) product list.
+//   2. If the API call failed, the merchant would see jewelry products
+//      permanently — completely unrelated to what they actually sell.
+//
+// Now the cache starts as `[]`. The UI shows a proper empty state while
+// `syncProducts()` loads the real products from the API. This is the
+// correct behavior: products come ONLY from the API, never from local seed.
+let cache: Product[] = []
 let loaded = false
 const waiting: Array<() => void> = []
 
@@ -40,7 +49,7 @@ export async function syncProducts(): Promise<Product[]> {
     waiting.length = 0
     return list
   } catch (err) {
-    loaded = true // Mark as loaded to unblock waiters (use seed fallback)
+    loaded = true // Mark as loaded to unblock waiters (cache stays empty)
     waiting.forEach(fn => fn())
     waiting.length = 0
     return cache

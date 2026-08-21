@@ -16,7 +16,8 @@ import {
   Phone, Mail, Instagram, Palette, Zap, Image as ImageIcon, Tag, Layers, X,
   AlertCircle, Check, Filter, ShoppingBag, TrendingUp, Award, Gem, Shirt, Heart,
   Wand2, RefreshCw, Globe, Palette as PaletteIcon, Ruler, Droplet, Paintbrush, FileText, Link2,
-  ExternalLink, LayoutDashboard, Lock, User, LogOut, Building2, CreditCard, ChevronDown, Menu, KeyRound, ShieldCheck
+  ExternalLink, LayoutDashboard, Lock, User, LogOut, Building2, CreditCard, ChevronDown, Menu, KeyRound, ShieldCheck,
+  Smartphone, Home as HomeIcon, Wifi,
 } from 'lucide-react'
 
 const statusMap: Record<OrderStatus, { label: string, color: string }> = {
@@ -31,6 +32,10 @@ const domainIcons: Record<string, any> = {
   domain_jewelry: Gem,
   domain_fashion: Shirt,
   domain_beauty: Heart,
+  domain_electronics: Smartphone,
+  domain_home_appliances: HomeIcon,
+  domain_digital: Wifi,
+  domain_general: ShoppingBag,
 }
 
 export default function Admin() {
@@ -2585,9 +2590,23 @@ function OnboardingWizard({
   domains: StoreDomain[]
   setActiveDomain: (id: string) => Promise<void>
 }) {
-  const [step, setStep] = useState(0)
+  // ─── Auto-skip step 0 if a domain type was already chosen ──────────
+  // PlatformLanding now lets the merchant pick a store type during
+  // registration. If they did (activeDomainId !== 'domain_jewelry' default
+  // legacy OR they picked a specific type), skip step 0 (pick niche) and
+  // start at step 1 (store info). They can still go back to step 0 if
+  // they want to change the type.
+  const initialStep = (() => {
+    const d = storeForm?.activeDomainId
+    // If the merchant already picked a specific domain (not the legacy
+    // jewelry default that older deployments used), start at step 1.
+    if (d && d !== 'domain_jewelry') return 1
+    // Otherwise start at step 0 so they pick a niche
+    return 0
+  })()
+  const [step, setStep] = useState(initialStep)
 
-  // Step 0: Pick niche (activates the matching preset domain)
+  // Step 0: Pick niche (activates the matching preset domain) — with icons
   // Step 1: Store name + phone + announcement
   // Step 2: Pick theme (6 preset palettes)
   // "تخطّي" / "حفظ وبدء البيع" calls onComplete which saves settings +
@@ -2606,23 +2625,32 @@ function OnboardingWizard({
             <div>
               <p className="text-sm font-bold mb-4 text-[#1A1A1E]">ما نوع متجرك؟ اختر التخصص:</p>
               <div className="grid grid-cols-2 gap-3">
-                {domains.map((d: any) => (
-                  <button
-                    key={d.id}
-                    onClick={() => {
-                      // Optimistically update the form so the button
-                      // highlights immediately; setActiveDomain also
-                      // persists the choice server-side (which syncs
-                      // storeName/hero/etc. as a side effect).
-                      setStoreForm({ ...storeForm, activeDomainId: d.id })
-                      void setActiveDomain(d.id)
-                    }}
-                    className={`p-4 rounded-2xl border-2 text-right transition ${storeForm.activeDomainId === d.id ? 'border-[#A02A5B] bg-[#FDF2F6]' : 'border-[#EDE6D8] hover:border-[#C9A96A]'}`}
-                  >
-                    <div className="font-bold text-sm text-[#1A1A1E]">{d.nameAr}</div>
-                    <div className="text-[11px] text-[#9A8A6B] mt-0.5">{d.categories?.length || 0} فئات</div>
-                  </button>
-                ))}
+                {domains.map((d: any) => {
+                  const Icon = domainIcons[d.id] || ShoppingBag
+                  const active = storeForm.activeDomainId === d.id
+                  return (
+                    <button
+                      key={d.id}
+                      onClick={() => {
+                        // Optimistically update the form so the button
+                        // highlights immediately; setActiveDomain also
+                        // persists the choice server-side (which syncs
+                        // storeName/hero/etc. as a side effect).
+                        setStoreForm({ ...storeForm, activeDomainId: d.id })
+                        void setActiveDomain(d.id)
+                      }}
+                      className={`p-4 rounded-2xl border-2 text-right transition flex items-start gap-3 ${active ? 'border-[#A02A5B] bg-[#FDF2F6]' : 'border-[#EDE6D8] hover:border-[#C9A96A]'}`}
+                    >
+                      <div className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${active ? 'bg-[#A02A5B] text-white' : 'bg-[#F3F0E8] text-[#8D6E3A]'}`}>
+                        <Icon size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-sm text-[#1A1A1E]">{d.nameAr}</div>
+                        <div className="text-[11px] text-[#9A8A6B] mt-0.5">{d.categories?.length || 0} فئات</div>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
               <button onClick={() => setStep(1)} className="w-full mt-4 bg-[#1A1A1E] text-white py-3 rounded-xl font-bold hover:bg-black transition">التالي ←</button>
             </div>
