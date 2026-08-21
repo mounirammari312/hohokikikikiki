@@ -2249,25 +2249,60 @@ async function createDomain(ctx: RouteCtx) {
   return { data: { domains: docs, created: data } }
 }
 
+// ─── Helper: ensure a domain exists in the store's DB ──────────────────────
+// Searches: (1) current store, (2) store_default, (3) in-memory presetDomains.
+// If found in any of these, copies it into the current store (upsert).
+// This is the SINGLE fix for "domain not found" — no matter which path
+// calls it (activate, update, etc.), the domain is guaranteed to exist
+// in the store's DB after this function returns.
+async function ensureDomainInStore(storeId: string, id: string): Promise<any | null> {
+  // 1) Already in this store's DB?
+  let domain = await DomainModel.findOne({ storeId, id }).lean()
+  if (domain) return domain
+
+  // 2) In store_default's DB? (preset domains seeded there)
+  const preset = await DomainModel.findOne({ storeId: DEFAULT_STORE_ID, id }).lean() as any
+  if (preset) {
+    const copy = { ...preset, _id: `${storeId}__${preset.id}`, storeId }
+    await DomainModel.updateOne({ storeId, id: preset.id }, { $set: copy }, { upsert: true }).catch(() => {})
+    return await DomainModel.findOne({ storeId, id }).lean()
+  }
+
+  // 3) In-memory presetDomains array? (latest code, not yet in DB)
+  const inMemory = (presetDomains as any[]).find(p => p.id === id)
+  if (inMemory) {
+    const copy = { ...inMemory, _id: `${storeId}__${inMemory.id}`, storeId }
+    await DomainModel.updateOne({ storeId, id: inMemory.id }, { $set: copy }, { upsert: true }).catch(() => {})
+    return await DomainModel.findOne({ storeId, id }).lean()
+  }
+
+  return null
+}
+
 async function updateDomain(ctx: RouteCtx) {
   const id = ctx.query.get('id')
   if (!id) return { data: { error: 'ID_REQUIRED' }, status: 400 }
   const patch = await getReqBody(ctx.req)
   delete patch.storeId  // tenant guard
+  delete patch._id      // don't allow _id changes
+
+  // Ensure the domain exists in this store (copy from store_default or
+  // in-memory presetDomains if needed). This fixes "save does nothing".
+  await ensureDomainInStore(ctx.storeId, id)
+
   const next = await DomainModel.findOneAndUpdate(
     { storeId: ctx.storeId, id },
     { $set: patch },
-    { new: true }
+    { new: true, upsert: true }
   ).lean()
   if (!next) return { data: { error: 'NOT_FOUND' }, status: 404 }
 
-  // If the patched domain is the active one, sync storeName/hero/etc.
+  // If the patched domain is the active one, sync hero/footer texts
+  // (but NOT storeName — the merchant's store name is sacred).
   const settings = await SettingsModel.findById(settingsDocId(ctx.storeId)).lean()
   if (settings?.activeDomainId === id) {
     await SettingsModel.findByIdAndUpdate(settingsDocId(ctx.storeId), {
       $set: {
-        storeName: next.name,
-        storeNameAr: next.nameAr,
         heroBadge: next.heroBadge,
         heroTitleAr: next.heroTitleAr,
         heroSubtitleAr: next.heroSubtitleAr,
@@ -2291,8 +2326,6 @@ async function deleteDomain(ctx: RouteCtx) {
     await SettingsModel.findByIdAndUpdate(settingsDocId(ctx.storeId), {
       $set: {
         activeDomainId: first.id,
-        storeName: first.name,
-        storeNameAr: first.nameAr,
         heroBadge: first.heroBadge,
         heroTitleAr: first.heroTitleAr,
         heroSubtitleAr: first.heroSubtitleAr,
@@ -2307,38 +2340,15 @@ async function deleteDomain(ctx: RouteCtx) {
 async function activateDomain(ctx: RouteCtx) {
   const { id } = await getReqBody(ctx.req)
   if (!id) return { data: { error: 'ID_REQUIRED' }, status: 400 }
-  // First try finding the domain in the current store
-  let domain = await DomainModel.findOne({ storeId: ctx.storeId, id }).lean()
-  if (!domain) {
-    // If not found in current store, check if it's a preset domain
-    // from store_default (the demo store). Preset domains (jewelry,
-    // fashion, beauty) are seeded only into store_default — so for
-    // any other store we need to copy the domain into the current
-    // store before activating it.
-    const preset = await DomainModel.findOne({ storeId: DEFAULT_STORE_ID, id }).lean() as any
-    if (preset) {
-      // Copy the preset domain into the current store
-      const copy = {
-        ...preset,
-        _id: `${ctx.storeId}__${preset.id}`,
-        storeId: ctx.storeId,
-      }
-      await DomainModel.updateOne(
-        { storeId: ctx.storeId, id: preset.id },
-        { $set: copy },
-        { upsert: true }
-      ).catch(() => {})
-      domain = await DomainModel.findOne({ storeId: ctx.storeId, id }).lean()
-    }
-  }
+
+  // ensureDomainInStore searches: current store → store_default → in-memory
+  // presetDomains. If found ANYWHERE, copies it into the current store.
+  // This is the definitive fix for "domain not found in database".
+  const domain = await ensureDomainInStore(ctx.storeId, id)
   if (!domain) return { data: { error: 'NOT_FOUND' }, status: 404 }
-  // IMPORTANT: we do NOT overwrite storeName / storeNameAr here. The
-  // merchant chose their store name during registration (e.g. "متجر محمد
-  // للإلكترونيات") and we must preserve it. Switching domains only updates
-  // the hero/banner/footer texts (visual theme), NOT the store's identity.
-  // The old code did `storeName: domain.name` which caused every store
-  // to be renamed to "Amugar Electronics" / "Amugar Mode" etc. — losing
-  // the merchant's actual store name.
+
+  // We do NOT overwrite storeName / storeNameAr — the merchant's store
+  // name is set during registration and must be preserved.
   const settings = await SettingsModel.findByIdAndUpdate(
     settingsDocId(ctx.storeId),
     {

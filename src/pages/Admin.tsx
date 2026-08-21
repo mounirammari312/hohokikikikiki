@@ -401,15 +401,26 @@ export default function Admin() {
     const aKeys = domainForm.attributeSchema.map((a:any)=> a.key.trim())
     if(new Set(aKeys).size !== aKeys.length){ showToast('مفاتيح الحقول يجب أن تكون فريدة'); return }
 
-    if(editingDomain){
-      await updateDomain(editingDomain.id, {...domainForm, name: domainForm.name.trim(), nameAr: domainForm.nameAr.trim()})
-      showToast('تم تحديث المجال — إعدادات المنتج تحدثت تلقائياً')
-    }else{
-      await createCustomDomain({...domainForm, name: domainForm.name.trim(), nameAr: domainForm.nameAr.trim()} as any)
-      showToast('تم إنشاء مجال جديد — يمكنك تفعيله الآن')
+    try {
+      if(editingDomain){
+        await updateDomain(editingDomain.id, {...domainForm, name: domainForm.name.trim(), nameAr: domainForm.nameAr.trim()})
+        showToast('تم تحديث المجال — إعدادات المنتج تحدثت تلقائياً')
+      }else{
+        await createCustomDomain({...domainForm, name: domainForm.name.trim(), nameAr: domainForm.nameAr.trim()} as any)
+        showToast('تم إنشاء مجال جديد — يمكنك تفعيله الآن')
+      }
+      setShowDomainModal(false)
+      refreshAll()
+    } catch (err: any) {
+      const msg = err?.body?.error || err?.message || 'UNKNOWN'
+      if (msg === 'NOT_FOUND') {
+        showToast('تعذّر حفظ المجال — حاول مرة أخرى')
+      } else if (msg === 'UNAUTHORIZED') {
+        showToast('يجب تسجيل الدخول أولاً')
+      } else {
+        showToast(`فشل حفظ المجال: ${msg}`)
+      }
     }
-    setShowDomainModal(false)
-    refreshAll()
   }
 
   const filteredOrders = useMemo(() => {
