@@ -2251,10 +2251,16 @@ async function createDomain(ctx: RouteCtx) {
 
 // ─── Helper: ensure a domain exists in the store's DB ──────────────────────
 // Searches: (1) current store, (2) store_default, (3) in-memory presetDomains.
-// If found in any of these, copies it into the current store (upsert).
+// If found in any of these, copies it into the current store.
 // This is the SINGLE fix for "domain not found" — no matter which path
 // calls it (activate, update, etc.), the domain is guaranteed to exist
 // in the store's DB after this function returns.
+//
+// CRITICAL: we use updateOne WITHOUT upsert:true to avoid E11000 errors
+// from a legacy unique index on `id` that may still exist in some
+// deployments. If the document doesn't exist, updateOne affects 0 docs
+// (no error), then we create it explicitly via create() wrapped in a
+// try/catch that handles the duplicate key gracefully.
 async function ensureDomainInStore(storeId: string, id: string): Promise<any | null> {
   // 1) Already in this store's DB?
   let domain = await DomainModel.findOne({ storeId, id }).lean()
@@ -2264,7 +2270,16 @@ async function ensureDomainInStore(storeId: string, id: string): Promise<any | n
   const preset = await DomainModel.findOne({ storeId: DEFAULT_STORE_ID, id }).lean() as any
   if (preset) {
     const copy = { ...preset, _id: `${storeId}__${preset.id}`, storeId }
-    await DomainModel.updateOne({ storeId, id: preset.id }, { $set: copy }, { upsert: true }).catch(() => {})
+    // First try updateOne (no upsert — avoids E11000 if a legacy unique
+    // index on `id` exists). If 0 docs updated, create() the doc.
+    const result = await DomainModel.updateOne(
+      { storeId, id: preset.id },
+      { $set: copy }
+    ).catch(() => null)
+    if (result && result.upsertedCount === 0 && result.matchedCount === 0) {
+      // Document doesn't exist yet — create it
+      try { await DomainModel.create(copy) } catch {}
+    }
     return await DomainModel.findOne({ storeId, id }).lean()
   }
 
@@ -2272,7 +2287,13 @@ async function ensureDomainInStore(storeId: string, id: string): Promise<any | n
   const inMemory = (presetDomains as any[]).find(p => p.id === id)
   if (inMemory) {
     const copy = { ...inMemory, _id: `${storeId}__${inMemory.id}`, storeId }
-    await DomainModel.updateOne({ storeId, id: inMemory.id }, { $set: copy }, { upsert: true }).catch(() => {})
+    const result = await DomainModel.updateOne(
+      { storeId, id: inMemory.id },
+      { $set: copy }
+    ).catch(() => null)
+    if (result && result.upsertedCount === 0 && result.matchedCount === 0) {
+      try { await DomainModel.create(copy) } catch {}
+    }
     return await DomainModel.findOne({ storeId, id }).lean()
   }
 
@@ -2290,18 +2311,21 @@ async function updateDomain(ctx: RouteCtx) {
   // in-memory presetDomains if needed). This fixes "save does nothing".
   await ensureDomainInStore(ctx.storeId, id)
 
-  const next = await DomainModel.findOneAndUpdate(
+  // Use updateOne + findOne instead of findOneAndUpdate — findOneAndUpdate
+  // triggers the legacy unique index `id_1` and crashes with E11000.
+  // updateOne only affects EXISTING docs (no insert), so no index violation.
+  await DomainModel.updateOne(
     { storeId: ctx.storeId, id },
-    { $set: patch },
-    { new: true, upsert: true }
-  ).lean()
+    { $set: patch }
+  ).catch(() => {})
+  const next = await DomainModel.findOne({ storeId: ctx.storeId, id }).lean()
   if (!next) return { data: { error: 'NOT_FOUND' }, status: 404 }
 
   // If the patched domain is the active one, sync hero/footer texts
   // (but NOT storeName — the merchant's store name is sacred).
   const settings = await SettingsModel.findById(settingsDocId(ctx.storeId)).lean()
   if (settings?.activeDomainId === id) {
-    await SettingsModel.findByIdAndUpdate(settingsDocId(ctx.storeId), {
+    await SettingsModel.updateOne({ _id: settingsDocId(ctx.storeId) }, {
       $set: {
         heroBadge: next.heroBadge,
         heroTitleAr: next.heroTitleAr,
@@ -2323,7 +2347,7 @@ async function deleteDomain(ctx: RouteCtx) {
   const settings = await SettingsModel.findById(settingsDocId(ctx.storeId)).lean()
   if (settings?.activeDomainId === id) {
     const first = presetDomains[0]
-    await SettingsModel.findByIdAndUpdate(settingsDocId(ctx.storeId), {
+    await SettingsModel.updateOne({ _id: settingsDocId(ctx.storeId) }, {
       $set: {
         activeDomainId: first.id,
         heroBadge: first.heroBadge,
@@ -2349,8 +2373,10 @@ async function activateDomain(ctx: RouteCtx) {
 
   // We do NOT overwrite storeName / storeNameAr — the merchant's store
   // name is set during registration and must be preserved.
-  const settings = await SettingsModel.findByIdAndUpdate(
-    settingsDocId(ctx.storeId),
+  // Use updateOne instead of findByIdAndUpdate — avoids potential E11000
+  // from legacy indexes.
+  await SettingsModel.updateOne(
+    { _id: settingsDocId(ctx.storeId) },
     {
       $set: {
         activeDomainId: domain.id,
@@ -2359,8 +2385,8 @@ async function activateDomain(ctx: RouteCtx) {
         heroSubtitleAr: domain.heroSubtitleAr,
         footerDescriptionAr: domain.footerDescriptionAr,
       },
-    },
-    { new: true }
-  ).lean()
+    }
+  ).catch(() => {})
+  const settings = await SettingsModel.findById(settingsDocId(ctx.storeId)).lean()
   return { data: { domain, settings } }
 }

@@ -75,6 +75,29 @@ async function doPlatformSeed(): Promise<void> {
     // Index doesn't exist (fresh install) — safe to ignore.
   }
 
+  // ─── Drop the legacy unique `id_1` index on domains collection ────
+  // Old deployments created a unique index on the `id` field alone (not
+  // compound storeId+id). This causes E11000 duplicate key errors when
+  // we try to copy preset domains (e.g. domain_jewelry) into a new
+  // store — because domain_jewelry already exists in store_default.
+  // The correct index is the compound { storeId: 1, id: 1 } declared
+  // in models.ts. We drop the bad one here so the compound index works.
+  // We try multiple possible index names because MongoDB auto-generates
+  // names like "id_1" but the actual name depends on how the index
+  // was created.
+  try {
+    const indexes = await (DomainModel as any).collection.listIndexes().toArray()
+    for (const idx of indexes) {
+      // Drop any unique index on `id` that is NOT the compound (storeId+id)
+      if (idx.key && idx.key.id === 1 && idx.unique === true && !idx.key.storeId) {
+        await (DomainModel as any).collection.dropIndex(idx.name)
+        console.log(`[seed] dropped legacy unique index "${idx.name}" on domains.id`)
+      }
+    }
+  } catch (_err) {
+    // Collection might not exist yet — safe to ignore.
+  }
+
   // ─── Default demo TenantStore ──────────────────────────────────────
   // Use findOneAndUpdate + upsert (atomic) to avoid E11000 duplicate key
   // on serverless when multiple instances run ensureSeeded() simultaneously.
