@@ -598,6 +598,118 @@ export async function fetchBanners(): Promise<{ banners: MarketplaceBanner[] }> 
   }
 }
 
+// ─── Visit tracking (fire-and-forget, never blocks UI) ──────────────────────
+
+const VISITOR_KEY = 'amugar_visitor_id'
+
+function getVisitorId(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    let id = localStorage.getItem(VISITOR_KEY)
+    if (!id) {
+      id = 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10)
+      localStorage.setItem(VISITOR_KEY, id)
+    }
+    return id
+  } catch { return '' }
+}
+
+function getReferrerSource(): string {
+  if (typeof document === 'undefined') return 'direct'
+  try {
+    const ref = document.referrer
+    if (!ref) return 'direct'
+    const u = new URL(ref)
+    if (u.hostname === window.location.hostname) return 'direct'
+    return u.hostname.replace(/^www\./, '')
+  } catch { return 'direct' }
+}
+
+function getDevice(): 'mobile' | 'tablet' | 'desktop' {
+  if (typeof navigator === 'undefined') return 'mobile'
+  const ua = navigator.userAgent || ''
+  if (/tablet|ipad/i.test(ua)) return 'tablet'
+  if (/mobile|android|iphone/i.test(ua)) return 'mobile'
+  return 'desktop'
+}
+
+export function trackVisit(storeId: string, type: 'store' | 'product' = 'store', productId?: string): void {
+  if (typeof window === 'undefined' || !storeId) return
+  if (sessionStorage.getItem('amugar_is_admin') === '1') return
+  const payload = {
+    storeId, type,
+    productId: productId || '',
+    visitorId: getVisitorId(),
+    source: getReferrerSource(),
+    device: getDevice(),
+  }
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
+      navigator.sendBeacon('/api/visit', blob)
+      return
+    }
+  } catch {}
+  try {
+    void fetch('/api/visit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(() => {})
+  } catch {}
+}
+
+// ─── Analytics API (merchant dashboard) ─────────────────────────────────────
+
+export interface AnalyticsOverview {
+  totalVisits: number; uniqueVisitors: number; todayVisits: number
+  weekVisits: number; monthVisits: number; productViews: number
+  storeViews: number; conversionRate: number; orderCount: number
+}
+export interface AnalyticsTimelinePoint {
+  date: string; visits: number; uniqueVisitors: number; productViews: number
+}
+export interface AnalyticsSource { source: string; visits: number; percentage: number }
+export interface AnalyticsTopProduct {
+  productId: string; productNameAr: string; views: number; image: string; price: number
+}
+export interface AnalyticsDevice { device: string; visits: number }
+export interface AnalyticsCountry { country: string; visits: number }
+
+export async function fetchAnalyticsOverview(storeId: string): Promise<AnalyticsOverview> {
+  try {
+    return await apiFetch<AnalyticsOverview>(`/api/stores/${encodeURIComponent(storeId)}/analytics/overview`)
+  } catch {
+    return { totalVisits: 0, uniqueVisitors: 0, todayVisits: 0, weekVisits: 0, monthVisits: 0, productViews: 0, storeViews: 0, conversionRate: 0, orderCount: 0 }
+  }
+}
+export async function fetchAnalyticsTimeline(storeId: string, days = 7): Promise<{ timeline: AnalyticsTimelinePoint[] }> {
+  try {
+    return await apiFetch<{ timeline: AnalyticsTimelinePoint[] }>(`/api/stores/${encodeURIComponent(storeId)}/analytics/timeline?days=${days}`)
+  } catch { return { timeline: [] } }
+}
+export async function fetchAnalyticsSources(storeId: string): Promise<{ sources: AnalyticsSource[]; totalVisits: number }> {
+  try {
+    return await apiFetch<{ sources: AnalyticsSource[]; totalVisits: number }>(`/api/stores/${encodeURIComponent(storeId)}/analytics/sources`)
+  } catch { return { sources: [], totalVisits: 0 } }
+}
+export async function fetchAnalyticsTopProducts(storeId: string): Promise<{ topProducts: AnalyticsTopProduct[] }> {
+  try {
+    return await apiFetch<{ topProducts: AnalyticsTopProduct[] }>(`/api/stores/${encodeURIComponent(storeId)}/analytics/top-products`)
+  } catch { return { topProducts: [] } }
+}
+export async function fetchAnalyticsDevices(storeId: string): Promise<{ devices: AnalyticsDevice[] }> {
+  try {
+    return await apiFetch<{ devices: AnalyticsDevice[] }>(`/api/stores/${encodeURIComponent(storeId)}/analytics/devices`)
+  } catch { return { devices: [] } }
+}
+export async function fetchAnalyticsCountries(storeId: string): Promise<{ countries: AnalyticsCountry[] }> {
+  try {
+    return await apiFetch<{ countries: AnalyticsCountry[] }>(`/api/stores/${encodeURIComponent(storeId)}/analytics/countries`)
+  } catch { return { countries: [] } }
+}
+
 // ─── Public API: Orders ─────────────────────────────────────────────────────
 
 const ORDERS_PATH = '/api/orders'

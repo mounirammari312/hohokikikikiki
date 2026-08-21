@@ -425,3 +425,32 @@ export const BannerModel =
   mongoose.models.Banner || mongoose.model('Banner', BannerSchema)
 export const MarketplaceActivityModel =
   mongoose.models.MarketplaceActivity || mongoose.model('MarketplaceActivity', MarketplaceActivitySchema)
+
+// ─── StoreVisit (per-visitor tracking — analytics for merchants) ────────────
+// A visit is logged every time someone opens a tenant store's storefront
+// or product detail page. The merchant can see:
+//   - total visits + unique visitors (per day/week/month)
+//   - traffic sources (referrer: direct, facebook, instagram, tiktok, ...)
+//   - top products by views
+//   - visit timeline (last 7/30 days)
+//
+// Privacy: we store NO PII (no IP, no user agent, no cookie). We only store
+// a stable anonymous visitorId (random + stored in localStorage) so we
+// can count unique visitors without tracking identity.
+const StoreVisitSchema = new mongoose.Schema({
+  _id: STRING_ID,
+  storeId: { type: String, required: true, index: true },
+  type: { type: String, enum: ['store', 'product'], default: 'store', index: true },
+  productId: { type: String, default: '' },
+  visitorId: { type: String, default: '', index: true },
+  source: { type: String, default: 'direct', index: true },
+  device: { type: String, enum: ['mobile', 'tablet', 'desktop'], default: 'mobile' },
+  country: { type: String, default: '' },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+}, { _id: false, versionKey: false, strict: false })
+StoreVisitSchema.index({ storeId: 1, createdAt: -1 })
+StoreVisitSchema.index({ storeId: 1, source: 1 })
+StoreVisitSchema.index({ storeId: 1, productId: 1 })
+
+export const StoreVisitModel =
+  mongoose.models.StoreVisit || mongoose.model('StoreVisit', StoreVisitSchema)

@@ -6,6 +6,7 @@ import { SmartImage } from '../components/SmartImage'
 import { getProducts } from '../services/api/products'
 import { getSettings, subscribeSettings } from '../services/api/settings'
 import { getActiveDomain } from '../services/api/domains'
+import { trackVisit } from '../services/api/client'
 import { useEffect, useState } from 'react'
 import { formatDZD } from '../lib/utils'
 
@@ -56,6 +57,14 @@ export default function Home(){
     setProducts([...getProducts()])
     setStore(getSettings())
     setDomain(getActiveDomain())
+
+    // ─── Track the storefront visit (for merchant analytics) ──────────
+    // Fire-and-forget — never blocks. Skipped if the merchant is previewing
+    // their own store (sessionStorage flag set by Admin).
+    const s = getSettings()
+    const urlParams = new URLSearchParams(window.location.search)
+    const sid = s.storeId || s._id || urlParams.get('storeId') || ''
+    if (sid) trackVisit(sid, 'store')
   },[])
 
   // Re-render when settings change (merchant saves in /admin → same tab).

@@ -73,6 +73,7 @@ import {
   ProductModel, WilayaModel, OrderModel, SettingsModel, DomainModel,
   TenantStoreModel, MerchantUserModel,
   ReviewModel, CouponModel, BannerModel, MarketplaceActivityModel,
+  StoreVisitModel,
 } from './lib/models.js'
 import {
   ensureSeeded, seedStoreData, presetDomains,
@@ -546,6 +547,52 @@ export default async function handler(req: any, res: any) {
       await connectDB()
       await ensureSeeded()
       return reply(res, ...(await marketplaceRoute(segments, method, req, query)))
+    }
+
+    // ─── Visit tracking (PUBLIC — no auth, no tenant context) ──────────
+    // POST /api/visit — logs a storefront/product visit
+    //   Body: { storeId, type: 'store'|'product', productId?, visitorId, source, device }
+    if (segments[0] === 'visit' && method === 'POST') {
+      const ip = getClientIP(req)
+      if (!rateLimit(`visit_${ip}`, 60, 60 * 1000)) {
+        return reply(res, [{ ok: true }], 200)
+      }
+      try {
+        await connectDB()
+        const body = await getReqBody(req)
+        const { storeId, type, productId, visitorId, source, device } = body
+        if (!storeId) return reply(res, [{ ok: true }], 200)
+        const visitType = type === 'product' ? 'product' : 'store'
+        const ua = req.headers['user-agent'] || ''
+        let visitDevice = device
+        if (!visitDevice) {
+          if (/tablet|ipad/i.test(ua)) visitDevice = 'tablet'
+          else if (/mobile|android|iphone/i.test(ua)) visitDevice = 'mobile'
+          else visitDevice = 'desktop'
+        }
+        const country = req.headers['x-vercel-ip-country'] || ''
+        let visitSource = source || 'direct'
+        if (visitSource !== 'direct') {
+          try {
+            const u = new URL(visitSource)
+            visitSource = u.hostname.replace(/^www\./, '')
+          } catch {}
+        }
+        await StoreVisitModel.create({
+          _id: genId('visit'),
+          storeId,
+          type: visitType,
+          productId: productId || '',
+          visitorId: visitorId || '',
+          source: visitSource,
+          device: visitDevice,
+          country,
+          createdAt: new Date().toISOString(),
+        })
+        return reply(res, [{ ok: true }], 201)
+      } catch {
+        return reply(res, [{ ok: true }], 200)
+      }
     }
 
     // ─── Match the route FIRST so unknown routes 404 without touching
@@ -1406,6 +1453,160 @@ async function storesRoute(segments: string[], method: string, req: any, query: 
     const next = await TenantStoreModel.findByIdAndUpdate(id, { $set: patch }, { new: true }).lean()
     if (!next) return [{ error: 'NOT_FOUND' }, 404]
     return [{ store: next }, 200]
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  Analytics endpoints (merchant's own store visits)
+  // ═════════════════════════════════════════════════════════════════════════
+
+  // GET /api/stores/:id/analytics/overview
+  if (segments.length === 4 && segments[2] === 'analytics' && segments[3] === 'overview' && method === 'GET') {
+    const storeId = segments[1]
+    if (user.role !== 'super_admin' && !(user.storeIds || []).includes(storeId)) {
+      return [{ error: 'FORBIDDEN' }, 403]
+    }
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000).toISOString()
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000).toISOString()
+    const [totalAgg, todayAgg, weekAgg, monthAgg, uniqueAgg, productViewsAgg, storeViewsAgg] = await Promise.all([
+      StoreVisitModel.countDocuments({ storeId }),
+      StoreVisitModel.countDocuments({ storeId, createdAt: { $gte: startOfToday } }),
+      StoreVisitModel.countDocuments({ storeId, createdAt: { $gte: sevenDaysAgo } }),
+      StoreVisitModel.countDocuments({ storeId, createdAt: { $gte: thirtyDaysAgo } }),
+      StoreVisitModel.distinct('visitorId', { storeId, visitorId: { $ne: '' } }),
+      StoreVisitModel.countDocuments({ storeId, type: 'product' }),
+      StoreVisitModel.countDocuments({ storeId, type: 'store' }),
+    ])
+    const orderCount = await OrderModel.countDocuments({ storeId, deletedAt: null, status: { $ne: 'cancelled' } })
+    const uniqueVisitors = uniqueAgg.length
+    const conversionRate = uniqueVisitors > 0 ? Number(((orderCount / uniqueVisitors) * 100).toFixed(2)) : 0
+    return [{
+      totalVisits: totalAgg, uniqueVisitors, todayVisits: todayAgg, weekVisits: weekAgg, monthVisits: monthAgg,
+      productViews: productViewsAgg, storeViews: storeViewsAgg, conversionRate, orderCount,
+    }, 200]
+  }
+
+  // GET /api/stores/:id/analytics/timeline?days=7
+  if (segments.length === 4 && segments[2] === 'analytics' && segments[3] === 'timeline' && method === 'GET') {
+    const storeId = segments[1]
+    if (user.role !== 'super_admin' && !(user.storeIds || []).includes(storeId)) {
+      return [{ error: 'FORBIDDEN' }, 403]
+    }
+    const days = Math.min(90, Math.max(1, Number(query.get('days')) || 7))
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - (days - 1))
+    startDate.setHours(0, 0, 0, 0)
+    const pipeline = [
+      { $match: { storeId, createdAt: { $gte: startDate.toISOString() } } },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: { $toDate: '$createdAt' } } },
+        visits: { $sum: 1 },
+        uniqueVisitors: { $addToSet: '$visitorId' },
+        productViews: { $sum: { $cond: [{ $eq: ['$type', 'product'] }, 1, 0] } },
+      }},
+      { $sort: { _id: 1 } },
+    ]
+    const result = await StoreVisitModel.aggregate(pipeline)
+    const days_arr: any[] = []
+    const d = new Date(startDate)
+    for (let i = 0; i < days; i++) {
+      const dateStr = d.toISOString().slice(0, 10)
+      const day = result.find((r: any) => r._id === dateStr)
+      days_arr.push({
+        date: dateStr,
+        visits: day?.visits || 0,
+        uniqueVisitors: day?.uniqueVisitors?.filter(Boolean).length || 0,
+        productViews: day?.productViews || 0,
+      })
+      d.setDate(d.getDate() + 1)
+    }
+    return [{ timeline: days_arr }, 200]
+  }
+
+  // GET /api/stores/:id/analytics/sources
+  if (segments.length === 4 && segments[2] === 'analytics' && segments[3] === 'sources' && method === 'GET') {
+    const storeId = segments[1]
+    if (user.role !== 'super_admin' && !(user.storeIds || []).includes(storeId)) {
+      return [{ error: 'FORBIDDEN' }, 403]
+    }
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+    const pipeline = [
+      { $match: { storeId, createdAt: { $gte: thirtyDaysAgo } } },
+      { $group: { _id: '$source', visits: { $sum: 1 } } },
+      { $sort: { visits: -1 } },
+    ]
+    const result = await StoreVisitModel.aggregate(pipeline)
+    const total = result.reduce((a: number, b: any) => a + b.visits, 0)
+    const sources = result.map((r: any) => ({
+      source: r._id || 'direct',
+      visits: r.visits,
+      percentage: total > 0 ? Number(((r.visits / total) * 100).toFixed(1)) : 0,
+    }))
+    return [{ sources, totalVisits: total }, 200]
+  }
+
+  // GET /api/stores/:id/analytics/top-products
+  if (segments.length === 4 && segments[2] === 'analytics' && segments[3] === 'top-products' && method === 'GET') {
+    const storeId = segments[1]
+    if (user.role !== 'super_admin' && !(user.storeIds || []).includes(storeId)) {
+      return [{ error: 'FORBIDDEN' }, 403]
+    }
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+    const pipeline = [
+      { $match: { storeId, type: 'product', productId: { $ne: '' }, createdAt: { $gte: thirtyDaysAgo } } },
+      { $group: { _id: '$productId', views: { $sum: 1 } } },
+      { $sort: { views: -1 } },
+      { $limit: 10 },
+    ]
+    const result = await StoreVisitModel.aggregate(pipeline)
+    const productIds = result.map((r: any) => r._id)
+    const products = await ProductModel.find({ _id: { $in: productIds } }).lean()
+    const productMap = new Map(products.map(p => [p._id, p]))
+    const topProducts = result.map((r: any) => {
+      const p: any = productMap.get(r._id)
+      return {
+        productId: r._id,
+        productNameAr: p?.nameAr || 'منتج محذوف',
+        views: r.views,
+        image: p?.images?.[0] || '',
+        price: p?.price || 0,
+      }
+    })
+    return [{ topProducts }, 200]
+  }
+
+  // GET /api/stores/:id/analytics/devices
+  if (segments.length === 4 && segments[2] === 'analytics' && segments[3] === 'devices' && method === 'GET') {
+    const storeId = segments[1]
+    if (user.role !== 'super_admin' && !(user.storeIds || []).includes(storeId)) {
+      return [{ error: 'FORBIDDEN' }, 403]
+    }
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+    const pipeline = [
+      { $match: { storeId, createdAt: { $gte: thirtyDaysAgo } } },
+      { $group: { _id: '$device', visits: { $sum: 1 } } },
+      { $sort: { visits: -1 } },
+    ]
+    const result = await StoreVisitModel.aggregate(pipeline)
+    return [{ devices: result.map((r: any) => ({ device: r._id || 'mobile', visits: r.visits })) }, 200]
+  }
+
+  // GET /api/stores/:id/analytics/countries
+  if (segments.length === 4 && segments[2] === 'analytics' && segments[3] === 'countries' && method === 'GET') {
+    const storeId = segments[1]
+    if (user.role !== 'super_admin' && !(user.storeIds || []).includes(storeId)) {
+      return [{ error: 'FORBIDDEN' }, 403]
+    }
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+    const pipeline = [
+      { $match: { storeId, country: { $ne: '' }, createdAt: { $gte: thirtyDaysAgo } } },
+      { $group: { _id: '$country', visits: { $sum: 1 } } },
+      { $sort: { visits: -1 } },
+      { $limit: 10 },
+    ]
+    const result = await StoreVisitModel.aggregate(pipeline)
+    return [{ countries: result.map((r: any) => ({ country: r._id, visits: r.visits })) }, 200]
   }
 
   return [{ error: 'NOT_FOUND' }, 404]

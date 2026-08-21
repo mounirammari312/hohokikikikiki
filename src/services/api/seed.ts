@@ -115,6 +115,91 @@ export const presetDomains: StoreDomain[] = [
       ]
     },
     isPreset: true
+  },
+  // ─── Electronics ──────────────────────────────────────────────────────
+  {
+    id: 'domain_electronics',
+    name: 'Amugar Electronics',
+    nameAr: 'أموغار إلكترونيات',
+    descriptionAr: 'متجر إلكترونيات — هواتف، لواحف، سماعات، شواحن، إكسسوارات تقنية.',
+    heroBadge: 'TECH 2026 • جديد',
+    heroTitleAr: 'أحدث الإلكترونيات بين يديك',
+    heroSubtitleAr: 'هواتف ذكية، سماعات لاسلكية، شواحن سريعة، وإكسسوارات تقنية أصلية 100%.',
+    heroImage: 'https://images.unsplash.com/photo-1468495244123-6c6c332eeece?w=1400&q=80',
+    footerDescriptionAr: 'متجر إلكترونيات جزائري. منتجات أصلية بضمان، توصيل لكل الولايات.',
+    categories: [
+      { key: 'phone', label: 'Phones', labelAr: 'هواتف' },
+      { key: 'accessory', label: 'Accessories', labelAr: 'لواحق' },
+      { key: 'headphones', label: 'Headphones', labelAr: 'سماعات' },
+      { key: 'charger', label: 'Chargers', labelAr: 'شواحن' },
+      { key: 'case', label: 'Cases', labelAr: 'علب وحماية' },
+      { key: 'cable', label: 'Cables', labelAr: 'كابلات' },
+    ],
+    attributeSchema: [],
+    variantConfig: { hasColor: true, hasSize: false, sizeOptions: [], colorPresets: [] },
+    isPreset: true
+  },
+  // ─── Home Appliances ──────────────────────────────────────────────────
+  {
+    id: 'domain_home_appliances',
+    name: 'Amugar Home',
+    nameAr: 'أموغار أجهزة منزلية',
+    descriptionAr: 'متجر أجهزة منزلية — ثلاجات، غسالات، أفران، مكيفات، تلفزيونات.',
+    heroBadge: 'HOME 2026 • توصيل مجاني',
+    heroTitleAr: 'كل ما يحتاجه منزلك',
+    heroSubtitleAr: 'أجهزة منزلية كبيرة وصغيرة بأسعار تنافسية، ضمان حقيقي.',
+    heroImage: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1400&q=80',
+    footerDescriptionAr: 'متجر أجهزة منزلية جزائري. ضمان حقيقي، توصيل وتركيب.',
+    categories: [
+      { key: 'refrigerator', label: 'Refrigerators', labelAr: 'ثلاجات' },
+      { key: 'washer', label: 'Washing Machines', labelAr: 'غسالات' },
+      { key: 'oven', label: 'Ovens', labelAr: 'أفران' },
+      { key: 'ac', label: 'Air Conditioners', labelAr: 'مكيفات' },
+      { key: 'tv', label: 'TVs', labelAr: 'تلفزيونات' },
+      { key: 'small_appliance', label: 'Small Appliances', labelAr: 'أجهزة صغيرة' },
+    ],
+    attributeSchema: [],
+    variantConfig: { hasColor: false, hasSize: false, sizeOptions: [], colorPresets: [] },
+    isPreset: true
+  },
+  // ─── Digital Products ─────────────────────────────────────────────────
+  {
+    id: 'domain_digital',
+    name: 'Amugar Digital',
+    nameAr: 'أموغار رقميات',
+    descriptionAr: 'متجر منتجات رقمية — IPTV، اشتراكات Netflix، اشتراكات AI، Canva.',
+    heroBadge: 'DIGITAL 2026 • فوري',
+    heroTitleAr: 'منتجات رقمية بتفعيل فوري',
+    heroSubtitleAr: 'اشتراكات IPTV، Netflix، أدوات الذكاء الاصطناعي، Canva Pro.',
+    heroImage: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=1400&q=80',
+    footerDescriptionAr: 'متجر رقميات جزائري. تفعيل فوري، دعم فني.',
+    categories: [
+      { key: 'subscription', label: 'Subscriptions', labelAr: 'اشتراكات' },
+      { key: 'account', label: 'Accounts', labelAr: 'حسابات' },
+      { key: 'giftcard', label: 'Gift Cards', labelAr: 'كروت هدايا' },
+      { key: 'code', label: 'Codes', labelAr: 'أكواد' },
+      { key: 'iptv', label: 'IPTV', labelAr: 'IPTV' },
+      { key: 'ai_tool', label: 'AI Tools', labelAr: 'أدوات AI' },
+    ],
+    attributeSchema: [],
+    variantConfig: { hasColor: false, hasSize: false, sizeOptions: [], colorPresets: [] },
+    isPreset: true
+  },
+  // ─── General (DEFAULT) ────────────────────────────────────────────────
+  {
+    id: 'domain_general',
+    name: 'Amugar Store',
+    nameAr: 'متجر أموغار',
+    descriptionAr: 'متجر عام — أضف منتجاتك وابدأ البيع.',
+    heroBadge: 'متجرك • 2026',
+    heroTitleAr: 'مرحباً بك في متجرك',
+    heroSubtitleAr: 'أضف منتجاتك الأولى وابدأ البيع. الدفع عند الاستلام، توصيل لكل الولايات.',
+    heroImage: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1400&q=80',
+    footerDescriptionAr: 'متجر جزائري بمنتجات متنوعة. الدفع عند الاستلام في 58 ولاية.',
+    categories: [{ key: 'general', label: 'General', labelAr: 'عام' }],
+    attributeSchema: [],
+    variantConfig: { hasColor: false, hasSize: false, sizeOptions: [], colorPresets: [] },
+    isPreset: true
   }
 ]
 
@@ -448,7 +533,7 @@ export const defaultSettings: StoreSettings = {
   metaPixelId: "123456789012345",
   tiktokPixelId: "C1234567890ABCDEF",
   storeName: "Amugar",
-  storeNameAr: "أموغار",
+  storeNameAr: "متجر أموغار",
   currency: "د.ج",
   enableCod: true,
   phone: "0550 12 34 56",
@@ -456,13 +541,13 @@ export const defaultSettings: StoreSettings = {
   email: "contact@amugar.dz",
   announcement: "توصيل سريع لـ 58 ولاية • الدفع عند الاستلام • جودة مضمونة",
   freeShippingThreshold: 15000,
-  heroTitleAr: "منتجات تُبرز أناقتك",
-  heroSubtitleAr: "تشكيلة 2026 بجودة عالية وأسعار منافسة. تصميم عصري، تسليم جزائري سريع والدفع عند الاستلام.",
-  heroBadge: "COLLECTION 2026 • ÉDITION LIMITÉE",
-  footerDescriptionAr: "متجر جزائري بلمسة عصرية. منتجات بجودة عالية، مقاومة ومتينة. الدفع عند الاستلام في 58 ولاية.",
+  heroTitleAr: "مرحباً بك في متجرك",
+  heroSubtitleAr: "أضف منتجاتك الأولى وابدأ البيع. الدفع عند الاستلام، توصيل لكل الولايات، لوحة تحكم احترافية.",
+  heroBadge: "متجرك • 2026",
+  footerDescriptionAr: "متجر جزائري بمنتجات متنوعة. الدفع عند الاستلام في 58 ولاية، جودة مضمونة وخدمة سريعة.",
   instagram: "@amugar.dz",
   enableRoseEdition: true,
-  activeDomainId: "domain_jewelry",
+  activeDomainId: "domain_general",
 
   // Delivery integrations (default: disabled, empty credentials)
   // LEGACY flat fields kept for backwards-compat with older clients

@@ -4,6 +4,12 @@ import { getWilayas, updateWilayaRate, addWilaya } from '../services/api/wilayas
 import { getProducts, addProduct, updateProduct, deleteProduct, duplicateProduct, toggleProductFlag } from '../services/api/products'
 import { getSettings, saveSettings } from '../services/api/settings'
 import { updateStoreApi, authUpdateProfile, authChangePassword, listMyStores, toggleMarketplacePublishApi } from '../services/api/client'
+import {
+  fetchAnalyticsOverview, fetchAnalyticsTimeline, fetchAnalyticsSources, fetchAnalyticsTopProducts,
+  fetchAnalyticsDevices, fetchAnalyticsCountries,
+  type AnalyticsOverview, type AnalyticsTimelinePoint, type AnalyticsSource,
+  type AnalyticsTopProduct, type AnalyticsDevice, type AnalyticsCountry,
+} from '../services/api/client'
 import { useTenant } from '../context/TenantContext'
 import { getDomains, getActiveDomain, setActiveDomain, createCustomDomain, updateDomain, deleteDomain, duplicateDomain } from '../services/api/domains'
 import { ALGERIAN_DELIVERY_PROVIDERS, defaultDeliveryProviders } from '../services/api/deliveryProviders'
@@ -16,7 +22,8 @@ import {
   Phone, Mail, Instagram, Palette, Zap, Image as ImageIcon, Tag, Layers, X,
   AlertCircle, Check, Filter, ShoppingBag, TrendingUp, Award, Gem, Shirt, Heart,
   Wand2, RefreshCw, Globe, Palette as PaletteIcon, Ruler, Droplet, Paintbrush, FileText, Link2,
-  ExternalLink, LayoutDashboard, Lock, User, LogOut, Building2, CreditCard, ChevronDown, Menu, KeyRound, ShieldCheck
+  ExternalLink, LayoutDashboard, Lock, User, LogOut, Building2, CreditCard, ChevronDown, Menu, KeyRound, ShieldCheck,
+  Smartphone, Home as HomeIcon, Wifi,
 } from 'lucide-react'
 
 const statusMap: Record<OrderStatus, { label: string, color: string }> = {
@@ -139,6 +146,17 @@ export default function Admin() {
   useEffect(() => {
     setOrders(getOrders()); setWilayas(getWilayas()); setProducts(getProducts()); setSettings(getSettings()); setStoreForm(getSettings()); setDomains(getDomains()); setActiveDomainState(getActiveDomain())
   }, [tab])
+
+  // ─── Mark this session as "admin" so visit tracking is skipped ──────
+  // The storefront's trackVisit() checks this flag and skips logging
+  // when the merchant is previewing their own store. This keeps the
+  // analytics clean — only real customer visits are counted.
+  useEffect(() => {
+    try { sessionStorage.setItem('amugar_is_admin', '1') } catch {}
+    return () => {
+      try { sessionStorage.removeItem('amugar_is_admin') } catch {}
+    }
+  }, [])
 
   // Fetch the merchant's stores list (for sidebar store-switcher + the
   // "متاجري" tab). Runs once on mount + whenever storeId changes (e.g.
@@ -847,6 +865,9 @@ export default function Admin() {
                   <div className="text-[11px] text-[#9A8A6B]">≤ 10 قطع</div>
                 </div>
               </div>
+
+              {/* ═══ Analytics — Visit Insights ═════════════════════════════ */}
+              {storeId && <AnalyticsDashboard storeId={storeId} />}
 
               {/* Quick actions */}
               <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
@@ -2673,4 +2694,301 @@ function OnboardingWizard({
       </div>
     </div>
   )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Analytics Dashboard — Visit Insights
+// ═══════════════════════════════════════════════════════════════════════════
+
+function AnalyticsDashboard({ storeId }: { storeId: string }) {
+  const [overview, setOverview] = useState<AnalyticsOverview | null>(null)
+  const [timeline, setTimeline] = useState<AnalyticsTimelinePoint[]>([])
+  const [sources, setSources] = useState<AnalyticsSource[]>([])
+  const [topProducts, setTopProducts] = useState<AnalyticsTopProduct[]>([])
+  const [devices, setDevices] = useState<AnalyticsDevice[]>([])
+  const [countries, setCountries] = useState<AnalyticsCountry[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!storeId) return
+    let cancelled = false
+    const load = async () => {
+      const [ov, tl, src, tp, dev, ctry] = await Promise.all([
+        fetchAnalyticsOverview(storeId),
+        fetchAnalyticsTimeline(storeId, 7),
+        fetchAnalyticsSources(storeId),
+        fetchAnalyticsTopProducts(storeId),
+        fetchAnalyticsDevices(storeId),
+        fetchAnalyticsCountries(storeId),
+      ])
+      if (cancelled) return
+      setOverview(ov)
+      setTimeline(tl.timeline || [])
+      setSources(src.sources || [])
+      setTopProducts(tp.topProducts || [])
+      setDevices(dev.devices || [])
+      setCountries(ctry.countries || [])
+      setLoading(false)
+    }
+    void load()
+    const id = setInterval(load, 60000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [storeId])
+
+  if (loading) {
+    return (
+      <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+        <div className="h-5 w-32 skeleton rounded mb-4" />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-24 skeleton rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (!overview) return null
+
+  const maxVisits = Math.max(...timeline.map(t => t.visits), 1)
+  const todayDate = new Date().toISOString().slice(0, 10)
+  const todayTimeline = timeline.find(t => t.date === todayDate)
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] rounded-2xl p-5 text-white relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#C9A96A]/15 rounded-full blur-2xl"/>
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#A02A5B]/15 rounded-full blur-2xl"/>
+        <div className="relative flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#C9A96A] to-[#B8945A] grid place-items-center shrink-0">
+              <BarChart3 size={20} className="text-white"/>
+            </div>
+            <div>
+              <h3 className="font-extrabold text-lg flex items-center gap-2">
+                تحليلات الزيارات
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
+                  مباشر
+                </span>
+              </h3>
+              <p className="text-xs text-white/60 mt-0.5">تابع من أين يأتي زوارك وما هي أكثر منتجاتك مشاهدةً</p>
+            </div>
+          </div>
+          <div className="text-left">
+            <div className="text-[10px] text-white/60">زيارات اليوم</div>
+            <div className="text-3xl font-extrabold text-[#C9A96A]">{todayTimeline?.visits || overview.todayVisits || 0}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <AnalyticsStatCard icon={<TrendingUp size={16} />} label="إجمالي الزيارات" value={overview.totalVisits} sub="منذ إنشاء المتجر" color="emerald" />
+        <AnalyticsStatCard icon={<Eye size={16} />} label="زوار فريدون" value={overview.uniqueVisitors} sub={`${overview.conversionRate}% تحويل`} color="blue" />
+        <AnalyticsStatCard icon={<TrendingUp size={16} />} label="هذا الأسبوع" value={overview.weekVisits} sub="آخر 7 أيام" color="amber" />
+        <AnalyticsStatCard icon={<Eye size={16} />} label="مشاهدات المنتجات" value={overview.productViews} sub={`من ${overview.storeViews} زيارة متجر`} color="rose" />
+        <AnalyticsStatCard icon={<Award size={16} />} label="معدل التحويل" value={`${overview.conversionRate}%`} sub={`${overview.orderCount} طلب`} color="purple" />
+      </div>
+
+      {/* Visits timeline (bar chart) */}
+      <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-extrabold flex items-center gap-2 text-sm">
+            <BarChart3 size={16} className="text-[#C9A96A]"/>
+            الزيارات اليومية
+            <span className="text-[10px] text-[#9A8A6B] font-normal">آخر 7 أيام</span>
+          </h3>
+        </div>
+        {timeline.length === 0 ? (
+          <div className="text-center text-xs text-[#9A8A6B] py-8">لا توجد زيارات بعد — شارك رابط متجرك لتبدأ في رؤية البيانات هنا</div>
+        ) : (
+          <div className="flex items-end justify-between gap-2 h-32">
+            {timeline.map((point, i) => {
+              const height = Math.max(4, (point.visits / maxVisits) * 100)
+              const dayName = new Date(point.date).toLocaleDateString('ar-DZ', { weekday: 'short' })
+              const isToday = point.date === todayDate
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group relative">
+                  <div className="absolute -top-12 bg-[#1A1A1E] text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
+                    <div className="font-bold">{point.visits} زيارة</div>
+                    <div className="text-white/60">{point.uniqueVisitors} زائر فريد</div>
+                  </div>
+                  <div className={`w-full rounded-t-lg transition-all hover:opacity-80 ${isToday ? 'bg-gradient-to-t from-[#C9A96A] to-[#D4AF37]' : 'bg-gradient-to-t from-[#C9A96A]/40 to-[#C9A96A]/60'}`} style={{ height: `${height}%` }} />
+                  <div className="text-[9px] text-[#9A8A6B] font-medium">{dayName}</div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Two columns: Traffic Sources + Top Products */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+          <h3 className="font-extrabold flex items-center gap-2 text-sm mb-4">
+            <Globe size={16} className="text-[#C9A96A]"/>
+            مصادر الزيارات
+            <span className="text-[10px] text-[#9A8A6B] font-normal">آخر 30 يوم</span>
+          </h3>
+          {sources.length === 0 ? (
+            <div className="text-center text-xs text-[#9A8A6B] py-6">لا توجد بيانات بعد</div>
+          ) : (
+            <div className="space-y-2.5">
+              {sources.slice(0, 8).map((s, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-20 text-xs font-bold text-[#1A1A1E] truncate flex items-center gap-1">
+                    <SourceIcon source={s.source} />
+                    <span className="truncate">{getSourceLabel(s.source)}</span>
+                  </div>
+                  <div className="flex-1 h-6 bg-[#F3F0E8] rounded-full overflow-hidden relative">
+                    <div className="h-full bg-gradient-to-l from-[#C9A96A] to-[#D4AF37] rounded-full transition-all" style={{ width: `${Math.max(s.percentage, 2)}%` }} />
+                  </div>
+                  <div className="w-16 text-left">
+                    <div className="text-xs font-extrabold text-[#1A1A1E]">{s.visits}</div>
+                    <div className="text-[9px] text-[#9A8A6B]">{s.percentage}%</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+          <h3 className="font-extrabold flex items-center gap-2 text-sm mb-4">
+            <Star size={16} className="text-[#C9A96A]"/>
+            أكثر المنتجات مشاهدةً
+            <span className="text-[10px] text-[#9A8A6B] font-normal">آخر 30 يوم</span>
+          </h3>
+          {topProducts.length === 0 ? (
+            <div className="text-center text-xs text-[#9A8A6B] py-6">لا توجد مشاهدات بعد</div>
+          ) : (
+            <div className="space-y-2">
+              {topProducts.slice(0, 6).map((p, i) => (
+                <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#FFFCF8] transition">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#C9A96A] to-[#B8945A] text-white text-xs font-extrabold grid place-items-center shrink-0">{i + 1}</div>
+                  <div className="w-10 h-10 rounded-lg bg-[#F3F0E8] overflow-hidden shrink-0 border border-[#EDE6D8]">
+                    {p.image ? <img src={p.image} alt={p.productNameAr} className="w-full h-full object-cover" /> : <Package size={14} className="text-[#9A8A6B] m-auto mt-3" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-[#1A1A1E] truncate">{p.productNameAr}</div>
+                    <div className="text-[10px] text-[#9A8A6B]">{p.price ? formatDZD(p.price) : '—'}</div>
+                  </div>
+                  <div className="text-left shrink-0">
+                    <div className="text-sm font-extrabold text-[#C9A96A]">{p.views}</div>
+                    <div className="text-[9px] text-[#9A8A6B]">مشاهدة</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Device + Country breakdown */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+          <h3 className="font-extrabold flex items-center gap-2 text-sm mb-4">
+            <Smartphone size={16} className="text-[#C9A96A]"/>
+            الأجهزة
+          </h3>
+          {devices.length === 0 ? (
+            <div className="text-center text-xs text-[#9A8A6B] py-4">لا توجد بيانات</div>
+          ) : (
+            <div className="flex items-center justify-around gap-2">
+              {devices.map((d, i) => {
+                const total = devices.reduce((a, b) => a + b.visits, 0)
+                const pct = total > 0 ? Math.round((d.visits / total) * 100) : 0
+                const Icon = d.device === 'mobile' ? Smartphone : d.device === 'tablet' ? Package : Globe
+                return (
+                  <div key={i} className="text-center">
+                    <div className="w-12 h-12 rounded-full bg-[#FFFCF8] border border-[#EDE6D8] grid place-items-center mx-auto mb-1.5">
+                      <Icon size={18} className="text-[#8D6E3A]"/>
+                    </div>
+                    <div className="text-xs font-bold text-[#1A1A1E]">{d.device === 'mobile' ? 'هاتف' : d.device === 'tablet' ? 'لوحي' : 'حاسوب'}</div>
+                    <div className="text-[10px] text-[#9A8A6B]">{pct}%</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+          <h3 className="font-extrabold flex items-center gap-2 text-sm mb-4">
+            <Globe size={16} className="text-[#C9A96A]"/>
+            الدول
+          </h3>
+          {countries.length === 0 ? (
+            <div className="text-center text-xs text-[#9A8A6B] py-4">لا توجد بيانات بعد</div>
+          ) : (
+            <div className="space-y-1.5">
+              {countries.slice(0, 5).map((c, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-4 rounded bg-[#F3F0E8] grid place-items-center text-[8px] font-bold text-[#8D6E3A]">{c.country.slice(0, 2).toUpperCase()}</span>
+                    <span className="font-bold text-[#1A1A1E]">{c.country}</span>
+                  </div>
+                  <span className="text-[#9A8A6B]">{c.visits} زيارة</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AnalyticsStatCard({ icon, label, value, sub, color }: {
+  icon: React.ReactNode; label: string; value: number | string; sub: string
+  color: 'emerald' | 'blue' | 'amber' | 'rose' | 'purple'
+}) {
+  const colors = {
+    emerald: { bg: 'bg-emerald-50', border: 'border-emerald-200', iconBg: 'bg-emerald-100', iconColor: 'text-emerald-700', valueColor: 'text-emerald-800' },
+    blue: { bg: 'bg-blue-50', border: 'border-blue-200', iconBg: 'bg-blue-100', iconColor: 'text-blue-700', valueColor: 'text-blue-800' },
+    amber: { bg: 'bg-amber-50', border: 'border-amber-200', iconBg: 'bg-amber-100', iconColor: 'text-amber-700', valueColor: 'text-amber-800' },
+    rose: { bg: 'bg-[#FDF2F6]', border: 'border-[#F6C0D4]', iconBg: 'bg-[#FCE7F0]', iconColor: 'text-[#A02A5B]', valueColor: 'text-[#A02A5B]' },
+    purple: { bg: 'bg-violet-50', border: 'border-violet-200', iconBg: 'bg-violet-100', iconColor: 'text-violet-700', valueColor: 'text-violet-800' },
+  }
+  const c = colors[color]
+  return (
+    <div className={`${c.bg} ${c.border} border rounded-2xl p-3`}>
+      <div className={`w-7 h-7 rounded-full ${c.iconBg} ${c.iconColor} grid place-items-center mb-1.5`}>{icon}</div>
+      <div className="text-[10px] text-[#9A8A6B] font-medium">{label}</div>
+      <div className={`text-xl font-extrabold ${c.valueColor} mt-0.5`}>{value}</div>
+      <div className="text-[9px] text-[#9A8A6B]">{sub}</div>
+    </div>
+  )
+}
+
+function SourceIcon({ source }: { source: string }) {
+  const s = source.toLowerCase()
+  if (s.includes('facebook') || s.includes('fb')) return <span className="text-[10px]">📘</span>
+  if (s.includes('instagram')) return <span className="text-[10px]">📸</span>
+  if (s.includes('tiktok')) return <span className="text-[10px]">🎵</span>
+  if (s.includes('youtube')) return <span className="text-[10px]">▶️</span>
+  if (s.includes('whatsapp') || s.includes('wa.me')) return <span className="text-[10px]">💬</span>
+  if (s.includes('telegram') || s.includes('t.me')) return <span className="text-[10px]">✈️</span>
+  if (s.includes('google')) return <span className="text-[10px]">🔍</span>
+  if (s.includes('pinterest')) return <span className="text-[10px]">📌</span>
+  if (s.includes('twitter') || s.includes('x.com')) return <span className="text-[10px]">🐦</span>
+  if (s === 'direct') return <span className="text-[10px]">🔗</span>
+  return <Globe size={10} className="text-[#9A8A6B]" />
+}
+
+function getSourceLabel(source: string): string {
+  const s = source.toLowerCase()
+  if (s.includes('facebook') || s.includes('fb')) return 'فيسبوك'
+  if (s.includes('instagram')) return 'إنستغرام'
+  if (s.includes('tiktok')) return 'تيك توك'
+  if (s.includes('youtube')) return 'يوتيوب'
+  if (s.includes('whatsapp') || s.includes('wa.me')) return 'واتساب'
+  if (s.includes('telegram') || s.includes('t.me')) return 'تيليغرام'
+  if (s.includes('google')) return 'جوجل'
+  if (s.includes('pinterest')) return 'بنترست'
+  if (s.includes('twitter') || s.includes('x.com')) return 'تويتر'
+  if (s === 'direct') return 'مباشر'
+  return source.length > 12 ? source.slice(0, 10) + '…' : source
 }
