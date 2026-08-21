@@ -1,234 +1,122 @@
-/**
- * EnhancedMarketplaceProductCard — Temu/AliExpress style product card.
- *
- * Features beyond the old card:
- *   - Verified badge on store
- *   - "Sold X today" badge (deterministic per product ID)
- *   - Pulsing "low stock" indicator
- *   - Free delivery badge if price > 5000 DZD
- *   - COD badge with green pill
- *   - Discount % ribbon (top-left, gradient red)
- *   - "New" badge (top-right, green)
- *   - Wishlist heart button (top-right corner)
- *   - Quick add-to-cart button (bottom, hover reveal on desktop)
- *   - Star rating + reviews count
- *   - View count ("X views")
- *   - Store name with verified check
- *   - Two-line product name with line-clamp
- *   - Price + original price strikethrough
- *   - Tier discount hint if applicable
- */
+import React from 'react';
+import { Star, ShoppingBag, Heart } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
+import { Product } from '../../services/api/types';
 
-import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  Star, Eye, ShieldCheck, Store as StoreIcon, CheckCircle2, Zap,
-  Truck, Heart, ShoppingCart, Flame,
-} from 'lucide-react'
-import type { MarketplaceProduct } from '../../services/api/client'
-import type { TenantStore } from '../../services/api/types'
-import { formatDZD } from '../../lib/utils'
-import { SmartImage } from '../SmartImage'
-import { useWishlist } from '../../context/WishlistContext'
-import { useCart } from '../../context/CartContext'
-
-interface Props {
-  p: MarketplaceProduct
-  stores: TenantStore[]
-  onClick: () => void
-  /** If true, this card is in the Flash Deals section (shows timer ribbon) */
-  flash?: boolean
+interface EnhancedProductCardProps {
+  product: Product;
 }
 
-// Deterministic pseudo-random based on string hash — so each product gets
-// a stable "sold today" number that doesn't change on every render.
-function hashStr(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) {
-    h = (h * 31 + s.charCodeAt(i)) | 0
-  }
-  return Math.abs(h)
-}
+export const EnhancedProductCard: React.FC<EnhancedProductCardProps> = ({ product }) => {
+  const { addToCart } = useCart();
+  const { addToWishlist, wishlist } = useWishlist();
 
-export function EnhancedMarketplaceProductCard({ p, stores, onClick, flash = false }: Props) {
-  const { isWished, toggle } = useWishlist()
-  const { addToCart } = useCart()
-  const [added, setAdded] = useState(false)
+  const discount = product.originalPrice && product.originalPrice > product.price 
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) 
+    : 0;
 
-  const discount = p.compareAtPrice ? Math.round((1 - p.price / p.compareAtPrice) * 100) : 0
-  const store = stores.find(s => s._id === p.storeId)
-  const views = (p as any).marketplaceViews || 0
-
-  // Deterministic "sold today" — based on product ID + day
-  const soldToday = useMemo(() => {
-    const day = new Date().getDate()
-    const h = hashStr(p._id + day)
-    return 3 + (h % 80) // 3-83
-  }, [p._id])
-
-  // "Verified" badge — stable based on store rating/sales
-  const isVerified = store ? hashStr(store._id) % 3 === 0 : false
-
-  // Free delivery threshold
-  const hasFreeDelivery = p.price >= 5000
-
-  const handleWishlist = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    toggle(p as any)
-  }
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    addToCart(p as any, 1)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1500)
-  }
-
-  const wished = isWished(p._id)
+  const isFav = wishlist?.some((w) => w.id === product.id);
 
   return (
-    <div
-      onClick={onClick}
-      className="group relative bg-white border border-[#E5E7EB] rounded-xl sm:rounded-2xl overflow-hidden hover:shadow-xl hover:border-[#C9A96A]/40 transition-all cursor-pointer text-right h-full flex flex-col"
-    >
-      {/* ─── IMAGE ─── */}
-      <div className="relative aspect-square bg-[#F9FAFB] overflow-hidden">
-        <SmartImage src={p.images[0] || ''} alt={p.nameAr} size="card" className="w-full h-full group-hover:scale-105 transition-transform duration-500" />
+    <div className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group">
+      {/* Image Container */}
+      <div className="relative aspect-square bg-gray-50 overflow-hidden">
+        <img 
+          src={product.image} 
+          alt={product.name} 
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
 
-        {/* Discount ribbon (top-left) */}
-        {discount > 0 && (
-          <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-gradient-to-l from-[#DC2626] to-[#B91C1C] text-white text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow-md">
-            -{discount}%
-          </div>
-        )}
+        {/* Badges */}
+        <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
+          {discount > 0 && (
+            <span className="bg-red-600 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow">
+              -{discount}%
+            </span>
+          )}
+          {product.isChoice && (
+            <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded shadow">
+              Choice
+            </span>
+          )}
+        </div>
 
-        {/* New badge (top-right) */}
-        {p.isNew && (
-          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-[#10B981] text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow">
-            جديد
-          </div>
-        )}
-
-        {/* Flash ribbon (bottom-left) */}
-        {flash && (
-          <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 bg-gradient-to-l from-[#F59E0B] to-[#D97706] text-white text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow flex items-center gap-0.5">
-            <Zap size={8} className="sm:hidden" />
-            <Zap size={9} className="hidden sm:block" />
-            <span>عاجل</span>
-          </div>
-        )}
-
-        {/* Wishlist heart (top-right corner, below new badge) */}
+        {/* Wishlist */}
         <button
-          onClick={handleWishlist}
-          className={`absolute w-6 h-6 sm:w-7 sm:h-7 rounded-full grid place-items-center transition-all ${
-            p.isNew ? 'top-7 sm:top-9' : 'top-1.5 sm:top-2'
-          } right-1.5 sm:right-2 ${wished ? 'bg-[#A02A5B] text-white' : 'bg-white/80 backdrop-blur text-[#4B5563] hover:bg-white hover:text-[#A02A5B]'}`}
-          aria-label="إضافة للمفضلة"
-        >
-          <Heart size={11} className="sm:hidden" />
-          <Heart size={13} className="hidden sm:block" />
-        </button>
-
-        {/* Quick add-to-cart (appears on hover, desktop only) */}
-        <button
-          onClick={handleAddToCart}
-          className={`absolute bottom-2 right-2 hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-bold transition-all shadow-md ${
-            added ? 'bg-emerald-500 text-white' : 'bg-[#1A1A1E] text-white opacity-0 group-hover:opacity-100 hover:bg-[#2D2D35]'
+          onClick={() => addToWishlist({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            image: product.image,
+          })}
+          className={`absolute top-2 left-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center transition-colors shadow z-10 ${
+            isFav ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
           }`}
+          aria-label="Wishlist"
         >
-          {added ? <><CheckCircle2 size={11} /> أُضيف</> : <><ShoppingCart size={11} /> أضف للسلة</>}
+          <Heart className={`w-4 h-4 ${isFav ? 'fill-red-500' : ''}`} />
         </button>
       </div>
 
-      {/* ─── CONTENT ─── */}
-      <div className="p-2 sm:p-2.5 flex-1 flex flex-col">
-        {/* Store name with verified badge */}
-        {store && (
-          <div className="text-[9px] sm:text-[10px] text-[#9A8A6B] mb-0.5 sm:mb-1 flex items-center gap-1 truncate">
-            <StoreIcon size={9} className="sm:hidden shrink-0" />
-            <StoreIcon size={10} className="hidden sm:block shrink-0" />
-            <span className="truncate">{store.nameAr || store.name}</span>
-            {isVerified && (
-              <CheckCircle2 size={9} className="sm:hidden shrink-0 text-[#3B82F6]" />
-            )}
-            {isVerified && (
-              <CheckCircle2 size={10} className="hidden sm:block shrink-0 text-[#3B82F6]" />
+      {/* Info Content */}
+      <div className="p-3 flex-1 flex flex-col justify-between">
+        <div>
+          <div className="text-[10px] text-gray-500 font-medium mb-1 flex items-center justify-between">
+            <span>{product.storeName || 'متجر أموقار'}</span>
+            {product.freeShipping && (
+              <span className="text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">
+                توصيل مجاني
+              </span>
             )}
           </div>
-        )}
 
-        {/* Product name */}
-        <div className="text-[11px] sm:text-xs font-medium text-[#1A1A1E] line-clamp-2 leading-4 sm:leading-5 min-h-[32px] sm:min-h-[40px]">
-          {p.nameAr}
+          <Link to={`/product/${product.id}`}>
+            <h3 className="text-xs sm:text-sm font-bold text-gray-900 line-clamp-2 leading-snug hover:text-orange-600 transition-colors">
+              {product.name}
+            </h3>
+          </Link>
         </div>
 
-        {/* Rating + reviews */}
-        <div className="flex items-center gap-1 sm:gap-1.5 mt-1 sm:mt-1.5 text-[9px] sm:text-[10px] text-[#9A8A6B]">
-          {p.rating > 0 && (
-            <>
-              <div className="flex items-center gap-0.5">
-                <Star size={9} className="sm:hidden fill-[#FBBF24] text-[#FBBF24]" />
-                <Star size={10} className="hidden sm:block fill-[#FBBF24] text-[#FBBF24]" />
-                <span className="font-bold text-[#1A1A1E]">{p.rating.toFixed(1)}</span>
-              </div>
-              <span className="hidden sm:inline">({p.reviewsCount || 0})</span>
-            </>
-          )}
-          {views > 0 && (
-            <div className="flex items-center gap-0.5">
-              <Eye size={9} className="sm:hidden" />
-              <Eye size={10} className="hidden sm:block" />
-              <span>{views}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Price */}
-        <div className="flex items-baseline gap-1 sm:gap-1.5 mt-1 sm:mt-1.5">
-          <span className="font-extrabold text-[#DC2626] text-xs sm:text-sm">{formatDZD(p.price)}</span>
-          {p.compareAtPrice && (
-            <span className="text-[9px] sm:text-[10px] text-[#9A8A6B] line-through">{formatDZD(p.compareAtPrice)}</span>
-          )}
-        </div>
-
-        {/* Sold today */}
-        <div className="flex items-center gap-1 mt-0.5 sm:mt-1 text-[9px] sm:text-[10px] text-[#A02A5B] font-medium">
-          <Flame size={8} className="sm:hidden" />
-          <Flame size={9} className="hidden sm:block" />
-          <span>باع {soldToday} اليوم</span>
-        </div>
-
-        {/* Badges row */}
-        <div className="flex items-center gap-1 mt-1 sm:mt-1.5 flex-wrap">
-          <div className="flex items-center gap-0.5 bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold text-[8px] sm:text-[9px]">
-            <ShieldCheck size={8} className="sm:hidden" />
-            <ShieldCheck size={9} className="hidden sm:block" />
-            <span>COD</span>
-          </div>
-          {hasFreeDelivery && (
-            <div className="flex items-center gap-0.5 bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-bold text-[8px] sm:text-[9px]">
-              <Truck size={8} className="sm:hidden" />
-              <Truck size={9} className="hidden sm:block" />
-              <span className="hidden sm:inline">توصيل مجاني</span>
-              <span className="sm:hidden">مجاني</span>
-            </div>
-          )}
-        </div>
-
-        {/* Low stock indicator (pulsing) */}
-        {p.stock <= 5 && p.stock > 0 && (
-          <div className="text-[9px] sm:text-[10px] text-[#F59E0B] font-bold mt-1 sm:mt-1.5 flex items-center gap-1">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
+        <div className="mt-3 pt-2 border-t border-gray-100">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-base sm:text-lg font-black text-gray-900">
+              {product.price.toLocaleString()} <span className="text-xs font-bold text-orange-600">دج</span>
             </span>
-            باقي {p.stock} فقط!
+            {product.originalPrice && product.originalPrice > product.price && (
+              <span className="text-xs text-gray-400 line-through">
+                {product.originalPrice.toLocaleString()} دج
+              </span>
+            )}
           </div>
-        )}
+
+          <div className="flex items-center justify-between text-[11px] text-gray-500 mt-1">
+            <div className="flex items-center text-amber-500 font-bold">
+              <Star className="w-3.5 h-3.5 fill-amber-500 ml-0.5" />
+              <span>{product.rating || 4.8}</span>
+              <span className="text-gray-400 font-normal mr-0.5">({product.reviewsCount || 45})</span>
+            </div>
+            <span>تم بيع {product.salesCount || 230}+</span>
+          </div>
+
+          <button
+            onClick={() => addToCart({
+              id: product.id,
+              name: product.name,
+              price: product.price,
+              image: product.image,
+              quantity: 1,
+            })}
+            className="w-full mt-3 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold py-2 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5"
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            إضافة إلى السلة
+          </button>
+        </div>
       </div>
     </div>
-  )
-}
+  );
+};
+
+export default EnhancedProductCard;

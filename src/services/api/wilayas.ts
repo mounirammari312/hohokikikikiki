@@ -1,55 +1,62 @@
-/**
- * Wilayas service.
- *
- * Sync API reads from an in-memory cache kept fresh by syncWilayas().
- * Mutations go through the async `*Api` helpers in ./client.
- */
+import { WilayaDeliveryPrice } from './types';
 
-import { seedWilayas } from './seed'
-import type { WilayaRate } from './types'
-import { fetchWilayas, updateWilayaRateApi, addWilayaApi } from './client'
-
-let cache: WilayaRate[] = [...seedWilayas] as WilayaRate[]
-let loaded = false
-
-export async function syncWilayas(): Promise<WilayaRate[]> {
-  try {
-    const list = await fetchWilayas()
-    cache = list.length ? list : cache
-    loaded = true
-    return cache
-  } catch {
-    loaded = true
-    return cache
-  }
-}
-
-export function ensureWilayas(): WilayaRate[] {
-  // Kick off the sync if not started yet (best-effort)
-  if (!loaded) void syncWilayas()
-  return cache
-}
-
-export function getWilayas(): WilayaRate[] {
-  return ensureWilayas()
-}
-
-export function getWilayaByCode(code: string): WilayaRate | undefined {
-  return getWilayas().find(w => w.code === code)
-}
-
-export function getWilayaByNameAr(nameAr: string): WilayaRate | undefined {
-  return getWilayas().find(w => w.nameAr === nameAr)
-}
-
-export async function updateWilayaRate(code: string, data: Partial<WilayaRate>): Promise<WilayaRate[]> {
-  const list = await updateWilayaRateApi(code, data)
-  cache = list
-  return list
-}
-
-export async function addWilaya(w: WilayaRate): Promise<WilayaRate[]> {
-  const list = await addWilayaApi(w)
-  cache = list
-  return list
-}
+export const ALGERIA_WILAYAS: WilayaDeliveryPrice[] = [
+  { id: 1, name: 'Adrar', ar_name: 'أدرار', homePrice: 900, deskPrice: 600, available: true },
+  { id: 2, name: 'Chlef', ar_name: 'الشلف', homePrice: 600, deskPrice: 400, available: true },
+  { id: 3, name: 'Laghouat', ar_name: 'الأغواط', homePrice: 700, deskPrice: 450, available: true },
+  { id: 4, name: 'Oum El Bouaghi', ar_name: 'أم البواقي', homePrice: 600, deskPrice: 400, available: true },
+  { id: 5, name: 'Batna', ar_name: 'باتنة', homePrice: 600, deskPrice: 400, available: true },
+  { id: 6, name: 'Béjaïa', ar_name: 'بجاية', homePrice: 600, deskPrice: 400, available: true },
+  { id: 7, name: 'Biskra', ar_name: 'بسكرة', homePrice: 700, deskPrice: 450, available: true },
+  { id: 8, name: 'Béchar', ar_name: 'بشار', homePrice: 850, deskPrice: 550, available: true },
+  { id: 9, name: 'Blida', ar_name: 'البليدة', homePrice: 500, deskPrice: 350, available: true },
+  { id: 10, name: 'Bouira', ar_name: 'البويرة', homePrice: 550, deskPrice: 350, available: true },
+  { id: 11, name: 'Tamanrasset', ar_name: 'تمنراست', homePrice: 1200, deskPrice: 800, available: true },
+  { id: 12, name: 'Tébessa', ar_name: 'تبسة', homePrice: 650, deskPrice: 400, available: true },
+  { id: 13, name: 'Tlemcen', ar_name: 'تلمسان', homePrice: 600, deskPrice: 400, available: true },
+  { id: 14, name: 'Tiaret', ar_name: 'تيارت', homePrice: 600, deskPrice: 400, available: true },
+  { id: 15, name: 'Tizi Ouzou', ar_name: 'تيزي وزو', homePrice: 550, deskPrice: 350, available: true },
+  { id: 16, name: 'Algiers', ar_name: 'الجزائر العاصمة', homePrice: 400, deskPrice: 250, available: true },
+  { id: 17, name: 'Djelfa', ar_name: 'الجلفة', homePrice: 650, deskPrice: 400, available: true },
+  { id: 18, name: 'Jijel', ar_name: 'جيجل', homePrice: 600, deskPrice: 350, available: true },
+  { id: 19, name: 'Sétif', ar_name: 'سطيف', homePrice: 550, deskPrice: 350, available: true },
+  { id: 20, name: 'Saïda', ar_name: 'سعيدة', homePrice: 650, deskPrice: 400, available: true },
+  { id: 21, name: 'Skikda', ar_name: 'سكيكدة', homePrice: 600, deskPrice: 400, available: true },
+  { id: 22, name: 'Sidi Bel Abbès', ar_name: 'سيدي بلعباس', homePrice: 600, deskPrice: 400, available: true },
+  { id: 23, name: 'Annaba', ar_name: 'عنابة', homePrice: 600, deskPrice: 400, available: true },
+  { id: 24, name: 'Guelma', ar_name: 'قالمة', homePrice: 600, deskPrice: 400, available: true },
+  { id: 25, name: 'Constantine', ar_name: 'قسنطينة', homePrice: 550, deskPrice: 350, available: true },
+  { id: 26, name: 'Médéa', ar_name: 'المدية', homePrice: 550, deskPrice: 350, available: true },
+  { id: 27, name: 'Mostaganem', ar_name: 'مستغانم', homePrice: 600, deskPrice: 400, available: true },
+  { id: 28, name: "M'Sila", ar_name: 'المسيلة', homePrice: 600, deskPrice: 400, available: true },
+  { id: 29, name: 'Mascara', ar_name: 'معسكر', homePrice: 600, deskPrice: 400, available: true },
+  { id: 30, name: 'Ouargla', ar_name: 'ورقلة', homePrice: 750, deskPrice: 500, available: true },
+  { id: 31, name: 'Oran', ar_name: 'وهران', homePrice: 500, deskPrice: 350, available: true },
+  { id: 32, name: 'El Bayadh', ar_name: 'البيض', homePrice: 750, deskPrice: 500, available: true },
+  { id: 33, name: 'Illizi', ar_name: 'إليزي', homePrice: 1200, deskPrice: 850, available: true },
+  { id: 34, name: 'Bordj Bou Arréridj', ar_name: 'برج بوعريريج', homePrice: 550, deskPrice: 350, available: true },
+  { id: 35, name: 'Boumerdès', ar_name: 'بومرداس', homePrice: 500, deskPrice: 300, available: true },
+  { id: 36, name: 'El Tarf', ar_name: 'الطارف', homePrice: 650, deskPrice: 400, available: true },
+  { id: 37, name: 'Tindouf', ar_name: 'تندوف', homePrice: 1200, deskPrice: 850, available: true },
+  { id: 38, name: 'Tissemsilt', ar_name: 'تيسمسيلت', homePrice: 600, deskPrice: 400, available: true },
+  { id: 39, name: 'El Oued', ar_name: 'الوادي', homePrice: 700, deskPrice: 450, available: true },
+  { id: 40, name: 'Khenchela', ar_name: 'خنشلة', homePrice: 650, deskPrice: 400, available: true },
+  { id: 41, name: 'Souk Ahras', ar_name: 'سوق أهراس', homePrice: 650, deskPrice: 400, available: true },
+  { id: 42, name: 'Tipaza', ar_name: 'تيبازة', homePrice: 500, deskPrice: 300, available: true },
+  { id: 43, name: 'Mila', ar_name: 'ميلة', homePrice: 600, deskPrice: 400, available: true },
+  { id: 44, name: 'Aïn Defla', ar_name: 'عين الدفلى', homePrice: 550, deskPrice: 350, available: true },
+  { id: 45, name: 'Naâma', ar_name: 'النعامة', homePrice: 750, deskPrice: 500, available: true },
+  { id: 46, name: 'Aïn Témouchent', ar_name: 'عين تموشنت', homePrice: 600, deskPrice: 400, available: true },
+  { id: 47, name: 'Ghardaïa', ar_name: 'غرداية', homePrice: 700, deskPrice: 450, available: true },
+  { id: 48, name: 'Relizane', ar_name: 'غليزان', homePrice: 600, deskPrice: 400, available: true },
+  { id: 49, name: 'Timimoun', ar_name: 'تيميمون', homePrice: 950, deskPrice: 650, available: true },
+  { id: 50, name: 'Bordj Badji Mokhtar', ar_name: 'برج باجي مختار', homePrice: 1300, deskPrice: 900, available: true },
+  { id: 51, name: 'Ouled Djellal', ar_name: 'أولاد جلال', homePrice: 700, deskPrice: 450, available: true },
+  { id: 52, name: 'Béni Abbès', ar_name: 'بني عباس', homePrice: 900, deskPrice: 600, available: true },
+  { id: 53, name: 'In Salah', ar_name: 'عين صالح', homePrice: 1100, deskPrice: 750, available: true },
+  { id: 54, name: 'In Guezzam', ar_name: 'عين قزام', homePrice: 1300, deskPrice: 900, available: true },
+  { id: 55, name: 'Touggourt', ar_name: 'تقرت', homePrice: 750, deskPrice: 500, available: true },
+  { id: 56, name: 'Djanet', ar_name: 'جانت', homePrice: 1300, deskPrice: 900, available: true },
+  { id: 57, name: "El M'Ghair", ar_name: 'المغير', homePrice: 750, deskPrice: 500, available: true },
+  { id: 58, name: 'El Meniaa', ar_name: 'المنيعة', homePrice: 850, deskPrice: 550, available: true },
+];

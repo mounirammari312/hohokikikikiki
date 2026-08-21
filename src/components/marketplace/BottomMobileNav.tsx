@@ -1,54 +1,47 @@
-/**
- * BottomMobileNav — Fixed bottom navigation bar (mobile only).
- *
- * Like Temu/AliExpress mobile app:
- *   [الرئيسية] [الفئات] [السلة] [حسابي]
- *
- * Improves UX on mobile by giving quick access to key pages.
- */
+import React from 'react';
+import { Home, Store, ShoppingBag, Heart, User } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 
-import { Link, useLocation } from 'react-router-dom'
-import { Home, Search, ShoppingCart, User } from 'lucide-react'
-import { useCart } from '../../context/CartContext'
+export const BottomMobileNav: React.FC = () => {
+  const location = useLocation();
+  const { totalItems } = useCart();
+  const { wishlist } = useWishlist();
 
-const ITEMS = [
-  { to: '/marketplace', label: 'الرئيسية', icon: Home, match: ['/marketplace'] },
-  { to: '/marketplace', label: 'تصفّح', icon: Search, match: ['__search__'] }, // special: opens search
-  { to: '/cart', label: 'السلة', icon: ShoppingCart, match: ['/cart'] },
-  { to: '/', label: 'حسابي', icon: User, match: ['/'] },
-]
-
-export function BottomMobileNav() {
-  const { pathname } = useLocation()
-  const { totalQty } = useCart()
+  const navItems = [
+    { label: 'الرئيسية', icon: Home, path: '/' },
+    { label: 'الماركت', icon: Store, path: '/marketplace' },
+    { label: 'السلة', icon: ShoppingBag, path: '/cart', badge: totalItems },
+    { label: 'المفضلة', icon: Heart, path: '/wishlist', badge: wishlist.length },
+    { label: 'حسابي', icon: User, path: '/merchant/login' },
+  ];
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#E5E7EB] shadow-[0_-2px_8px_rgba(0,0,0,0.04)]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="grid grid-cols-4">
-        {ITEMS.map((item, i) => {
-          const Icon = item.icon
-          const isActive = item.match.some(m => m === '__search__' ? false : pathname === m)
-          return (
-            <Link
-              key={i}
-              to={item.to}
-              className={`flex flex-col items-center justify-center gap-0.5 py-2 transition active:scale-95 ${
-                isActive ? 'text-[#1A1A1E]' : 'text-[#9A8A6B]'
-              }`}
-            >
-              <div className="relative">
-                <Icon size={20} className={isActive ? 'fill-current' : ''} />
-                {item.label === 'السلة' && totalQty > 0 && (
-                  <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 bg-[#DC2626] text-white text-[9px] font-bold rounded-full grid place-items-center px-1">
-                    {totalQty > 99 ? '99+' : totalQty}
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] font-medium">{item.label}</span>
-            </Link>
-          )
-        })}
-      </div>
-    </nav>
-  )
-}
+    <div className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-gray-200 z-40 py-1.5 px-4 flex items-center justify-around shadow-lg">
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = location.pathname === item.path;
+        return (
+          <Link
+            key={item.label}
+            to={item.path}
+            className={`flex flex-col items-center py-1 relative ${
+              isActive ? 'text-orange-600 font-bold' : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <Icon className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5">{item.label}</span>
+            {item.badge !== undefined && item.badge > 0 && (
+              <span className="absolute -top-1 -right-2 bg-red-500 text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center">
+                {item.badge}
+              </span>
+            )}
+          </Link>
+        );
+      })}
+    </div>
+  );
+};
+
+export default BottomMobileNav;

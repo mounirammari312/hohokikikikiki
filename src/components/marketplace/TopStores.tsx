@@ -1,248 +1,86 @@
-/**
- * TopStores — Ranking of the top merchants in the marketplace.
- *
- * Phase 2: now pulls REAL ranking from /api/marketplace/top-stores, which
- * sorts by (orderCount * 10 + rating) desc. Each store comes with its
- * real product count, order count, rating, and review count.
- *
- * Mobile: renders as horizontal carousel cards (each ~140px wide).
- * Desktop: renders as vertical list in the right sidebar.
- *
- * Falls back to the old client-side ranking if the API is unavailable.
- */
+import React from 'react';
+import { Store, Star, CheckCircle2, ChevronLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Crown, Star, Package, TrendingUp, Store as StoreIcon, ChevronLeft } from 'lucide-react'
-import { fetchTopStores, type TopStore } from '../../services/api/client'
-import type { TenantStore } from '../../services/api/types'
+const STORES = [
+  {
+    id: 's1',
+    name: 'TechStore DZ',
+    logo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+    rating: 4.9,
+    sales: '15k+ مبيعة',
+    badge: 'متجر رسمي معتمد',
+    wilaya: 'الجزائر العاصمة',
+  },
+  {
+    id: 's2',
+    name: 'Algeria Smart',
+    logo: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=150&auto=format&fit=crop&q=80',
+    rating: 4.8,
+    sales: '8.4k+ مبيعة',
+    badge: 'الأول في الإلكترونيات',
+    wilaya: 'وهران',
+  },
+  {
+    id: 's3',
+    name: 'Fashion Hub DZ',
+    logo: 'https://images.unsplash.com/photo-1529374255404-311a2a4f1fd9?w=150&auto=format&fit=crop&q=80',
+    rating: 4.9,
+    sales: '12k+ مبيعة',
+    badge: 'علامة أزياء رائدة',
+    wilaya: 'سطيف',
+  },
+  {
+    id: 's4',
+    name: 'HomeStyle VIP',
+    logo: 'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=150&auto=format&fit=crop&q=80',
+    rating: 4.8,
+    sales: '6.2k+ مبيعة',
+    badge: 'أفضل تجهيزات المنزل',
+    wilaya: 'قسنطينة',
+  },
+];
 
-interface Props {
-  /** Optional: client-provided fallback stores (used when API is unavailable) */
-  stores?: (TenantStore & { productCount?: number })[]
-  className?: string
-  /** Limit the number of stores shown (default 8) */
-  limit?: number
-  /** Layout: 'list' (desktop sidebar) or 'carousel' (mobile horizontal) */
-  layout?: 'list' | 'carousel'
-}
-
-// Deterministic hash for stable "sales" fallback number per store
-function hashStr(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) {
-    h = (h * 31 + s.charCodeAt(i)) | 0
-  }
-  return Math.abs(h)
-}
-
-export function TopStores({ stores: fallbackStores = [], className = '', limit = 8, layout = 'list' }: Props) {
-  const [topStores, setTopStores] = useState<TopStore[]>([])
-  const [loaded, setLoaded] = useState(false)
-
-  // Pull real top-stores from the API — deferred by 2s to avoid blocking initial render
-  useEffect(() => {
-    let cancelled = false
-    const t = setTimeout(async () => {
-      const { stores: ranked } = await fetchTopStores(limit)
-      if (cancelled) return
-      setTopStores(ranked)
-      setLoaded(true)
-    }, 2000)
-    return () => { cancelled = true; clearTimeout(t) }
-  }, [limit])
-
-  // Use real data if available; otherwise fall back to client-side ranked stores
-  const display = topStores.length > 0
-    ? topStores
-    : fallbackStores.slice(0, limit).map(s => ({
-        store: s,
-        productCount: s.productCount || 0,
-        orderCount: 0,
-        rating: 4 + (hashStr(s._id) % 10) / 10,
-        reviewCount: 0,
-        sales: 80 + (hashStr(s._id) % 920),
-      }))
-
-  if (!loaded && fallbackStores.length === 0) {
-    // Loading skeleton
-    return (
-      <div className={`bg-white border border-[#E5E7EB] rounded-2xl p-4 ${className}`}>
-        <div className="h-4 w-24 skeleton rounded mb-3" />
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 p-2">
-              <div className="w-8 h-8 skeleton rounded-lg" />
-              <div className="flex-1">
-                <div className="h-3 w-32 skeleton rounded mb-1" />
-                <div className="h-2 w-20 skeleton rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (display.length === 0) return null
-
-  // Gradient palette for rank #1-3 (gold, silver, bronze)
-  const rankGradients = [
-    'from-[#F59E0B] to-[#D97706]', // #1 gold
-    'from-[#9CA3AF] to-[#6B7280]', // #2 silver
-    'from-[#B45309] to-[#92400E]', // #3 bronze
-  ]
-
-  // ═══ Carousel layout (mobile) ═══
-  if (layout === 'carousel') {
-    return (
-      <div className={`${className}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#C9A96A] to-[#92653A] grid place-items-center shrink-0">
-              <Crown size={14} className="text-white" />
-            </div>
-            <div>
-              <h3 className="text-sm font-extrabold text-[#1A1A1E]">أفضل المتاجر</h3>
-              <p className="text-[9px] text-[#9A8A6B]">الأكثر نشاطاً</p>
-            </div>
-          </div>
-          <TrendingUp size={16} className="text-[#9A8A6B]" />
-        </div>
-
-        {/* Horizontal scroll cards */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 px-1 -mx-1">
-          {display.map((item, idx) => {
-            const rank = idx + 1
-            const store = item.store
-            const rankBg = rankGradients[idx] || 'from-[#1A1A1E] to-[#2D2D35]'
-            return (
-              <Link
-                key={store._id}
-                to={`/marketplace/store/${store.slug}`}
-                className="group shrink-0 w-[150px] bg-white border border-[#E5E7EB] rounded-2xl p-3 hover:shadow-md transition"
-              >
-                {/* Top row: rank + verified badge */}
-                <div className="flex items-center justify-between mb-2">
-                  <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${rankBg} grid place-items-center shrink-0 shadow`}>
-                    <span className="text-white text-[10px] font-extrabold">{rank}</span>
-                  </div>
-                  {rank <= 3 && (
-                    <span className="text-[8px] bg-[#3B82F6] text-white px-1.5 py-0.5 rounded-full font-bold">
-                      موثّق
-                    </span>
-                  )}
-                </div>
-
-                {/* Store icon (centered) */}
-                <div className="w-10 h-10 rounded-xl bg-[#F3F4F6] grid place-items-center mx-auto mb-2 border border-[#E5E7EB]">
-                  <StoreIcon size={16} className="text-[#9A8A6B]" />
-                </div>
-
-                {/* Store name */}
-                <div className="font-bold text-xs text-[#1A1A1E] text-center truncate mb-1">
-                  {store.nameAr || store.name}
-                </div>
-
-                {/* Stats row */}
-                <div className="flex items-center justify-center gap-1.5 text-[9px] text-[#9A8A6B]">
-                  <div className="flex items-center gap-0.5">
-                    <Star size={8} className="fill-[#FBBF24] text-[#FBBF24]" />
-                    <span className="font-bold text-[#1A1A1E]">{Number(item.rating).toFixed(1)}</span>
-                  </div>
-                  <span>•</span>
-                  <span>{item.productCount} منتج</span>
-                </div>
-
-                {item.orderCount > 0 && (
-                  <div className="text-[8px] text-[#A02A5B] font-bold text-center mt-1">
-                    {item.orderCount}+ مبيعة
-                  </div>
-                )}
-              </Link>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-
-  // ═══ List layout (desktop sidebar) ═══
+export const TopStores: React.FC = () => {
   return (
-    <div className={`bg-white border border-[#E5E7EB] rounded-2xl p-4 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+    <section className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-200/80 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C9A96A] to-[#92653A] grid place-items-center shrink-0">
-            <Crown size={16} className="text-white" />
-          </div>
-          <div>
-            <h3 className="text-base font-extrabold text-[#1A1A1E]">أفضل المتاجر</h3>
-            <p className="text-[10px] text-[#9A8A6B]">المتاجر الأكثر نشاطاً هذا الأسبوع</p>
-          </div>
+          <Store className="w-5 h-5 text-orange-600" />
+          <h2 className="text-base sm:text-lg font-extrabold text-gray-900">المتاجر الموثوقة (Top Verified Stores)</h2>
         </div>
-        <TrendingUp size={18} className="text-[#9A8A6B]" />
+        <span className="text-xs text-gray-500">متاجر مرخصة ومضمونة</span>
       </div>
 
-      {/* Ranked list */}
-      <div className="space-y-2">
-        {display.map((item, idx) => {
-          const rank = idx + 1
-          const store = item.store
-          const rankBg = rankGradients[idx] || 'from-[#1A1A1E] to-[#2D2D35]'
-
-          return (
-            <Link
-              key={store._id}
-              to={`/marketplace/store/${store.slug}`}
-              className="group flex items-center gap-3 p-2 rounded-xl hover:bg-[#F9FAFB] transition"
-            >
-              {/* Rank badge */}
-              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${rankBg} grid place-items-center shrink-0 shadow`}>
-                <span className="text-white text-xs font-extrabold">{rank}</span>
-              </div>
-
-              {/* Store icon */}
-              <div className="w-9 h-9 rounded-xl bg-[#F3F4F6] grid place-items-center shrink-0 border border-[#E5E7EB]">
-                <StoreIcon size={14} className="text-[#9A8A6B]" />
-              </div>
-
-              {/* Store info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-sm text-[#1A1A1E] truncate">{store.nameAr || store.name}</span>
-                  {rank <= 3 && (
-                    <span className="text-[9px] bg-[#3B82F6] text-white px-1 py-0.5 rounded-full font-bold shrink-0">
-                      موثّق
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-[10px] text-[#9A8A6B]">
-                  <div className="flex items-center gap-0.5">
-                    <Star size={9} className="fill-[#FBBF24] text-[#FBBF24]" />
-                    <span className="font-bold text-[#1A1A1E]">{Number(item.rating).toFixed(1)}</span>
-                  </div>
-                  <span>•</span>
-                  <div className="flex items-center gap-0.5">
-                    <Package size={9} />
-                    <span>{item.productCount} منتج</span>
-                  </div>
-                  {item.orderCount > 0 && (
-                    <>
-                      <span>•</span>
-                      <span>{item.orderCount}+ مبيعة</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Arrow */}
-              <ChevronLeft size={14} className="text-[#9A8A6B] group-hover:text-[#1A1A1E] transition shrink-0" />
-            </Link>
-          )
-        })}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {STORES.map((st) => (
+          <div 
+            key={st.id}
+            className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/70 hover:bg-white hover:border-orange-200 hover:shadow-sm transition-all duration-200 text-center flex flex-col items-center justify-between"
+          >
+            <div className="w-14 h-14 rounded-full overflow-hidden mb-2 border-2 border-orange-500/30 p-0.5 bg-white shadow-sm">
+              <img src={st.logo} alt={st.name} className="w-full h-full object-cover rounded-full" />
+            </div>
+            <div className="flex items-center gap-1">
+              <h4 className="text-xs font-bold text-gray-900">{st.name}</h4>
+              <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 fill-blue-500/20" />
+            </div>
+            <span className="text-[10px] text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded-full mt-1">
+              {st.badge}
+            </span>
+            <p className="text-[10px] text-gray-400 mt-1">{st.wilaya}</p>
+            <div className="flex items-center gap-2 text-[11px] text-gray-600 mt-2">
+              <span className="flex items-center text-amber-500 font-bold">
+                <Star className="w-3 h-3 fill-amber-500 ml-0.5" /> {st.rating}
+              </span>
+              <span>•</span>
+              <span>{st.sales}</span>
+            </div>
+          </div>
+        ))}
       </div>
-    </div>
-  )
-}
+    </section>
+  );
+};
+
+export default TopStores;

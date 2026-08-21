@@ -1,68 +1,58 @@
-import { Instagram, Phone, MapPin, Truck, ShieldCheck, Award } from 'lucide-react'
-import { getSettings, syncSettings, subscribeSettings } from '../services/api/settings'
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useTenant } from '../context/TenantContext'
-export default function Footer(){
-  const [store, setStore] = useState(()=> getSettings())
-  const { storeId, storeSlug } = useTenant()
-  const storeParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('store') : null
-  const storeQuery = storeParam ? `?store=${encodeURIComponent(storeParam)}` : ''
-  useEffect(() => {
-    void syncSettings().then(() => setStore(getSettings()))
-  }, [storeId, storeSlug])
-  // Re-render when settings change (e.g. merchant saves in /admin).
-  useEffect(() => {
-    const unsub = subscribeSettings(() => setStore(getSettings()))
-    return unsub
-  }, [])
+import React from 'react';
+import { ShoppingBag, ShieldCheck, Truck, PhoneCall, Heart } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+export const Footer: React.FC = () => {
   return (
-    <footer className="gradient-top-border text-[#E8E0CC] mt-16" style={{background: store.secondaryColor || "#1A1A1E"}}>
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 py-10">
-        <div className="grid md:grid-cols-4 gap-8">
-          <div>
-            <div className="cormorant text-2xl tracking-[0.2em] gradient-text font-bold flex items-center gap-2">{store.storeName} {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B] shadow-[0_0_8px_rgba(160,42,91,0.6)]"></span>}</div>
-            <p className="text-sm leading-6 mt-3 text-[#B8AA8E]">{store.footerDescriptionAr}</p>
-            <div className="flex gap-2 mt-4">
-              <a href={store.instagram.startsWith('@') ? `https://instagram.com/${store.instagram.slice(1)}` : '#'} target="_blank" className="social-bounce w-8 h-8 rounded-full bg-white/10 grid place-items-center hover:bg-[#A02A5B] hover:text-white"><Instagram size={16}/></a>
-              <a href={`tel:${store.phone.replace(/\s/g,'')}`} className="social-bounce w-8 h-8 rounded-full bg-white/10 grid place-items-center hover:bg-[#C9A96A]"><Phone size={16}/></a>
+    <footer className="bg-neutral-900 text-gray-400 text-xs border-t border-neutral-800 mt-16 pt-12 pb-8">
+      <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center font-black">
+              A
             </div>
-            <div className="text-xs text-white/40 mt-3">{store.phone} • {store.email}</div>
+            <span className="text-white text-lg font-black tracking-tight">AMUGAR 2026</span>
           </div>
-          <div>
-            <h4 className="font-bold text-white mb-3">روابط سريعة</h4>
-            <ul className="space-y-2 text-sm text-[#B8AA8E]">
-              <li><Link to={`/shop${storeQuery}`} className="hover:text-[#C9A96A]">المتجر</Link></li>
-              <li><a href={`/${storeQuery}#collection`} className="hover:text-[#C9A96A]">سياسة الاسترجاع 14 يوم</a></li>
-              <li><a href="#" className="hover:text-[#C9A96A]">تتبع الطلب</a></li>
-              <li><Link to={`/admin${storeQuery}`} className="hover:text-[#C9A96A]">لوحة التحكم</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold text-white mb-3">الدفع والشحن 2026</h4>
-            <ul className="space-y-2 text-sm text-[#B8AA8E]">
-              <li className="flex gap-2"><Truck size={16} className="text-[#C9A96A]"/> توصيل 24-96 ساعة حسب الولاية {store.freeShippingThreshold>0 && `• مجاني فوق ${store.freeShippingThreshold.toLocaleString()} د.ج`}</li>
-              <li className="flex gap-2"><ShieldCheck size={16} className={store.enableCod ? 'text-[#C9A96A]' : 'text-white/30'}/> {store.enableCod ? 'الدفع عند الاستلام فقط (COD)' : 'الدفع عند الاستلام — متوقف حالياً'}</li>
-              <li className="flex gap-2"><Award size={16} className="text-[#C9A96A]"/> ضمان جودة + استرجاع 14 يوم</li>
-              <li className="flex gap-2"><MapPin size={16} className="text-[#C9A96A]"/> {store.phone} • 58 ولاية</li>
-            </ul>
-          </div>
-          <div className="bg-white/[0.05] rounded-2xl p-4 border border-white/10 relative overflow-hidden">
-            {store.enableRoseEdition && <div className="absolute -top-8 -left-8 w-20 h-20 bg-[#A02A5B]/10 rounded-full blur-xl pointer-events-none"></div>}
-            <h4 className="font-bold text-white flex items-center gap-2">اشترك واحصل على 10% خصم {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B]"></span>}</h4>
-            <p className="text-xs text-[#B8AA8E] mt-1">لأول طلب + كود خصم حصري للكولكشن الجديد</p>
-            <form onSubmit={e=>{e.preventDefault(); alert('تم التسجيل! كود الخصم: LUMIERE10')}} className="mt-3 flex gap-2">
-              <input placeholder="بريدك الإلكتروني" className="flex-1 rounded-full px-3 py-2 text-sm bg-white text-black outline-none focus:ring-2 focus:ring-[#A02A5B]/20"/>
-              <button className="btn-premium bg-[#C9A96A] text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-[#B8945A]">اشتراك</button>
-            </form>
-            {store.enableRoseEdition && <p className="text-[11px] text-white/30 mt-2 text-center">♥ لمسة روز راقية — ÉDITION ROSE</p>}
-          </div>
+          <p className="text-gray-400 text-xs leading-relaxed">
+            منصة التجارة الإلكترونية وسوق المتاجر الموثوقة الأولى في الجزائر. شحن فوري لـ 58 ولاية وضمان حقيقي للدفع عند الاستلام.
+          </p>
         </div>
-        <div className="border-t border-white/10 mt-8 pt-6 flex flex-col md:flex-row justify-between gap-3 text-xs text-[#8A7F6A]">
-          <span>© 2026 {store.storeName} Algérie — {store.storeNameAr}. جميع الحقوق محفوظة. الأسعار بـ {store.currency}</span>
-          <span className="flex items-center gap-2">Meta Pixel & TikTok Pixel مفعّلان • تتبع التجارة الإلكترونية 2026 {store.enableRoseEdition && <span className="w-1 h-1 rounded-full bg-[#A02A5B]"></span>}</span>
+
+        <div>
+          <h4 className="text-white font-bold text-sm mb-3">روابط سريعة</h4>
+          <ul className="space-y-2">
+            <li><Link to="/marketplace" className="hover:text-white transition-colors">السوق المركزي</Link></li>
+            <li><Link to="/shop" className="hover:text-white transition-colors">تصفح المنتجات</Link></li>
+            <li><Link to="/cart" className="hover:text-white transition-colors">سلة المشتريات</Link></li>
+            <li><Link to="/wishlist" className="hover:text-white transition-colors">قائمة الرغبات</Link></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="text-white font-bold text-sm mb-3">للتجار والشركاء</h4>
+          <ul className="space-y-2">
+            <li><Link to="/merchant/login" className="hover:text-white transition-colors">دخول التجار</Link></li>
+            <li><Link to="/admin" className="hover:text-white transition-colors">لوحة تحكم المتجر</Link></li>
+            <li><Link to="/super-admin" className="hover:text-white transition-colors">لوحة الإدارة المركزية</Link></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="text-white font-bold text-sm mb-3">خدمة الزبائن والدعم</h4>
+          <p className="text-xs text-gray-400 mb-2">فريقنا متواجد لخدمتكم 7 أيام في الأسبوع:</p>
+          <div className="flex items-center gap-2 text-white font-bold text-sm">
+            <PhoneCall className="w-4 h-4 text-orange-500" />
+            <span>0550 00 00 00 / 0660 00 00 00</span>
+          </div>
         </div>
       </div>
+
+      <div className="max-w-7xl mx-auto px-4 pt-6 border-t border-neutral-800 text-center text-gray-500 text-[11px] flex flex-col sm:flex-row items-center justify-between gap-2">
+        <span>© 2026 Amugar Platform. جميع الحقوق محفوظة للسوق الجزائري.</span>
+        <span>بنيت بأحدث معايير الويب الفائقة السرعة والتجاوب.</span>
+      </div>
     </footer>
-  )
-}
+  );
+};
+
+export default Footer;

@@ -1,54 +1,28 @@
-/**
- * FloatingButtons — Floating action buttons (bottom-right, desktop only).
- *
- *   1. Back to top button (appears after scrolling 400px)
- *   2. Cart button (always visible, shows item count badge)
- *
- * Temu has these on every page.
- */
+import React from 'react';
+import { PhoneCall, ArrowUp } from 'lucide-react';
 
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowUp, ShoppingCart } from 'lucide-react'
-import { useCart } from '../../context/CartContext'
-
-export function FloatingButtons() {
-  const [show, setShow] = useState(false)
-  const { totalQty } = useCart()
-
-  useEffect(() => {
-    const onScroll = () => setShow(window.scrollY > 400)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    onScroll()
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
+export const FloatingButtons: React.FC = () => {
   return (
-    <div className="fixed bottom-20 md:bottom-6 left-4 z-30 flex flex-col gap-2">
-      {/* Back to top */}
+    <div className="fixed bottom-6 left-6 z-40 flex flex-col gap-2.5">
+      <a
+        href="https://wa.me/213000000000"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-12 h-12 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-lg flex items-center justify-center transition-transform hover:scale-110"
+        aria-label="WhatsApp Support"
+      >
+        <PhoneCall className="w-5 h-5" />
+      </a>
+
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className={`w-11 h-11 rounded-full bg-white border border-[#E5E7EB] shadow-lg grid place-items-center text-[#1A1A1E] hover:bg-[#1A1A1E] hover:text-white transition-all ${
-          show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
-        }`}
-        aria-label="العودة للأعلى"
+        className="w-10 h-10 rounded-full bg-white hover:bg-gray-100 text-gray-700 shadow-md border border-gray-200 flex items-center justify-center transition-transform hover:scale-105"
+        aria-label="Scroll to top"
       >
-        <ArrowUp size={18} />
+        <ArrowUp className="w-4 h-4" />
       </button>
-
-      {/* Cart */}
-      <Link
-        to="/cart"
-        className="relative w-11 h-11 rounded-full bg-gradient-to-br from-[#1A1A1E] to-[#2D2D35] shadow-lg grid place-items-center text-white hover:scale-110 transition-transform"
-        aria-label="السلة"
-      >
-        <ShoppingCart size={18} />
-        {totalQty > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-[#DC2626] text-white text-[10px] font-extrabold rounded-full grid place-items-center px-1">
-            {totalQty > 99 ? '99+' : totalQty}
-          </span>
-        )}
-      </Link>
     </div>
-  )
-}
+  );
+};
+
+export default FloatingButtons;
