@@ -756,11 +756,19 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
   }
 
   // POST /api/auth/register  (creates a new merchant + a fresh store)
+  // Body: { fullName, email, password, storeName, storeNameAr?, slug?, domainType? }
+  //   domainType: optional — one of 'domain_jewelry', 'domain_fashion',
+  //   'domain_beauty', 'domain_electronics', 'domain_home_appliances',
+  //   'domain_digital', 'domain_general'. Defaults to 'domain_general'.
   if (segments[1] === 'register' && method === 'POST') {
-    const { fullName, email, password, phone, storeName, storeNameAr, slug } = body
+    const { fullName, email, password, phone, storeName, storeNameAr, slug, domainType } = body
     if (!fullName || !email || !password || !storeName) {
       return [{ error: 'MISSING_REQUIRED_FIELDS' }, 400]
     }
+    // Validate domainType if provided
+    const validDomainIds = new Set((presetDomains || []).map(d => d.id))
+    const chosenDomain = domainType && validDomainIds.has(domainType) ? domainType : 'domain_general'
+
     const existing = await MerchantUserModel.findOne({ email: String(email).toLowerCase().trim() }).lean()
     if (existing) return [{ error: 'EMAIL_ALREADY_REGISTERED' }, 409]
 
@@ -799,14 +807,15 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
       createdAt: now,
       updatedAt: now,
     })
-    // Seed the new store's catalog
-    await seedStoreData(storeId)
+    // Seed the new store's catalog (empty by default) + apply the chosen domain
+    await seedStoreData(storeId, chosenDomain)
 
     return [{
       user: sanitizeUser(user.toObject ? user.toObject() : user),
       token: makeToken(user.toObject ? user.toObject() : user),
       storeId,
       storeIds: [storeId],
+      domainType: chosenDomain,
     }, 201]
   }
 
@@ -1343,7 +1352,7 @@ async function storesRoute(segments: string[], method: string, req: any, query: 
   // POST /api/stores — create another store under the same merchant
   if (segments.length === 1 && method === 'POST') {
     const body = await getReqBody(req)
-    const { name, nameAr, slug } = body
+    const { name, nameAr, slug, domainType } = body
     if (!name) return [{ error: 'NAME_REQUIRED' }, 400]
     const finalSlug = (slug || name).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
     if (!finalSlug) return [{ error: 'INVALID_SLUG' }, 400]
@@ -1357,8 +1366,11 @@ async function storesRoute(segments: string[], method: string, req: any, query: 
       planExpiresAt: null, createdAt: now, updatedAt: now,
     })
     await MerchantUserModel.findByIdAndUpdate(user._id, { $addToSet: { storeIds: storeId } })
-    await seedStoreData(storeId)
-    return [{ storeId, slug: finalSlug }, 201]
+    // Validate + apply domainType if provided
+    const validDomainIds = new Set((presetDomains || []).map(d => d.id))
+    const chosenDomain = domainType && validDomainIds.has(domainType) ? domainType : 'domain_general'
+    await seedStoreData(storeId, chosenDomain)
+    return [{ storeId, slug: finalSlug, domainType: chosenDomain }, 201]
   }
 
   // PATCH /api/stores/:id — update store meta (name, nameAr, customDomain)

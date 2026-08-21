@@ -684,7 +684,8 @@ export async function authLogin(email: string, password: string): Promise<AuthLo
 export async function authRegister(payload: {
   fullName: string; email: string; password: string; phone?: string
   storeName: string; storeNameAr?: string; slug?: string
-}): Promise<{ user: MerchantUser; token: string; storeId: string; storeIds: string[] }> {
+  domainType?: string  // chosen store type (jewelry / fashion / electronics / etc.)
+}): Promise<{ user: MerchantUser; token: string; storeId: string; storeIds: string[]; domainType?: string }> {
   return await apiFetch('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) })
 }
 export async function authMe(): Promise<{ user: MerchantUser }> {

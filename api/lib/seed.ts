@@ -117,11 +117,118 @@ export const presetDomains: StoreDomain[] = [
     },
     isPreset: true
   },
+  // ─── Electronics store (phones, accessories, headphones, etc.) ──────────
+  {
+    id: 'domain_electronics',
+    name: 'Amugar Electronics',
+    nameAr: 'أموغار إلكترونيات',
+    descriptionAr: 'متجر إلكترونيات — هواتف، لواحق، سماعات، شواحن، إكسسوارات تقنية.',
+    heroBadge: 'TECH 2026 • جديد',
+    heroTitleAr: 'أحدث الإلكترونيات بين يديك',
+    heroSubtitleAr: 'هواتف ذكية، سماعات لاسلكية، شواحن سريعة، وإكسسوارات تقنية أصلية 100%. ضمان حقيقي وتوصيل سريع.',
+    heroImage: 'https://images.unsplash.com/photo-1468495244123-6c6c332eeece?w=1400&q=80',
+    footerDescriptionAr: 'متجر إلكترونيات جزائري. منتجات أصلية بضمان، توصيل لكل الولايات، والدفع عند الاستلام.',
+    categories: [
+      { key: 'phone', label: 'Phones', labelAr: 'هواتف' },
+      { key: 'accessory', label: 'Accessories', labelAr: 'لواحق' },
+      { key: 'headphones', label: 'Headphones', labelAr: 'سماعات' },
+      { key: 'charger', label: 'Chargers', labelAr: 'شواحن' },
+      { key: 'case', label: 'Cases', labelAr: 'علب وحماية' },
+      { key: 'cable', label: 'Cables', labelAr: 'كابلات' },
+    ],
+    attributeSchema: [
+      { key:'brand', label:'Brand', labelAr:'الماركة', type:'text' as const, placeholder:'مثال: Apple, Samsung', required:true },
+      { key:'model', label:'Model', labelAr:'الموديل', type:'text' as const, placeholder:'مثال: iPhone 15' },
+      { key:'warranty', label:'Warranty', labelAr:'الضمان', type:'select' as const, options:['12 شهر','6 أشهر','3 أشهر','بدون ضمان'] },
+      { key:'condition', label:'Condition', labelAr:'الحالة', type:'select' as const, options:['جديد','مجدد','مستعمل'] },
+      { key:'storage', label:'Storage', labelAr:'التخزين', type:'select' as const, options:['64GB','128GB','256GB','512GB','1TB','—'] },
+    ],
+    variantConfig: {
+      hasColor: true,
+      hasSize: false,
+      sizeOptions: [],
+      colorPresets: [
+        { name:'Black', nameAr:'أسود', hex:'#1A1A1E' },
+        { name:'White', nameAr:'أبيض', hex:'#FFFFFF' },
+        { name:'Silver', nameAr:'فضي', hex:'#C0C0C0' },
+        { name:'Gold', nameAr:'ذهبي', hex:'#D4AF37' },
+        { name:'Blue', nameAr:'أزرق', hex:'#1E40AF' },
+      ],
+    },
+    isPreset: true
+  },
+  // ─── Home Appliances store (refrigerators, washers, ovens, ACs, TVs) ────
+  {
+    id: 'domain_home_appliances',
+    name: 'Amugar Home',
+    nameAr: 'أموغار أجهزة منزلية',
+    descriptionAr: 'متجر أجهزة منزلية — ثلاجات، غسالات، أفران، مكيفات، تلفزيونات.',
+    heroBadge: 'HOME 2026 • توصيل مجاني',
+    heroTitleAr: 'كل ما يحتاجه منزلك',
+    heroSubtitleAr: 'أجهزة منزلية كبيرة وصغيرة بأسعار تنافسية، ضمان حقيقي، توصيل وتركيب في كل الولايات.',
+    heroImage: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1400&q=80',
+    footerDescriptionAr: 'متجر أجهزة منزلية جزائري. ضمان حقيقي، توصيل وتركيب، والدفع عند الاستلام.',
+    categories: [
+      { key: 'refrigerator', label: 'Refrigerators', labelAr: 'ثلاجات' },
+      { key: 'washer', label: 'Washing Machines', labelAr: 'غسالات' },
+      { key: 'oven', label: 'Ovens', labelAr: 'أفران' },
+      { key: 'ac', label: 'Air Conditioners', labelAr: 'مكيفات' },
+      { key: 'tv', label: 'TVs', labelAr: 'تلفزيونات' },
+      { key: 'small_appliance', label: 'Small Appliances', labelAr: 'أجهزة صغيرة' },
+    ],
+    attributeSchema: [
+      { key:'brand', label:'Brand', labelAr:'الماركة', type:'text' as const, placeholder:'مثال: LG, Samsung', required:true },
+      { key:'model', label:'Model', labelAr:'الموديل', type:'text' as const, placeholder:'مثال: GN-B512' },
+      { key:'warranty', label:'Warranty', labelAr:'الضمان', type:'select' as const, options:['24 شهر','12 شهر','6 أشهر','بدون ضمان'] },
+      { key:'capacity', label:'Capacity', labelAr:'السعة', type:'text' as const, placeholder:'مثال: 12 كغ / 8 كغ' },
+      { key:'energy', label:'Energy', labelAr:'الاستهلاك', type:'select' as const, options:['A+++','A++','A+','A','B'] },
+    ],
+    variantConfig: {
+      hasColor: false,
+      hasSize: false,
+      sizeOptions: [],
+      colorPresets: [],
+    },
+    isPreset: true
+  },
+  // ─── Digital Products store (IPTV, Netflix, AI, Canva, subscriptions) ────
+  {
+    id: 'domain_digital',
+    name: 'Amugar Digital',
+    nameAr: 'أموغار رقميات',
+    descriptionAr: 'متجر منتجات رقمية — IPTV، اشتراكات Netflix، اشتراكات AI، حسابات Canva، كروت شحن.',
+    heroBadge: 'DIGITAL 2026 • فوري',
+    heroTitleAr: 'منتجات رقمية بتفعيل فوري',
+    heroSubtitleAr: 'اشتراكات IPTV، Netflix، أدوات الذكاء الاصطناعي، Canva Pro، وكل ما تحتاجه رقمياً. تفعيل خلال دقائق.',
+    heroImage: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=1400&q=80',
+    footerDescriptionAr: 'متجر رقميات جزائري. تفعيل فوري، دعم فني، ضمان استرجاع خلال 24 ساعة.',
+    categories: [
+      { key: 'subscription', label: 'Subscriptions', labelAr: 'اشتراكات' },
+      { key: 'account', label: 'Accounts', labelAr: 'حسابات' },
+      { key: 'giftcard', label: 'Gift Cards', labelAr: 'كروت هدايا' },
+      { key: 'code', label: 'Codes', labelAr: 'أكواد' },
+      { key: 'iptv', label: 'IPTV', labelAr: 'IPTV' },
+      { key: 'ai_tool', label: 'AI Tools', labelAr: 'أدوات AI' },
+    ],
+    attributeSchema: [
+      { key:'duration', label:'Duration', labelAr:'المدة', type:'select' as const, options:['شهر','3 أشهر','6 أشهر','سنة','دائم'], required:true },
+      { key:'delivery', label:'Delivery', labelAr:'طريقة التسليم', type:'select' as const, options:['فوري (دقائق)','خلال 24 ساعة','يدوي'] },
+      { key:'warranty', label:'Warranty', labelAr:'الضمان', type:'select' as const, options:['ضمان مدى الحياة','12 شهر','6 أشهر','بدون ضمان'] },
+      { key:'region', label:'Region', labelAr:'المنطقة', type:'select' as const, options:['عالمي','الجزائر','أوروبا','أمريكا','الشرق الأوسط'] },
+    ],
+    variantConfig: {
+      hasColor: false,
+      hasSize: false,
+      sizeOptions: [],
+      colorPresets: [],
+    },
+    isPreset: true
+  },
   // ─── General / Generic store (DEFAULT for all new merchants) ──────────────
-  // This preset is what every NEW store starts with. It's intentionally
-  // neutral so the merchant doesn't see jewelry/fashion/beauty content
-  // that doesn't match what they actually sell. They can switch to a
-  // specialized preset from the dashboard if they want.
+  // This preset is what every NEW store starts with if they don't pick
+  // a specialized domain. It's intentionally neutral so the merchant
+  // doesn't see jewelry/fashion/beauty content that doesn't match what
+  // they actually sell.
   {
     id: 'domain_general',
     name: 'Amugar Store',

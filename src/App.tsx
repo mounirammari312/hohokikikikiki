@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
@@ -88,13 +88,24 @@ function TenantStorefront() {
   //
   // PERFORMANCE: we do NOT call invalidateAll() here — that would wipe
   // the in-memory cache and force every page to re-render with empty
-  // data while the API call is in flight. Instead, we let the cache
-  // stay (keyed per-tenant via getCacheKey), and sync*() runs in the
-  // background to refresh. The cache uses per-tenant keys, so switching
-  // stores is safe — store A's cached data is never served to store B.
+  // data while the API call is in flight (causing the "spinner on every
+  // page" problem). Instead:
+  //   1. We keep the existing cache (keyed per-tenant via getCacheKey).
+  //   2. The cache key includes the storeId/slug, so store A's data is
+  //      NEVER served to store B (different key = different entry).
+  //   3. sync*() runs in the background and updates the cache silently.
+  //
+  // This is the "stale-while-revalidate" pattern used by Vercel SWR +
+  // TanStack Query: show cached data immediately, refresh in background.
   const tenantKey = storeId || storeSlug || 'default'
+  const prevTenantRef = useRef<string | null>(null)
   useEffect(() => {
     if (isPlatformHost && !hasTenantContext) return  // skip sync if no tenant
+    // If the tenant actually CHANGED (not just a re-render), force a
+    // fresh sync so the new store's data loads immediately. The cache
+    // uses per-tenant keys, so this won't affect other stores' caches.
+    const tenantChanged = prevTenantRef.current !== null && prevTenantRef.current !== tenantKey
+    prevTenantRef.current = tenantKey
     // Kick off background syncs — these update the cache without
     // blocking the render. Pages that already have cached data will
     // show it instantly and re-render when the fresh data arrives.
@@ -103,9 +114,56 @@ function TenantStorefront() {
     void syncSettings()
     void syncDomains()
     ensureProducts()
-  }, [tenantKey])
+
+    // ─── Track the last store visit (for the smart redirect) ──────────
+    // Whenever the visitor is in a tenant store, record {slug, ts} in
+    // localStorage. The smart redirect in AppRoutes reads this to
+    // automatically send the visitor back to this store if they land on
+    // the platform apex root within 30 minutes (e.g. after pressing
+    // "back" too many times or typing amugar.vercel.app/ in the URL bar).
+    if (typeof window !== 'undefined' && (storeSlug || storeId)) {
+      try {
+        localStorage.setItem('amugar_last_store_visit', JSON.stringify({
+          slug: storeSlug,
+          storeId,
+          ts: Date.now(),
+        }))
+      } catch {
+        // localStorage might be unavailable — ignore
+      }
+    }
+  }, [tenantKey, storeSlug, storeId, isPlatformHost, hasTenantContext])
 
   if (isPlatformHost && !hasTenantContext) {
+    // ─── Smart redirect: if the visitor was in a store within the last
+    // 30 minutes, automatically redirect them there. This solves the
+    // "I pressed back and ended up on the SaaS landing" problem that
+    // customers hitting a store ad → store → root flow experience.
+    //
+    // We store `amugar_last_store_visit` in localStorage with a timestamp
+    // + slug. If the timestamp is < 30min ago AND the visitor is on the
+    // platform host root (no ?store=), redirect. Otherwise → SaaS landing.
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('amugar_last_store_visit')
+        if (raw) {
+          const data = JSON.parse(raw)
+          const THIRTY_MIN = 30 * 60 * 1000
+          if (data?.slug && data?.ts && (Date.now() - data.ts) < THIRTY_MIN) {
+            // Only redirect if we're on the root path (no ?store=, no hash, no other path)
+            const url = new URL(window.location.href)
+            const isRoot = url.pathname === '/' && !url.searchParams.get('store') && !url.searchParams.get('storeId')
+            if (isRoot) {
+              // Redirect to the last-visited store
+              window.location.href = `/?store=${encodeURIComponent(data.slug)}`
+              return null  // render nothing while redirecting
+            }
+          }
+        }
+      } catch {
+        // localStorage might be unavailable (private browsing) — ignore
+      }
+    }
     return <PlatformLanding />
   }
 

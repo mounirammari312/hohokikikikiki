@@ -99,29 +99,33 @@ async function doPlatformSeed(): Promise<void> {
   // Always seed the demo store's catalog (idempotent — only inserts if empty)
   await seedStoreData(DEFAULT_STORE_ID)
 
-  // ─── Migrate legacy stores: switch from "domain_jewelry" default → "domain_general" ──
-  // Old deployments had `activeDomainId: "domain_jewelry"` as the default
-  // for every new merchant. This caused confusion — a merchant selling
-  // electronics would see jewelry-themed storefront. This migration
-  // updates existing stores that STILL have the jewelry default (and
-  // never explicitly switched) to the new "domain_general" default.
-  // We detect "never explicitly switched" by checking if the settings
-  // doc has `activeDomainId === 'domain_jewelry'` AND no products
-  // with `domainId === 'domain_jewelry'` (i.e. the merchant never
-  // added jewelry products → they just have the default).
+  // ─── Migrate legacy stores: switch from specialized domains → "domain_general" ──
+  // Old deployments had `activeDomainId: "domain_jewelry"` (or fashion/beauty)
+  // as the default for every new merchant. This caused confusion — a merchant
+  // selling electronics would see jewelry-themed storefront. This migration
+  // updates existing stores that STILL have a specialized domain default
+  // (and never explicitly switched + have no products of that domain)
+  // to the new "domain_general" default.
   try {
-    const jewelryStores = await SettingsModel.find({ activeDomainId: 'domain_jewelry' }).lean()
-    if (jewelryStores.length > 0) {
+    const specializedDomains = ['domain_jewelry', 'domain_fashion', 'domain_beauty']
+    const legacyStores = await SettingsModel.find({
+      activeDomainId: { $in: specializedDomains },
+    }).lean()
+    if (legacyStores.length > 0) {
       let migrated = 0
-      for (const s of jewelryStores) {
-        // Check if the store has ANY jewelry products (prod_001..prod_008)
-        // If yes → they're a real jewelry store, skip migration
-        const hasJewelryProducts = await ProductModel.countDocuments({
-          storeId: s.storeId,
-          domainId: 'domain_jewelry',
-          deletedAt: null,
-        })
-        if (hasJewelryProducts === 0) {
+      for (const s of legacyStores) {
+        // Check if the store has ANY products matching the domain's categories
+        // If yes → they're a real specialized store, skip migration
+        const domainPreset = (presetDomains as any[]).find(p => p.id === s.activeDomainId)
+        const domainCategoryKeys = (domainPreset?.categories || []).map((c: any) => c.key)
+        const hasMatchingProducts = domainCategoryKeys.length > 0
+          ? await ProductModel.countDocuments({
+              storeId: s.storeId,
+              category: { $in: domainCategoryKeys },
+              deletedAt: null,
+            })
+          : 0
+        if (hasMatchingProducts === 0) {
           await SettingsModel.updateOne(
             { _id: s._id },
             { $set: { activeDomainId: 'domain_general', updatedAt: new Date().toISOString() } }
@@ -130,7 +134,7 @@ async function doPlatformSeed(): Promise<void> {
         }
       }
       if (migrated > 0) {
-        console.log(`[seed] migrated ${migrated} store(s) from domain_jewelry → domain_general`)
+        console.log(`[seed] migrated ${migrated} store(s) from specialized → domain_general`)
       }
     }
   } catch (err) {
@@ -331,15 +335,18 @@ async function doPlatformSeed(): Promise<void> {
  * domains, settings). Called when a new TenantStore is created.
  * Idempotent — safe to call on a store that already has data.
  *
- * IMPORTANT: New stores get a small GENERIC starter pack (3 sample
- * products with neutral copy + Unsplash images) instead of the
- * 18-product jewelry catalog. The merchant is expected to delete these
- * and add their own products. The full jewelry catalog (`seedProducts`)
- * is still used for the demo store (`store_default`) — but only when
- * the demo store is first created (which already happened in any
- * existing deployment, so this is a no-op for production).
+ * IMPORTANT: New stores get an EMPTY catalog. The merchant picks a
+ * domain type (jewelry / fashion / beauty / electronics / home_appliances
+ * / digital / general) during registration — that domain's preset is
+ * applied as `activeDomainId`. NO sample products are added — the
+ * merchant adds their OWN products from the start.
+ *
+ * The full jewelry catalog (`seedProducts`) is only used for the demo
+ * store (`store_default`) — but only when the demo store is first
+ * created (which already happened in any existing deployment, so this
+ * is a no-op for production).
  */
-export async function seedStoreData(storeId: string): Promise<void> {
+export async function seedStoreData(storeId: string, domainId?: string): Promise<void> {
   // ─── Empty store (no demo products) ──────────────────────────────────
   // Previously we seeded 3 sample products ("منتج تجريبي 1/2/3") with
   // Unsplash photos. This caused major merchant confusion: they'd open
@@ -385,13 +392,20 @@ export async function seedStoreData(storeId: string): Promise<void> {
   if (!settings) {
     // Fresh store — populate defaultSettings + the full providers list
     // (one entry per provider in the registry, all disabled by default).
+    // If a domainId was provided (chosen during registration), use it
+    // instead of the default "domain_general". This is how the merchant
+    // picks their store type (jewelry / fashion / electronics / etc.).
+    const chosenDomainId = domainId && presetDomains.find(p => p.id === domainId)
+      ? domainId
+      : 'domain_general'
     await SettingsModel.create({
       _id: settingsDocId(storeId),
       storeId,
       ...defaultSettings,
+      activeDomainId: chosenDomainId,
       deliveryProviders: defaultDeliveryProviders(),
     })
-    console.log(`[seed] inserted default settings for store ${storeId}`)
+    console.log(`[seed] inserted default settings for store ${storeId} (domain: ${chosenDomainId})`)
   } else {
     // Merge any new default fields that didn't exist in the DB yet
     const update: Partial<StoreSettings> = {}

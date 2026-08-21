@@ -24,9 +24,25 @@ import {
   ArrowLeft, Check, Store, Crown, Rocket, ShoppingBag, Truck, ShieldCheck,
   Sparkles, Globe, Star, TrendingUp, Zap, X, ChevronDown, Palette,
   Package, BarChart3, Phone, Mail, Lock, User, Eye, EyeOff,
+  Smartphone, Shirt, Heart, Home as HomeIcon, Wifi,
 } from 'lucide-react'
 
 const PLATFORM_APEX = ((import.meta as any).env?.VITE_PLATFORM_APEX || 'amugar.saas').toLowerCase()
+
+// ─── Store types (domains) offered during registration ──────────────────────
+// Each maps to a domain_XXX preset in api/lib/seed.ts. The merchant picks
+// one during signup; the store's `activeDomainId` is set accordingly so the
+// storefront matches what they actually sell (instead of always showing
+// jewelry by default).
+const STORE_TYPES: { id: string; labelAr: string; descAr: string; icon: any }[] = [
+  { id: 'domain_general',         labelAr: 'متجر عام',        descAr: 'متجر متعدد الفئات — مناسب لأي نوع منتجات', icon: ShoppingBag },
+  { id: 'domain_jewelry',         labelAr: 'مجوهرات',         descAr: 'قلائد، خواتم، أقراط، أساور، إكسسوارات فاخرة', icon: Crown },
+  { id: 'domain_fashion',         labelAr: 'موضة',            descAr: 'ملابس، عبايات، حقائب، أحذية، حجاب', icon: Shirt },
+  { id: 'domain_beauty',          labelAr: 'جمال',            descAr: 'عطور، مكياج، عناية بالبشرة والشعر', icon: Heart },
+  { id: 'domain_electronics',     labelAr: 'إلكترونيات',      descAr: 'هواتف، سماعات، شواحن، إكسسوارات تقنية', icon: Smartphone },
+  { id: 'domain_home_appliances', labelAr: 'أجهزة منزلية',    descAr: 'ثلاجات، غسالات، أفران، مكيفات، تلفزيونات', icon: HomeIcon },
+  { id: 'domain_digital',         labelAr: 'رقميات',          descAr: 'IPTV، Netflix، اشتراكات AI، Canva، كروت', icon: Wifi },
+]
 
 // No paid plans — Amugar is 100% free forever.
 // The pricing section is replaced with a "free forever" banner.
@@ -66,6 +82,7 @@ export default function PlatformLanding() {
   const [form, setForm] = useState({
     fullName: '', email: '', password: '',
     storeName: '',  // Arabic name — the ONLY store field required
+    domainType: 'domain_general',  // chosen store type (jewelry / fashion / etc.)
   })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -111,6 +128,7 @@ export default function PlatformLanding() {
         storeName: form.storeName,  // Arabic name used as both name + nameAr
         storeNameAr: form.storeName,
         slug,  // auto-generated, merchant doesn't see/edit it
+        domainType: form.domainType,  // chosen store type
         ...(refCode ? { phone: `REF:${refCode}` } : {}),  // store ref code in phone temporarily
       })
       try {
@@ -523,6 +541,34 @@ export default function PlatformLanding() {
               <div className="relative">
                 <Store size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8AA8E]" />
                 <input value={form.storeName} onChange={e => setForm({...form, storeName: e.target.value})} placeholder="اسم متجرك" className="w-full border border-[#EDE6D8] rounded-xl px-3 py-3 pr-10 text-sm outline-none focus:border-[#C9A96A] text-right" />
+              </div>
+              {/* Field 5: Store type (domain picker) */}
+              <div>
+                <label className="block text-[11px] font-bold text-[#8D6E3A] mb-1.5 px-1">ماذا يبيع متجرك؟</label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {STORE_TYPES.map(t => {
+                    const Icon = t.icon
+                    const active = form.domainType === t.id
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setForm({...form, domainType: t.id})}
+                        className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition ${
+                          active
+                            ? 'border-[#C9A96A] bg-[#FFFBF0] shadow-sm'
+                            : 'border-[#EDE6D8] bg-white hover:border-[#C9A96A]/40'
+                        }`}
+                      >
+                        <Icon size={16} className={active ? 'text-[#C9A96A]' : 'text-[#8D6E3A]'} />
+                        <span className={`text-[9px] font-bold leading-tight text-center ${active ? 'text-[#1A1A1E]' : 'text-[#8D6E3A]'}`}>{t.labelAr}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-[10px] text-[#9A8A6B] mt-1.5 px-1">
+                  {STORE_TYPES.find(t => t.id === form.domainType)?.descAr || 'متجر عام متعدد الفئات'}
+                </p>
               </div>
               {/* Hint: your store will be live instantly */}
               <div className="bg-[#FFFBF0] border border-[#F5E6C8] rounded-xl px-3 py-2 text-[11px] text-[#8D6E3A] leading-5">
