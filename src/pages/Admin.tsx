@@ -1421,6 +1421,72 @@ export default function Admin() {
                 </div>
               </div>
 
+              {/* ─── WhatsApp Floating Button Settings ─────────────────────── */}
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
+                <h3 className="font-extrabold flex items-center gap-2 mb-1">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-[#25D366]" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.149-.197.297-.767.967-.94 1.165-.173.198-.347.223-.644.075-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.693.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.002-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.359.101 11.892c0 2.09.547 4.142 1.588 5.945L0 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.581 0 11.94-5.359 11.943-11.893a11.821 11.821 0 00-3.489-8.453z"/></svg>
+                  زر واتساب العائم
+                </h3>
+                <p className="text-xs text-[#9A8A6B] mb-4">زر محادثة واتساب عائم يظهر للزوار في كل صفحات متجرك — يفتح محادثة مباشرة معك</p>
+
+                {/* Enable/disable toggle */}
+                <div className="flex items-center justify-between bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl p-3 mb-3">
+                  <div>
+                    <div className="text-sm font-bold text-[#1A1A1E]">إظهار زر واتساب</div>
+                    <div className="text-[11px] text-[#9A8A6B]">يظهر كزر أخضر عائم في الزاوية</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStoreForm({ ...storeForm, whatsappButtonEnabled: !(storeForm as any).whatsappButtonEnabled })}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${(storeForm as any).whatsappButtonEnabled !== false ? 'bg-[#25D366]' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${(storeForm as any).whatsappButtonEnabled !== false ? 'left-0.5' : 'left-6.5'}`} style={{ left: (storeForm as any).whatsappButtonEnabled !== false ? '2px' : '26px' }} />
+                  </button>
+                </div>
+
+                {/* WhatsApp number */}
+                <div className="mb-3">
+                  <label className="text-xs font-bold text-[#7A6F5A]">رقم واتساب (بدون +)</label>
+                  <input
+                    value={storeForm.whatsapp}
+                    onChange={e => setStoreForm({ ...storeForm, whatsapp: e.target.value })}
+                    className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm"
+                    dir="ltr"
+                    placeholder="213550123456"
+                  />
+                  <p className="text-[10px] text-[#9A8A6B] mt-1">مثال: 213550123456 (بدون مسافات أو +)</p>
+                </div>
+
+                {/* Pre-filled message */}
+                <div className="mb-3">
+                  <label className="text-xs font-bold text-[#7A6F5A]">رسالة ترحيبية تلقائية</label>
+                  <input
+                    value={(storeForm as any).whatsappMessage || ''}
+                    onChange={e => setStoreForm({ ...storeForm, whatsappMessage: e.target.value })}
+                    className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm"
+                    placeholder="مرحباً، أريد الاستفسار عن منتج"
+                  />
+                  <p className="text-[10px] text-[#9A8A6B] mt-1">تُكتب تلقائياً في رسالة الزائر عند الضغط على الزر</p>
+                </div>
+
+                {/* Position */}
+                <div>
+                  <label className="text-xs font-bold text-[#7A6F5A] mb-1.5 block">موضع الزر</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStoreForm({ ...storeForm, whatsappPosition: 'left' })}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition ${(storeForm as any).whatsappPosition !== 'right' ? 'bg-[#25D366]/10 border-[#25D366] text-[#25D366]' : 'bg-white border-[#EDE6D8] text-[#9A8A6B]'}`}
+                    >يسار الشاشة</button>
+                    <button
+                      type="button"
+                      onClick={() => setStoreForm({ ...storeForm, whatsappPosition: 'right' })}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition ${(storeForm as any).whatsappPosition === 'right' ? 'bg-[#25D366]/10 border-[#25D366] text-[#25D366]' : 'bg-white border-[#EDE6D8] text-[#9A8A6B]'}`}
+                    >يمين الشاشة</button>
+                  </div>
+                </div>
+              </div>
+
               <div className="bg-white border border-[#EDE6D8] rounded-2xl p-5">
                 <h3 className="font-extrabold flex items-center gap-2"><Megaphone size={16} className="text-[#A02A5B]" /> الشريط الإعلاني والبطل</h3>
                 <div className="grid gap-3 mt-4">

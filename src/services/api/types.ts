@@ -214,6 +214,11 @@ export interface StoreSettings {
   enableRoseEdition: boolean
   activeDomainId: string
 
+  // ─── WhatsApp Floating Button ──────────────────────────────────────
+  whatsappButtonEnabled?: boolean   // show/hide the floating WhatsApp button
+  whatsappMessage?: string          // pre-filled message when user clicks
+  whatsappPosition?: 'left' | 'right'  // button position (default: left for RTL)
+
   // ─── Delivery Integrations (شركات التوصيل الجزائرية) ──────────────
   /** LEGACY — kept for backwards-compat. New code reads `deliveryProviders` instead. */
   /** Yalidine — https://yalidine.app/ */

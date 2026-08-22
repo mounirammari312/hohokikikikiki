@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
+import { WhatsAppButton } from './components/WhatsAppButton'
 import { CartProvider } from './context/CartContext'
 import { WishlistProvider } from './context/WishlistContext'
 import { TenantProvider, useTenant } from './context/TenantContext'
@@ -193,6 +194,7 @@ function TenantStorefront() {
         </Suspense>
       </main>
       <Footer />
+      <WhatsAppButton />
     </>
   )
 }

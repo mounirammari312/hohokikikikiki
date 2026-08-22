@@ -599,6 +599,11 @@ export const defaultSettings: StoreSettings = {
   enableRoseEdition: true,
   activeDomainId: "domain_general",
 
+  // WhatsApp floating button (default: enabled)
+  whatsappButtonEnabled: true,
+  whatsappMessage: "مرحباً، أريد الاستفسار عن منتج",
+  whatsappPosition: "left",
+
   // Delivery integrations (default: disabled, empty credentials)
   // LEGACY flat fields kept for backwards-compat with older clients
   yalidineEnabled: false,
