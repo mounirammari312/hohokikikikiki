@@ -27,8 +27,8 @@ import { invalidateAll } from './services/api/client'
 // because every route change flashed the text. A bare spinner feels
 // instant — the user perceives the new page loading directly.
 const PageFallback = () => (
-  <div className="min-h-[50vh] grid place-items-center">
-    <div className="w-8 h-8 border-3 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin" />
+  <div className="min-h-[40vh] grid place-items-center">
+    <div className="w-7 h-7 border-2 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin" />
   </div>
 )
 
@@ -75,51 +75,46 @@ import { PwaInstallBanner } from './components/PwaInstallBanner'
 function TenantStorefront() {
   const { isPlatformHost, storeId, storeSlug } = useTenant()
 
-  // On the platform host, only render the storefront when there's an
-  // explicit tenant context via ?storeId= OR ?store=slug (or a cached
-  // slug from a previous registration). Otherwise → show the SaaS landing.
   const urlParams = new URLSearchParams(window.location.search)
   const hasExplicitStoreId = !!urlParams.get('storeId')
   const hasExplicitSlug = !!urlParams.get('store')
   const hasTenantContext = !!storeId || !!storeSlug || hasExplicitStoreId || hasExplicitSlug
 
-  // ─── CRITICAL FIX: wait for sync to complete before rendering ──────
-  // Previously, TenantStorefront rendered <Home /> immediately, which read
-  // from STALE cache (from a previous store or store_default). The user
-  // would see the WRONG store for 1-2 seconds until sync completed, but
-  // Home.tsx never re-rendered with the fresh data. The user had to
-  // navigate away and back to see the correct store.
+  // ─── PERFORMANCE: render IMMEDIATELY from cache, sync in background ──
+  // The old "ready" gate (waiting for Promise.all) caused:
+  //   - Spinners on EVERY page load (2-5 seconds wait)
+  //   - Products not appearing for 20+ minutes (cache wiped + slow refetch)
+  //   - Product links returning "not found" (cache empty after invalidateAll)
   //
-  // Now: we track a `ready` state. When the tenant changes, we set
-  // `ready = false`, fire the syncs, wait for them to complete, then
-  // set `ready = true`. While not ready, we show a minimal spinner.
-  // This adds ~300ms on first load but guarantees the correct store
-  // is shown from the very first render.
+  // The correct approach: render from cache INSTANTLY (even if stale),
+  // then update silently in the background. This is the standard
+  // stale-while-revalidate pattern (SWR). The per-tenant cache keys
+  // (getLsKey) already prevent cross-store data leakage, so we don't
+  // need to wipe cache on tenant change — the new store's data is in a
+  // DIFFERENT cache key, so the old store's data simply isn't read.
   const tenantKey = storeId || storeSlug || 'default'
-  const [ready, setReady] = useState(false)
   const prevTenantRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (isPlatformHost && !hasTenantContext) return
 
+    // Only invalidate when the ACTUAL tenant changes (not on every re-render).
+    // The per-tenant cache keys already isolate stores, so we only need
+    // to clear when switching FROM one store TO another — and even then,
+    // the old store's cache entries are harmless (different keys).
     const tenantChanged = prevTenantRef.current !== null && prevTenantRef.current !== tenantKey
     if (tenantChanged) {
       invalidateAll()
-      setReady(false)  // ← hide storefront until sync completes
     }
     prevTenantRef.current = tenantKey
 
-    // Fire syncs and WAIT for all to complete before showing the storefront.
-    // This is the fix for "I see the wrong store on first visit".
-    void Promise.all([
-      syncProducts(),
-      syncSettings(),
-      syncDomains(),
-    ]).then(() => {
-      setReady(true)
-    }).catch(() => {
-      setReady(true)  // even on error, show the page (with fallback data)
-    })
+    // Fire ALL syncs in parallel — they update cache silently.
+    // The page is already rendered from existing cache, so the user
+    // sees content INSTANTLY. When sync completes, React re-renders
+    // with fresh data (via the subscribe* listeners in each service).
+    void syncProducts()
+    void syncSettings()
+    void syncDomains()
 
     // Track the last store visit (for the smart redirect)
     if (typeof window !== 'undefined' && (storeSlug || storeId)) {
@@ -164,18 +159,6 @@ function TenantStorefront() {
       }
     }
     return <PlatformLanding />
-  }
-
-  // ─── Wait for sync to complete before rendering the storefront ──────
-  // While `ready` is false, show a minimal spinner. This prevents the
-  // "wrong store flashes for 1-2 seconds" bug — the user sees a brief
-  // spinner (~300ms) instead of the WRONG store's content.
-  if (!ready) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-[#FFFCF8]">
-        <div className="w-8 h-8 border-3 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin" />
-      </div>
-    )
   }
 
   return (
