@@ -1867,18 +1867,10 @@ async function createProduct(ctx: RouteCtx) {
   body._id = body._id || genId('prod')
   body.storeId = ctx.storeId  // force tenant
   if (!body.createdAt) body.createdAt = new Date().toISOString()
-  // New products are not soft-deleted — set explicitly so the field
-  // exists even when the caller omits it.
   if (body.deletedAt === undefined) body.deletedAt = null
-  // ─── Marketplace auto-publish ──────────────────────────────────────
-  // Default: isPublishedInMarketplace = true (set in schema). When the
-  // client doesn't explicitly set it, default to true so the product
-  // appears in the public marketplace automatically.
   if (body.isPublishedInMarketplace === undefined) {
     body.isPublishedInMarketplace = true
   }
-  // Set marketplacePublishedAt on first publish so the product appears
-  // as a "new arrival" in the marketplace.
   if (body.isPublishedInMarketplace && !body.marketplacePublishedAt) {
     body.marketplacePublishedAt = new Date().toISOString()
   }
@@ -1886,6 +1878,21 @@ async function createProduct(ctx: RouteCtx) {
     const vs = body.variants.reduce((a, b) => a + (Number(b.stock) || 0), 0)
     if (vs > 0) body.stock = vs
   }
+
+  // ─── Auto-generate unique SKU if the provided one already exists ────
+  // The old code always used "LUM-001" for the first product, "LUM-002"
+  // for the second, etc. But if a product was deleted, the counter resets
+  // and "LUM-001" clashes with the deleted product's SKU (soft-delete
+  // keeps the document). This causes E11000 duplicate key error.
+  //
+  // Fix: check if the SKU exists, and if so, append a random suffix.
+  if (body.sku) {
+    const existing = await ProductModel.findOne({ storeId: ctx.storeId, sku: body.sku }).lean()
+    if (existing) {
+      body.sku = `${body.sku}-${Date.now().toString(36).slice(-4)}`
+    }
+  }
+
   await ProductModel.create(body)
   const docs = await ProductModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
   return { data: { products: docs, created: body } }
