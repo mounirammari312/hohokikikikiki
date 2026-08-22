@@ -296,6 +296,27 @@ function primeCache(path: string, lsKeyBase: string, data: unknown) {
 
 const PRODUCTS_PATH = '/api/products'
 
+// ─── المستورد السحري (Product Scraper) ──────────────────────────────────────
+
+export interface ScrapedProduct {
+  platform: string
+  name: string
+  price: number
+  currency: string
+  description: string
+  images: string[]
+  variants?: { name: string; options: string[] }[]
+}
+
+/** POST /api/products/scrape — scrape a product from an external URL */
+export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
+  const { product } = await apiFetch<{ product: ScrapedProduct }>(`${PRODUCTS_PATH}/scrape`, {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  })
+  return product
+}
+
 export async function fetchProducts(): Promise<Product[]> {
   const { products } = await cachedGet<{ products: Product[] }>(
     PRODUCTS_PATH, 'amugar_products_v5', { products: [] as Product[] }

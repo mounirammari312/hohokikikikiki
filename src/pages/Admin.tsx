@@ -9,6 +9,7 @@ import {
   fetchAnalyticsDevices, fetchAnalyticsCountries,
   type AnalyticsOverview, type AnalyticsTimelinePoint, type AnalyticsSource,
   type AnalyticsTopProduct, type AnalyticsDevice, type AnalyticsCountry,
+  scrapeProduct, type ScrapedProduct,
 } from '../services/api/client'
 import { useTenant } from '../context/TenantContext'
 import { getDomains, getActiveDomain, setActiveDomain, createCustomDomain, updateDomain, deleteDomain, duplicateDomain } from '../services/api/domains'
@@ -84,8 +85,12 @@ export default function Admin() {
   const [showProdModal, setShowProdModal] = useState(false)
   const [editingProd, setEditingProd] = useState<Product | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  // إضافة حالة التحميل لمنع الفشل الصامت
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // ─── المستورد السحري (Product Scraper) ─────────────────────────────
+  const [scrapeUrl, setScrapeUrl] = useState('')
+  const [scraping, setScraping] = useState(false)
+  const [showScraper, setShowScraper] = useState(false)
 
   // domain modal
   const [showDomainModal, setShowDomainModal] = useState(false)
@@ -492,6 +497,43 @@ export default function Admin() {
     setProdForm({ ...base, sku: `LUM-${String(products.length + 1).padStart(3, '0')}`, images: [''] })
     setProdErrors({})
     setShowProdModal(true)
+  }
+
+  // ─── المستورد السحري: استيراد منتج من رابط خارجي ──────────────────
+  const handleScrapeProduct = async () => {
+    if (!scrapeUrl.trim()) { showToast('أدخل رابط المنتج'); return }
+    setScraping(true)
+    try {
+      const scraped = await scrapeProduct(scrapeUrl.trim())
+      // املأ نموذج المنتج بالبيانات المستخرجة
+      const base = makeEmptyProduct(activeDomain)
+      setProdForm({
+        ...base,
+        sku: `LUM-${String(products.length + 1).padStart(3, '0')}`,
+        name: scraped.name || 'Product',
+        nameAr: scraped.name || '',
+        descriptionAr: scraped.description || '',
+        description: scraped.description || '',
+        price: Math.round(scraped.price) || 0,
+        images: scraped.images?.length ? scraped.images : [''],
+      } as any)
+      setProdErrors({})
+      setShowScraper(false)
+      setShowProdModal(true)
+      setScrapeUrl('')
+      showToast(`تم استيراد المنتج من ${scraped.platform} — راجع البيانات واحفظ`)
+    } catch (err: any) {
+      const msg = err?.body?.error || err?.message || 'UNKNOWN'
+      if (msg === 'SCRAPE_FAILED') {
+        showToast('تعذّر استيراد المنتج — تأكد من الرابط أو جرّب رابطاً آخر')
+      } else if (msg === 'URL_REQUIRED') {
+        showToast('أدخل رابط المنتج')
+      } else {
+        showToast(`فشل الاستيراد: ${msg}`)
+      }
+    } finally {
+      setScraping(false)
+    }
   }
   const openEditModal = (p: Product) => {
     setEditingProd(p)
@@ -1160,6 +1202,11 @@ export default function Admin() {
                 <span className="hidden md:inline text-[11px] bg-[#1A1A1E] text-white px-2 py-1 rounded-full">{activeDomain.nameAr}</span>
                 <button onClick={openAddModal} className="bg-[#A02A5B] hover:bg-[#7A1F44] text-white px-5 py-2.5 rounded-full text-sm font-extrabold flex items-center gap-2 shadow-lg shadow-[#A02A5B]/20 transition">
                   <Plus size={16} /> إضافة منتج جديد
+                </button>
+                {/* المستورد السحري */}
+                <button onClick={() => setShowScraper(true)} className="bg-gradient-to-l from-[#2563EB] to-[#1E40AF] hover:from-[#1E40AF] hover:to-[#1E3A8A] text-white px-5 py-2.5 rounded-full text-sm font-extrabold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                  المستورد السحري
                 </button>
               </div>
             </div>
@@ -2289,6 +2336,104 @@ export default function Admin() {
           </div>
         </main>
       </div>
+
+      {/* ═══ SCRAPER MODAL (المستورد السحري) ═════════════════════════════ */}
+      {showScraper && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => !scraping && setShowScraper(false)}>
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-[#EDE6D8] overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="bg-gradient-to-l from-[#2563EB] to-[#1E40AF] text-white p-5 relative overflow-hidden">
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"/>
+              <div className="relative flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur border border-white/20 grid place-items-center">
+                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-lg">المستورد السحري</h3>
+                    <p className="text-xs text-white/70">استيراد منتج من أي متجر إلكتروني بضغطة واحدة</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowScraper(false)} className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 grid place-items-center transition">
+                  <X size={16} className="text-white"/>
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              {/* URL input */}
+              <div>
+                <label className="text-xs font-bold text-[#7A6F5A] mb-1.5 block">رابط المنتج</label>
+                <div className="relative">
+                  <input
+                    value={scrapeUrl}
+                    onChange={e => setScrapeUrl(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !scraping) handleScrapeProduct() }}
+                    placeholder="https://aliexpress.com/item/..."
+                    className="w-full border border-[#EDE6D8] rounded-xl px-3 py-3 pr-10 text-sm outline-none focus:border-[#2563EB] transition"
+                    dir="ltr"
+                    disabled={scraping}
+                  />
+                  <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9A8A6B]"/>
+                </div>
+              </div>
+
+              {/* Supported platforms */}
+              <div>
+                <div className="text-[11px] font-bold text-[#9A8A6B] mb-2">المنصات المدعومة:</div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-[10px] bg-[#FF6900]/10 text-[#FF6900] px-2.5 py-1 rounded-full font-bold border border-[#FF6900]/20">AliExpress</span>
+                  <span className="text-[10px] bg-[#95BF47]/10 text-[#95BF47] px-2.5 py-1 rounded-full font-bold border border-[#95BF47]/20">Shopify</span>
+                  <span className="text-[10px] bg-[#1A1A1E]/10 text-[#1A1A1E] px-2.5 py-1 rounded-full font-bold border border-[#1A1A1E]/20">YouCan</span>
+                  <span className="text-[10px] bg-[#E60023]/10 text-[#E60023] px-2.5 py-1 rounded-full font-bold border border-[#E60023]/20">Temu</span>
+                  <span className="text-[10px] bg-[#C9A96A]/10 text-[#8D6E3A] px-2.5 py-1 rounded-full font-bold border border-[#C9A96A]/20">أي متجر</span>
+                </div>
+              </div>
+
+              {/* Features */}
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-3 space-y-1.5">
+                <div className="flex items-center gap-2 text-[11px] text-[#475569]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]"></span>
+                  استخراج الاسم والوصف تلقائياً
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-[#475569]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]"></span>
+                  استخراج السعر بالدينار الجزائري
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-[#475569]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]"></span>
+                  استخراج حتى 8 صور عالية الدقة
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-[#475569]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]"></span>
+                  إزالة اللوغوهات والإعلانات تلقائياً
+                </div>
+              </div>
+
+              {/* Import button */}
+              <button
+                onClick={handleScrapeProduct}
+                disabled={scraping || !scrapeUrl.trim()}
+                className="w-full bg-gradient-to-l from-[#2563EB] to-[#1E40AF] text-white py-3.5 rounded-xl font-bold hover:from-[#1E40AF] hover:to-[#1E3A8A] transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {scraping ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                    جاري الاستيراد...
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    استيراد المنتج
+                  </>
+                )}
+              </button>
+              <p className="text-[10px] text-[#9A8A6B] text-center">سيتم فتح نموذج المنتج بالبيانات المستخرجة — راجعها واحفظها</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DOMAIN MODAL */}
       {showDomainModal && (

@@ -82,6 +82,7 @@ import {
 import {
   resolveTenant, verifyPassword, sanitizeUser,
 } from './lib/tenant.js'
+import { scrapeProductFromUrl } from './lib/scraper.js'
 
 export const config = {
   runtime: 'nodejs',
@@ -704,6 +705,20 @@ type RouteHandler = (ctx: RouteCtx) => Promise<{ data: any; status?: number }>
 function matchRoute(segments: string[], method: string): RouteHandler | null {
   // ─── /products ────────────────────────────────────────────────────
   if (segments[0] === 'products') {
+    // POST /api/products/scrape — المستورد السحري (scrape product from URL)
+    if (segments.length === 2 && segments[1] === 'scrape' && method === 'POST') {
+      return async (ctx: RouteCtx) => {
+        const body = await getReqBody(ctx.req)
+        const url = body?.url?.trim()
+        if (!url) return { data: { error: 'URL_REQUIRED' }, status: 400 }
+        try {
+          const product = await scrapeProductFromUrl(url)
+          return { data: { product }, status: 200 }
+        } catch (err: any) {
+          return { data: { error: 'SCRAPE_FAILED', message: err?.message || String(err) }, status: 500 }
+        }
+      }
+    }
     if (segments.length === 1) {
       if (method === 'GET') return (ctx) => listProducts(ctx)
       if (method === 'POST') return (ctx) => createProduct(ctx)
