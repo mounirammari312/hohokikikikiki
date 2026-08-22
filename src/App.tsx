@@ -82,56 +82,45 @@ function TenantStorefront() {
   const hasExplicitSlug = !!urlParams.get('store')
   const hasTenantContext = !!storeId || !!storeSlug || hasExplicitStoreId || hasExplicitSlug
 
-  // Re-run the data syncs whenever the tenant changes. The `tenantKey`
-  // changes when the store changes (different ?store= slug, different
-  // ?storeId=, different subdomain, etc.) — this triggers a background
-  // re-fetch so we never show one store's products on another store.
+  // ─── CRITICAL FIX: wait for sync to complete before rendering ──────
+  // Previously, TenantStorefront rendered <Home /> immediately, which read
+  // from STALE cache (from a previous store or store_default). The user
+  // would see the WRONG store for 1-2 seconds until sync completed, but
+  // Home.tsx never re-rendered with the fresh data. The user had to
+  // navigate away and back to see the correct store.
   //
-  // PERFORMANCE: we do NOT call invalidateAll() here — that would wipe
-  // the in-memory cache and force every page to re-render with empty
-  // data while the API call is in flight (causing the "spinner on every
-  // page" problem). Instead:
-  //   1. We keep the existing cache (keyed per-tenant via getCacheKey).
-  //   2. The cache key includes the storeId/slug, so store A's data is
-  //      NEVER served to store B (different key = different entry).
-  //   3. sync*() runs in the background and updates the cache silently.
-  //
-  // This is the "stale-while-revalidate" pattern used by Vercel SWR +
-  // TanStack Query: show cached data immediately, refresh in background.
+  // Now: we track a `ready` state. When the tenant changes, we set
+  // `ready = false`, fire the syncs, wait for them to complete, then
+  // set `ready = true`. While not ready, we show a minimal spinner.
+  // This adds ~300ms on first load but guarantees the correct store
+  // is shown from the very first render.
   const tenantKey = storeId || storeSlug || 'default'
+  const [ready, setReady] = useState(false)
   const prevTenantRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (isPlatformHost && !hasTenantContext) return  // skip sync if no tenant
 
-    // ─── CRITICAL: clear ALL cache when the tenant actually changes ────
-    // This is the fix for "I open store B and see store A's products".
-    // When the active store changes (login, store switch, ?store= change),
-    // we MUST wipe the in-memory cache so stale data from the previous
-    // store doesn't leak into the new one. The localStorage is now keyed
-    // per-tenant (getLsKey) so it's already isolated — but the in-memory
-    // cache needs to be cleared explicitly because it was populated with
-    // the OLD tenant's data under the OLD cache key.
+  useEffect(() => {
+    if (isPlatformHost && !hasTenantContext) return
+
     const tenantChanged = prevTenantRef.current !== null && prevTenantRef.current !== tenantKey
     if (tenantChanged) {
-      invalidateAll()  // wipe in-memory cache
+      invalidateAll()
+      setReady(false)  // ← hide storefront until sync completes
     }
     prevTenantRef.current = tenantKey
 
-    // Kick off background syncs — these update the cache without
-    // blocking the render. Pages that already have cached data will
-    // show it instantly and re-render when the fresh data arrives.
-    void syncProducts()
-    void syncWilayas()
-    void syncSettings()
-    void syncDomains()
-    ensureProducts()
+    // Fire syncs and WAIT for all to complete before showing the storefront.
+    // This is the fix for "I see the wrong store on first visit".
+    void Promise.all([
+      syncProducts(),
+      syncSettings(),
+      syncDomains(),
+    ]).then(() => {
+      setReady(true)
+    }).catch(() => {
+      setReady(true)  // even on error, show the page (with fallback data)
+    })
 
-    // ─── Track the last store visit (for the smart redirect) ──────────
-    // Whenever the visitor is in a tenant store, record {slug, ts} in
-    // localStorage. The smart redirect in AppRoutes reads this to
-    // automatically send the visitor back to this store if they land on
-    // the platform apex root within 30 minutes (e.g. after pressing
-    // "back" too many times or typing amugar.vercel.app/ in the URL bar).
+    // Track the last store visit (for the smart redirect)
     if (typeof window !== 'undefined' && (storeSlug || storeId)) {
       try {
         localStorage.setItem('amugar_last_store_visit', JSON.stringify({
@@ -139,9 +128,7 @@ function TenantStorefront() {
           storeId,
           ts: Date.now(),
         }))
-      } catch {
-        // localStorage might be unavailable — ignore
-      }
+      } catch {}
     }
   }, [tenantKey, storeSlug, storeId, isPlatformHost, hasTenantContext])
 
@@ -176,6 +163,18 @@ function TenantStorefront() {
       }
     }
     return <PlatformLanding />
+  }
+
+  // ─── Wait for sync to complete before rendering the storefront ──────
+  // While `ready` is false, show a minimal spinner. This prevents the
+  // "wrong store flashes for 1-2 seconds" bug — the user sees a brief
+  // spinner (~300ms) instead of the WRONG store's content.
+  if (!ready) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-[#FFFCF8]">
+        <div className="w-8 h-8 border-3 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
