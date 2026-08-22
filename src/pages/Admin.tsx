@@ -725,7 +725,11 @@ export default function Admin() {
         <div className="fixed inset-0 z-40 bg-[#1A1A1E]/60 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
       <aside
-        className={`fixed lg:sticky top-0 right-0 z-50 lg:z-0 h-screen lg:h-screen w-[280px] shrink-0 bg-[#1A1A1E] text-white flex flex-col overflow-hidden transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}
+        className={`fixed lg:sticky top-0 right-0 z-50 lg:z-0 h-screen lg:h-screen w-[280px] shrink-0 bg-[#1A1A1E] text-white flex flex-col overflow-hidden transition-transform duration-300 ${
+          sidebarOpen
+            ? 'translate-x-0'
+            : 'translate-x-[280px] lg:translate-x-0'
+        }`}
       >
         {/* Brand + close (mobile) */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
