@@ -568,7 +568,8 @@ export default function Admin() {
     setIsSubmitting(true)
     try {
       const cleanImages = prodForm.images.filter(Boolean)
-      const payload: any = { ...prodForm, images: cleanImages, price: Number(prodForm.price), compareAtPrice: prodForm.compareAtPrice ? Number(prodForm.compareAtPrice) : undefined, stock: Number(prodForm.stock), rating: Number(prodForm.rating), reviewsCount: Number(prodForm.reviewsCount), attributes: prodForm.attributes || {}, variants: prodForm.variants || [] }
+      const cleanDescImages = ((prodForm as any).descriptionImages || []).filter(Boolean)
+      const payload: any = { ...prodForm, images: cleanImages, descriptionImages: cleanDescImages, videoUrl: (prodForm as any).videoUrl || '', price: Number(prodForm.price), compareAtPrice: prodForm.compareAtPrice ? Number(prodForm.compareAtPrice) : undefined, stock: Number(prodForm.stock), rating: Number(prodForm.rating), reviewsCount: Number(prodForm.reviewsCount), attributes: prodForm.attributes || {}, variants: prodForm.variants || [] }
       if (!payload.domainId) payload.domainId = currentDomainForForm.id
       // Ensure isPublishedInMarketplace is explicitly set (not undefined)
       // so the server stores it correctly. When creating a new product
@@ -2688,6 +2689,68 @@ export default function Admin() {
                   <button onClick={() => setProdForm(f => ({ ...f, images: [...f.images, ''] }))} className="bg-white border border-[#EDE6D8] px-3 py-1.5 rounded-full text-xs font-bold hover:bg-[#FFFCF8]">+ إضافة صورة</button>
                   <button onClick={() => setProdForm(f => ({ ...f, images: [currentDomainForForm.heroImage] }))} className="text-xs text-[#A02A5B] underline">تعبئة بصورة المجال</button>
                 </div>
+              </div>
+
+              {/* ─── فيديو المنتج (AliExpress-style) ─────────────────────────── */}
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4">
+                <label className="text-xs font-bold flex items-center gap-1.5">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-[#C9A96A]" xmlns="http://www.w3.org/2000/svg"><path d="M8 5v14l11-7z"/></svg>
+                  فيديو المنتج (اختياري)
+                </label>
+                <p className="text-[11px] text-[#9A8A6B] mt-1">رابط فيديو من YouTube أو Vimeo — يظهر بجانب صور المنتج</p>
+                <input
+                  value={(prodForm as any).videoUrl || ''}
+                  onChange={e => setProdForm(f => ({ ...f, videoUrl: e.target.value } as any))}
+                  placeholder="https://youtube.com/watch?v=... أو https://youtu.be/..."
+                  className="mt-2 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-[#FFFCF8] outline-none focus:bg-white focus:border-[#C9A96A] text-xs"
+                  dir="ltr"
+                />
+                {(prodForm as any).videoUrl && (
+                  <div className="mt-2 flex items-center gap-2 bg-[#FFFCF8] border border-[#EDE6D8] rounded-xl px-3 py-2">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-[#10B981] shrink-0" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                    <span className="text-[11px] text-[#9A8A6B]">الفيديو سيظهر في صفحة المنتج</span>
+                    <button onClick={() => setProdForm(f => ({ ...f, videoUrl: '' } as any))} className="mr-auto text-[11px] text-red-600 hover:underline">إزالة</button>
+                  </div>
+                )}
+              </div>
+
+              {/* ─── صور الوصف (AliExpress-style gallery) ────────────────────── */}
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4">
+                <label className="text-xs font-bold flex items-center gap-1.5">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-[#C9A96A]" xmlns="http://www.w3.org/2000/svg"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                  صور إضافية في الوصف (اختياري)
+                </label>
+                <p className="text-[11px] text-[#9A8A6B] mt-1">صور تظهر مع وصف المنتج — طرق الاستعمال، صور حقيقية للمنتج، صور رضا الزبائن</p>
+                <div className="grid gap-2 mt-3">
+                  {((prodForm as any).descriptionImages || []).map((img: string, idx: number) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <img src={img || 'https://via.placeholder.com/80x80?text=?'} alt="" className="w-12 h-12 rounded-xl object-cover border border-[#EDE6D8] bg-[#FFFCF8] shrink-0" onError={e => (e.currentTarget.src = 'https://via.placeholder.com/80x80?text=?')} />
+                      <input
+                        value={img}
+                        onChange={e => setProdForm(f => {
+                          const n = [...((f as any).descriptionImages || [])]
+                          n[idx] = e.target.value
+                          return { ...f, descriptionImages: n } as any
+                        })}
+                        placeholder={`رابط الصورة ${idx + 1} — https://...`}
+                        className="flex-1 border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-[#FFFCF8] outline-none focus:bg-white focus:border-[#C9A96A] text-xs"
+                        dir="ltr"
+                      />
+                      <button
+                        onClick={() => setProdForm(f => ({ ...f, descriptionImages: ((f as any).descriptionImages || []).filter((_: any, i: number) => i !== idx) } as any))}
+                        className="w-8 h-8 rounded-full bg-red-50 text-red-600 border border-red-200 grid place-items-center"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setProdForm(f => ({ ...f, descriptionImages: [...((f as any).descriptionImages || []), ''] } as any))}
+                  className="mt-3 bg-white border border-[#EDE6D8] px-3 py-1.5 rounded-full text-xs font-bold hover:bg-[#FFFCF8]"
+                >
+                  + إضافة صورة في الوصف
+                </button>
               </div>
 
               {/* VARIANTS — Always available for ANY product regardless of domain */}

@@ -13,6 +13,21 @@ import { useWishlist } from '../context/WishlistContext'
 import { Tracking } from '../services/tracking'
 import type { Product, Variant } from '../services/api/types'
 
+// ─── Helper: convert YouTube/Vimeo URLs to embed URLs ─────────────────────
+function getEmbedUrl(url: string): string {
+  if (!url) return ''
+  // YouTube: youtube.com/watch?v=ID or youtu.be/ID
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`
+  // Vimeo: vimeo.com/ID
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/)
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+  // Already an embed URL
+  if (url.includes('/embed/')) return url
+  // Fallback: return as-is (might work in iframe)
+  return url
+}
+
 export default function ProductDetail(){
   const {id} = useParams()
   const nav = useNavigate()
@@ -86,6 +101,7 @@ export default function ProductDetail(){
   const [duplicateWarn, setDuplicateWarn] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [showLightbox, setShowLightbox] = useState(false)
+  const [lightboxImg, setLightboxImg] = useState<string>('')
   const [showShare, setShowShare] = useState(false)
   const [shareUrl, setShareUrl] = useState('')
   const [copied, setCopied] = useState(false)
@@ -519,7 +535,7 @@ export default function ProductDetail(){
         {showLightbox && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[70] bg-[#1A1A1E]/90 backdrop-blur flex items-center justify-center p-4" onClick={()=> setShowLightbox(false)}>
             <button type="button" onClick={()=> setShowLightbox(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white text-black grid place-items-center"><X size={18}/></button>
-            <img src={images[selectedImg]} alt={product.nameAr} className="max-w-[92vw] max-h-[86vh] object-contain rounded-2xl shadow-2xl" onClick={e=> e.stopPropagation()}/>
+            <img src={lightboxImg || images[selectedImg]} alt={product.nameAr} className="max-w-[92vw] max-h-[86vh] object-contain rounded-2xl shadow-2xl" onClick={e=> e.stopPropagation()}/>
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
               <button type="button" onClick={(e)=>{e.stopPropagation(); paginate(-1)}} className="w-10 h-10 rounded-full bg-white text-black grid place-items-center"><ChevronLeft size={18}/></button>
               <button type="button" onClick={(e)=>{e.stopPropagation(); paginate(1)}} className="w-10 h-10 rounded-full bg-white text-black grid place-items-center"><ChevronRight size={18}/></button>
@@ -643,6 +659,42 @@ export default function ProductDetail(){
               <h1 className="text-[26px] font-extrabold text-[#1A1A1E] leading-tight mt-3">{product.nameAr}</h1>
               <p className="cormorant tracking-widest text-xs text-[#9A8A6B]">{product.name.toUpperCase()} • {product.material} — SKU: {product.sku} {domain && `• ${domain.nameAr}`}</p>
               <p className="text-sm leading-6 text-[#5A5340] mt-3">{product.descriptionAr}</p>
+
+              {/* ─── Video (AliExpress-style) ──────────────────────────────── */}
+              {product.videoUrl && (
+                <div className="mt-4">
+                  <div className="text-xs font-bold flex items-center gap-1.5 mb-2">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-[#C9A96A]" xmlns="http://www.w3.org/2000/svg"><path d="M8 5v14l11-7z"/></svg>
+                    فيديو المنتج
+                  </div>
+                  <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
+                    <iframe
+                      src={getEmbedUrl(product.videoUrl)}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ─── Description Images (AliExpress-style gallery) ─────────── */}
+              {product.descriptionImages && product.descriptionImages.length > 0 && (
+                <div className="mt-5">
+                  <div className="text-xs font-bold flex items-center gap-1.5 mb-2">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-[#C9A96A]" xmlns="http://www.w3.org/2000/svg"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                    صور إضافية
+                  </div>
+                  <div className="space-y-2">
+                    {product.descriptionImages.map((img, i) => (
+                      <div key={i} className="rounded-xl overflow-hidden border border-[#EDE6D8] cursor-pointer hover:opacity-90 transition" onClick={() => { setLightboxImg(img); setShowLightbox(true) }}>
+                        <img src={img} alt={`صورة ${i+1}`} className="w-full object-contain" loading="lazy" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-baseline gap-3 mt-4 flex-wrap">
                 <span className="text-[26px] font-extrabold text-[#1A1A1E]">{formatDZD(unitPrice)}</span>

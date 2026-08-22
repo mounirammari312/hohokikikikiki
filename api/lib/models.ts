@@ -66,6 +66,12 @@ const ProductSchema = new mongoose.Schema({
   price: { type: Number, default: 0 },
   compareAtPrice: { type: Number, default: null },
   images: { type: [String], default: [] },
+  // ─── Rich Media (AliExpress-style) ────────────────────────────────
+  // Video URL (YouTube/Vimeo/embeddable) shown alongside product images
+  videoUrl: { type: String, default: '' },
+  // Additional images shown in the description section (usage photos,
+  // customer reviews photos, real product photos, unboxing, etc.)
+  descriptionImages: { type: [String], default: [] },
   category: { type: String, default: 'general' },
   material: { type: String, default: '' },
   materialAr: { type: String, default: '' },

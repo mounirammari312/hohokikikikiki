@@ -122,6 +122,9 @@ export interface Product {
   price: number
   compareAtPrice?: number
   images: string[]
+  // ─── Rich Media (AliExpress-style) ────────────────────────────────
+  videoUrl?: string                    // YouTube/Vimeo embed URL
+  descriptionImages?: string[]         // Photos shown in description (usage, reviews, real photos)
   category: string
   material: string
   materialAr: string
