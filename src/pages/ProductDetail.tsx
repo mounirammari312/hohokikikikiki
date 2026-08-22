@@ -13,19 +13,48 @@ import { useWishlist } from '../context/WishlistContext'
 import { Tracking } from '../services/tracking'
 import type { Product, Variant } from '../services/api/types'
 
-// ─── Helper: convert YouTube/Vimeo URLs to embed URLs ─────────────────────
+// ─── Helper: convert video URLs to embed URLs ──────────────────────────────
+// Supports: YouTube (including m.youtube.com, Shorts), TikTok, Vimeo, Instagram
 function getEmbedUrl(url: string): string {
   if (!url) return ''
-  // YouTube: youtube.com/watch?v=ID or youtu.be/ID
-  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)
+  const lower = url.toLowerCase()
+
+  // YouTube: youtube.com/watch?v=ID, youtu.be/ID, m.youtube.com, /embed/, /shorts/
+  const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/|m\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/)
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`
+
+  // TikTok: tiktok.com/@user/video/ID
+  const tiktokMatch = url.match(/tiktok\.com\/.*\/video\/(\d+)/)
+  if (tiktokMatch) return `https://www.tiktok.com/embed/v2/${tiktokMatch[1]}`
+
   // Vimeo: vimeo.com/ID
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/)
   if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+
+  // Instagram Reels: instagram.com/reel/ID/
+  const igMatch = url.match(/instagram\.com\/(?:reel|reels|p)\/([a-zA-Z0-9_-]+)/)
+  if (igMatch) return `https://www.instagram.com/p/${igMatch[1]}/embed`
+
   // Already an embed URL
-  if (url.includes('/embed/')) return url
-  // Fallback: return as-is (might work in iframe)
+  if (lower.includes('/embed/')) return url
+
+  // Fallback: return as-is
   return url
+}
+
+// ─── Helper: detect if video is vertical (9:16) ─────────────────────────────
+// YouTube Shorts, TikTok, Instagram Reels → vertical 9:16
+// Regular YouTube, Vimeo → horizontal 16:9
+function isVerticalVideo(url: string): boolean {
+  if (!url) return false
+  const lower = url.toLowerCase()
+  // YouTube Shorts
+  if (lower.includes('/shorts/')) return true
+  // TikTok
+  if (lower.includes('tiktok.com')) return true
+  // Instagram Reels
+  if (lower.includes('instagram.com/reel') || lower.includes('instagram.com/reels')) return true
+  return false
 }
 
 export default function ProductDetail(){
@@ -660,24 +689,33 @@ export default function ProductDetail(){
               <p className="cormorant tracking-widest text-xs text-[#9A8A6B]">{product.name.toUpperCase()} • {product.material} — SKU: {product.sku} {domain && `• ${domain.nameAr}`}</p>
               <p className="text-sm leading-6 text-[#5A5340] mt-3">{product.descriptionAr}</p>
 
-              {/* ─── Video (AliExpress-style) ──────────────────────────────── */}
-              {product.videoUrl && (
-                <div className="mt-4">
-                  <div className="text-xs font-bold flex items-center gap-1.5 mb-2">
-                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-[#C9A96A]" xmlns="http://www.w3.org/2000/svg"><path d="M8 5v14l11-7z"/></svg>
-                    فيديو المنتج
+              {/* ─── Video (AliExpress-style, supports 16:9 + 9:16) ──────────── */}
+              {product.videoUrl && (() => {
+                const embedUrl = getEmbedUrl(product.videoUrl)
+                const isVertical = isVerticalVideo(product.videoUrl)
+                return (
+                  <div className="mt-4">
+                    <div className="text-xs font-bold flex items-center gap-1.5 mb-2">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-[#C9A96A]" xmlns="http://www.w3.org/2000/svg"><path d="M8 5v14l11-7z"/></svg>
+                      فيديو المنتج
+                    </div>
+                    <div className={`relative rounded-xl overflow-hidden bg-black mx-auto ${
+                      isVertical
+                        ? 'w-full max-w-[340px] aspect-[9/16]'  // Vertical (Shorts/Reels/TikTok)
+                        : 'w-full aspect-video'                   // Horizontal (YouTube/Vimeo)
+                    }`}>
+                      <iframe
+                        src={embedUrl}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        loading="lazy"
+                        frameBorder="0"
+                      />
+                    </div>
                   </div>
-                  <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
-                    <iframe
-                      src={getEmbedUrl(product.videoUrl)}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      loading="lazy"
-                    />
-                  </div>
-                </div>
-              )}
+                )
+              })()}
 
               {/* ─── Description Images (AliExpress-style gallery) ─────────── */}
               {product.descriptionImages && product.descriptionImages.length > 0 && (
