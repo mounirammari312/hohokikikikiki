@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import { getOrders, updateOrderStatus, deleteOrder, exportOrdersCsv, syncOrders } from '../services/api/orders'
-import { getWilayas, updateWilayaRate, addWilaya } from '../services/api/wilayas'
+import { getWilayas, updateWilayaRate, addWilaya, syncWilayas } from '../services/api/wilayas'
 import { getProducts, addProduct, updateProduct, deleteProduct, duplicateProduct, toggleProductFlag, syncProducts } from '../services/api/products'
-import { getSettings, saveSettings } from '../services/api/settings'
+import { getSettings, saveSettings, syncSettings } from '../services/api/settings'
 import { updateStoreApi, authUpdateProfile, authChangePassword, listMyStores, toggleMarketplacePublishApi } from '../services/api/client'
 import {
   fetchAnalyticsOverview, fetchAnalyticsTimeline, fetchAnalyticsSources, fetchAnalyticsTopProducts,
