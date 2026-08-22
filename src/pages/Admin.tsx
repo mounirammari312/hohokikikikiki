@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { getOrders, updateOrderStatus, deleteOrder, exportOrdersCsv } from '../services/api/orders'
 import { getWilayas, updateWilayaRate, addWilaya } from '../services/api/wilayas'
-import { getProducts, addProduct, updateProduct, deleteProduct, duplicateProduct, toggleProductFlag } from '../services/api/products'
+import { getProducts, addProduct, updateProduct, deleteProduct, duplicateProduct, toggleProductFlag, syncProducts } from '../services/api/products'
 import { getSettings, saveSettings } from '../services/api/settings'
 import { updateStoreApi, authUpdateProfile, authChangePassword, listMyStores, toggleMarketplacePublishApi } from '../services/api/client'
 import {
@@ -584,7 +584,11 @@ export default function Admin() {
         showToast('تم تحديث المنتج بنجاح ✨')
       } else {
         await addProduct(payload as any)
-        setProducts([...getProducts()])
+        // Force a fresh sync from the API so the storefront cache updates
+        // immediately — the new product should appear in the store.
+        void syncProducts().then(() => {
+          setProducts([...getProducts()])
+        })
         showToast('تم نشر المنتج في المتجر بنجاح ✨')
       }
       setShowProdModal(false)
@@ -823,7 +827,7 @@ export default function Admin() {
       </aside>
 
       {/* ═══ MAIN CONTENT ═══════════════════════════════════════════════ */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col overflow-x-hidden">
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-[#FFFCF8]/95 backdrop-blur border-b border-[#EDE6D8] px-4 md:px-6 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
