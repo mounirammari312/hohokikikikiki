@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
 import { SmartImage } from '../components/SmartImage'
 import { getProducts } from '../services/api/products'
-import { getSettings, subscribeSettings, syncSettings } from '../services/api/settings'
+import { getSettings, subscribeSettings, syncSettings, isSettingsLoaded } from '../services/api/settings'
 import { getActiveDomain } from '../services/api/domains'
 import { trackVisit } from '../services/api/client'
 import { useEffect, useState } from 'react'
@@ -39,30 +39,33 @@ export default function Home(){
   const [products, setProducts] = useState(()=> getProducts())
   const [store, setStore] = useState(()=> getSettings())
   const [domain, setDomain] = useState(()=> getActiveDomain())
+  // Loading guard: if settings haven't been loaded from the API yet AND
+  // the cache still has the default jewelry-themed settings, show a
+  // loading spinner instead of the wrong store (Aurore flash fix).
+  const [loading, setLoading] = useState(() => !isSettingsLoaded() && (getSettings().storeNameAr === 'أموغار' || getSettings().storeNameAr === 'متجر أموغار'))
   const featuredAll = products.filter(p=>p.isFeatured)
   const domainCats = new Set(domain.categories.map(c=>c.key))
   const featured = (()=> {
     const match = featuredAll.filter(p=> domainCats.has(p.category))
     return match.length ? match : featuredAll
   })()
-    useEffect(()=>{
+  useEffect(()=>{
     window.scrollTo({top:0, left:0, behavior:'auto'})
     setProducts([...getProducts()])
     setStore(getSettings())
     setDomain(getActiveDomain())
 
-    // طلب الإعدادات الحديثة للمتجر من السيرفر فور فتح الصفحة
+    // Fetch real settings from the API. When done, update the store
+    // and dismiss the loading spinner.
     void syncSettings().then(s => {
       if (s) {
         setStore(s)
         setDomain(getActiveDomain())
       }
-    })
-
+      setLoading(false)
+    }).catch(() => setLoading(false))
 
     // ─── Track the storefront visit (for merchant analytics) ──────────
-    // Fire-and-forget — never blocks. Skipped if the merchant is previewing
-    // their own store (sessionStorage flag set by Admin).
     const s = getSettings()
     const urlParams = new URLSearchParams(window.location.search)
     const sid = s.storeId || s._id || urlParams.get('storeId') || ''
@@ -86,6 +89,20 @@ export default function Home(){
   const primary = store.primaryColor || 'var(--color-primary)'
   const secondary = store.secondaryColor || 'var(--color-secondary)'
   const textColor = store.textColor || 'var(--color-text)'
+
+  // ─── Loading Guard ──────────────────────────────────────────────────
+  // While settings are being fetched from the API for the first time,
+  // show a minimal loading screen instead of the default/jewelry store.
+  // This eliminates the "Aurore flash" — the brief flicker of the wrong
+  // store content before the real store data arrives.
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FFFCF8] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin mb-4" />
+        <p className="text-sm font-bold text-[#9A8A6B]">جاري تحميل المتجر…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen" style={{background: store.bgColor || "var(--color-bg)", color: textColor}}>
