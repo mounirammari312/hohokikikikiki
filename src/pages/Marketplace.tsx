@@ -178,8 +178,22 @@ export default function Marketplace() {
     }
   }, [q, category, sort, page, minPrice, maxPrice, storeId])
 
+
+  
   useEffect(() => { void fetchProducts() }, [fetchProducts])
   useEffect(() => { setPage(1) }, [q, category, sort, minPrice, maxPrice, storeId])
+
+  // إعادة جلب المنتجات تلقائياً بمجرد العودة إلى التبويب لعرض المنتجات الجديدة فوراً
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchProducts()
+      }
+    }
+    window.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => window.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [fetchProducts])
+
 
   // Fetch top stores list — deferred to background, non-blocking
   // (uses the stores already returned by fetchMarketplaceProducts as fallback)
@@ -221,13 +235,18 @@ export default function Marketplace() {
     }
   }, [storeSlug])
 
-  const handleProductClick = (p: MarketplaceProduct) => {
+    const handleProductClick = (p: MarketplaceProduct) => {
     void trackMarketplaceView(p._id)
     const store = stores.find(s => s._id === p.storeId) || storeProfile
-    if (store) {
+    if (store?.slug) {
       navigate(`/product/${p._id}?store=${encodeURIComponent(store.slug)}`)
+    } else if (p.storeId) {
+      navigate(`/product/${p._id}?storeId=${encodeURIComponent(p.storeId)}`)
+    } else {
+      navigate(`/product/${p._id}`)
     }
   }
+
 
   // Sections for the main page (first page, no filters)
   const isMainPage = page === 1 && !q && category === 'all' && !storeId && !storeSlug
