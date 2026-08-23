@@ -1850,31 +1850,40 @@ async function superAdminRoute(segments: string[], method: string, req: any, que
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function listProducts(ctx: RouteCtx) {
-  // Use the text search index when ?q= is provided — this is O(log n)
-  // instead of O(n) COLLATION scan. Falls back to a plain list when no q.
   const q = ctx.query.get('q')
+  const cat = ctx.query.get('cat') || ctx.query.get('category')
+  const limit = Math.min(100, Math.max(1, Number(ctx.query.get('limit')) || 60))
+
+  const filter: any = { storeId: ctx.storeId, deletedAt: null }
+  if (cat && cat !== 'all') {
+    filter.category = cat
+  }
+
   let docs: any[]
   if (q && q.trim()) {
-    // Text search with Arabic + French support. The text index on
-    // (nameAr, name, descriptionAr, sku) is built in models.ts with
-    // weighted fields — nameAr gets weight 10, name 8, sku 5, description 3.
+    filter.$text = { $search: q.trim() }
     docs = await ProductModel.find(
-      {
-        storeId: ctx.storeId,
-        deletedAt: null,
-        $text: { $search: q.trim() },
-      },
-      { score: { $meta: 'textScore' } }
-    ).sort({ score: { $meta: 'textScore' } }).lean()
+      filter,
+      null,
+      { sort: { score: { $meta: 'textScore' } }, limit }
+    ).lean()
   } else {
     docs = await ProductModel.find(
-      { storeId: ctx.storeId, deletedAt: null },
+      filter,
       null,
-      { sort: { createdAt: -1 } }
+      { sort: { createdAt: -1 }, limit }
     ).lean()
   }
+
+  // تفعيل كاش CDN على شبكة Vercel لتسليم المنتجات في أقل من 50ms
+  try {
+    ctx.res?.setHeader?.('Cache-Control', 'public, max-age=5, s-maxage=15, stale-while-revalidate=60')
+  } catch {}
+
   return { data: { products: docs } }
 }
+
+
 
 async function createProduct(ctx: RouteCtx) {
   const body = await getReqBody(ctx.req)
@@ -2287,18 +2296,21 @@ async function updateWilaya(ctx: RouteCtx) {
 
 async function getSettings(ctx: RouteCtx) {
   let doc = await SettingsModel.findById(settingsDocId(ctx.storeId)).lean()
-  // Only auto-seed the settings doc when the request is from an
-  // authenticated merchant (dashboard). Public storefront reads
-  // (no ctx.user) should NOT trigger a write — otherwise a public
-  // bot hitting /api/settings on a fresh store would create an
-  // empty settings doc and spam the DB. The client falls back to
-  // defaultSettings when null is returned.
   if (!doc && ctx.user) {
     await seedStoreData(ctx.storeId)
     doc = await SettingsModel.findById(settingsDocId(ctx.storeId)).lean()
   }
+
+  // كاش فوري على الـ CDN
+  try {
+    ctx.res?.setHeader?.('Cache-Control', 'public, max-age=5, s-maxage=20, stale-while-revalidate=60')
+  } catch {}
+
   return { data: { settings: doc } }
 }
+
+
+
 
 async function putSettings(ctx: RouteCtx) {
   const data = await getReqBody(ctx.req)
