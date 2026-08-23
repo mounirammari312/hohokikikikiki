@@ -45,34 +45,10 @@ const MerchantLogin = lazy(() => import('./pages/MerchantLogin'))
 const Marketplace = lazy(() => import('./pages/Marketplace'))
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- *  App — MULTI-TENANT SaaS routing layer
- * ─────────────────────────────────────────────────────────────────────────────
- *
- *  Three-tier routing based on hostname + path:
- *
- *  1. PLATFORM APEX (amugar.saas)
- *     - /                  → PlatformLanding (SaaS marketing + register)
- *     - /super-admin       → SuperAdmin dashboard (super_admin role only)
- *     - /super-admin/login → SuperAdmin login (handled inside SuperAdmin)
- *
- *  2. TENANT SUBDOMAIN (slug.amugar.saas) or custom domain
- *     - /                  → Home (tenant storefront)
- *     - /shop              → Shop
- *     - /product/:id       → ProductDetail
- *     - /cart              → Cart
- *     - /wishlist          → Wishlist
- *     - /thank-you/:num    → ThankYou
- *     - /admin             → Admin (merchant dashboard, requires login)
- *     - /admin/login       → MerchantLogin
- *
- *  The TenantProvider resolves which tier we're in via window.location.
- *  The TenantStorefront component wraps the storefront routes and only
- *  renders Header/Footer (tenant branding) when on a tenant host.
- */
 
-function TenantStorefront() {
+
+
+  function TenantStorefront() {
   const { isPlatformHost, storeId, storeSlug } = useTenant()
 
   const urlParams = new URLSearchParams(window.location.search)
@@ -80,55 +56,28 @@ function TenantStorefront() {
   const hasExplicitSlug = !!urlParams.get('store')
   const hasTenantContext = !!storeId || !!storeSlug || hasExplicitStoreId || hasExplicitSlug
 
-  // ─── PERFORMANCE: render IMMEDIATELY from cache, sync in background ──
-  // The old "ready" gate (waiting for Promise.all) caused:
-  //   - Spinners on EVERY page load (2-5 seconds wait)
-  //   - Products not appearing for 20+ minutes (cache wiped + slow refetch)
-  //   - Product links returning "not found" (cache empty after invalidateAll)
-  //
-  // The correct approach: render from cache INSTANTLY (even if stale),
-  // then update silently in the background. This is the standard
-  // stale-while-revalidate pattern (SWR). The per-tenant cache keys
-  // (getLsKey) already prevent cross-store data leakage, so we don't
-  // need to wipe cache on tenant change — the new store's data is in a
-  // DIFFERENT cache key, so the old store's data simply isn't read.
   const tenantKey = storeId || storeSlug || 'default'
   const prevTenantRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (isPlatformHost && !hasTenantContext) return
 
-    // Only invalidate when the ACTUAL tenant changes (not on every re-render).
-    // The per-tenant cache keys already isolate stores, so we only need
-    // to clear when switching FROM one store TO another — and even then,
-    // the old store's cache entries are harmless (different keys).
     const tenantChanged = prevTenantRef.current !== null && prevTenantRef.current !== tenantKey
     if (tenantChanged) {
       invalidateAll()
     }
     prevTenantRef.current = tenantKey
 
-    // Fire ALL syncs in parallel — they update cache silently.
-    // The page is already rendered from existing cache, so the user
-    // sees content INSTANTLY. When sync completes, React re-renders
-    // with fresh data (via the subscribe* listeners in each service).
     void syncProducts()
     void syncSettings()
     void syncDomains()
-
-
-
-    
-
-    
   }, [tenantKey, storeSlug, storeId, isPlatformHost, hasTenantContext])
 
   if (isPlatformHost && !hasTenantContext) {
     return <PlatformLanding />
   }
 
-
-    return (
+  return (
     <div key={tenantKey} className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
@@ -147,12 +96,25 @@ function TenantStorefront() {
       <WhatsAppButton />
     </div>
   )
-
-
-  
-    </>
-  )
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      
+  
+    
 
 function MerchantDashboard() {
   const { user, loading, storeId, storeSlug } = useTenant()
