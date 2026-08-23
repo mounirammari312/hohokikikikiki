@@ -46,7 +46,8 @@ function notifySettingsChanged() {
 // synchronously and calls notifySettingsChanged() directly (no event).
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === 'amugar_settings_v3' && e.newValue) {
+    if (e.key && e.key.startsWith('amugar_settings_') && e.newValue) {
+
       try {
         const parsed = JSON.parse(e.newValue)
         if (parsed && parsed.settings) {
@@ -64,12 +65,16 @@ if (typeof window !== 'undefined') {
 export async function syncSettings(): Promise<StoreSettings> {
   try {
     const s = await fetchSettings()
-    if (s) cache = s
+    if (s) {
+      cache = s
+      notifySettingsChanged() // <-- هذا السطر يخبر صفحة المتجر بتطبيق ألوانك وإعداداتك فور وصولها
+    }
     loaded = true
     return cache
   } catch {
     loaded = true
     return cache
+
   }
 }
 
