@@ -15,26 +15,48 @@ import {
 } from './client'
 
 // ─── Per-tenant cache ────────────────────────────────────────────────────────
-// Map<tenantKey, Product[]> — each store has its own cache entry.
-// tenantKey = storeId or slug from URL.
 const cacheMap = new Map<string, Product[]>()
 const loadedSet = new Set<string>()
+const inFlightMap = new Map<string, Promise<Product[]>>()
+const subscribers = new Set<() => void>()
+
+export function subscribeProducts(fn: () => void): () => void {
+  subscribers.add(fn)
+  return () => subscribers.delete(fn)
+}
+
+function notifyProductsChanged() {
+  subscribers.forEach(fn => { try { fn() } catch {} })
+}
 
 function getTenantKey(): string {
   if (typeof window === 'undefined') return 'default'
   const urlParams = new URLSearchParams(window.location.search)
-  // الاعتماد حصراً على معرّف المتجر الموجود في الرابط لمنع تسريب كاش المتاجر السابقة
   return urlParams.get('store') || urlParams.get('storeId') || 'default'
 }
 
-
-
-
-/** Get the cached products for the CURRENT tenant. */
+/** Get cached products instantly from memory or per-tenant localStorage */
 export function getProducts(): Product[] {
   const key = getTenantKey()
-  return cacheMap.get(key) || []
+  if (cacheMap.has(key)) return cacheMap.get(key)!
+  
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(`amugar_prods_v5__${key}`)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          cacheMap.set(key, parsed)
+          return parsed
+        }
+      }
+    } catch {}
+  }
+  return []
 }
+
+
+
 
 export function getProductById(id: string): Product | undefined {
   return getProducts().find(p => p._id === id)
@@ -54,19 +76,39 @@ export function getProductsByCategory(cat: string): Product[] {
   return getProducts().filter(p => p.category === cat)
 }
 
-/** Background-load products from the API for the current tenant. */
+/** Background-load products with in-flight deduplication and instant caching */
 export async function syncProducts(): Promise<Product[]> {
   const key = getTenantKey()
-  try {
-    const list = await fetchProducts()
-    cacheMap.set(key, list)
-    loadedSet.add(key)
-    return list
-  } catch {
-    loadedSet.add(key)
-    return cacheMap.get(key) || []
+  if (inFlightMap.has(key)) {
+    return inFlightMap.get(key)!
   }
+
+  const task = (async () => {
+    try {
+      const list = await fetchProducts()
+      if (Array.isArray(list)) {
+        cacheMap.set(key, list)
+        loadedSet.add(key)
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(`amugar_prods_v5__${key}`, JSON.stringify(list))
+          } catch {}
+        }
+        notifyProductsChanged()
+        return list
+      }
+      return getProducts()
+    } catch {
+      return getProducts()
+    } finally {
+      inFlightMap.delete(key)
+    }
+  })()
+
+  inFlightMap.set(key, task)
+  return task
 }
+
 
 /** Backwards-compat: kick off the sync. */
 export function ensureProducts(): Product[] {
