@@ -1,143 +1,110 @@
 /**
- * Settings service.
+ * Settings service — PER-TENANT cache.
  *
- * Sync API reads from an in-memory cache kept fresh by syncSettings().
- * Mutations go through the async `*Api` helpers in ./client.
- *
- * Pub/sub: `subscribeSettings(cb)` lets React components re-render when
- * the cache is updated (either by the same tab via saveSettings, or by
- * another tab via the `storage` event). This is what makes the
- * storefront reflect dashboard edits without a manual page refresh.
+ * The cache is keyed by the active store's slug/storeId so that
+ * switching stores NEVER shows the previous store's settings.
+ * No spinner, no loading screen — the page reads from localStorage
+ * instantly (if available) and silently refreshes from the API.
  */
 
 import { defaultSettings } from './seed'
 import type { StoreSettings } from './types'
 import { fetchSettings, saveSettingsApi, updateSettingsApi } from './client'
 
-// ─── Instant Cache: read the store's REAL settings from localStorage ────────
-// on first page load, instead of showing the default jewelry-themed
-// settings. This eliminates the "Aurore flash" — the brief flicker of
-// the old demo store content before the real store data loads.
-//
-// We look for the per-tenant localStorage key (amugar_settings_v5__<slug>)
-// and parse it. If found, the user sees their REAL store instantly. If
-// not found (first visit), we fall back to defaultSettings but mark
-// `loaded = false` so Home.tsx can show a loading spinner instead of
-// the wrong store.
-function getInitialSettings(): StoreSettings {
-  if (typeof window === 'undefined') return { ...defaultSettings }
-  try {
-    const urlParams = new URLSearchParams(window.location.search)
-    const slug = urlParams.get('store') || localStorage.getItem('amugar_saas_active_slug') || urlParams.get('storeId') || 'default'
-    // Try the per-tenant settings key (v5 = latest cache version)
-    const raw = localStorage.getItem(`amugar_settings_v5__${slug}`)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (parsed && parsed.settings) return parsed.settings
-    }
-    // Fallback: try old v3/v4 key (without tenant suffix — legacy)
-    const legacyRaw = localStorage.getItem('amugar_settings_v5')
-    if (legacyRaw) {
-      const parsed = JSON.parse(legacyRaw)
-      if (parsed && parsed.settings) return parsed.settings
-    }
-  } catch {}
+// ─── Per-tenant cache ────────────────────────────────────────────────────────
+const cacheMap = new Map<string, StoreSettings>()
+const loadedSet = new Set<string>()
+
+function getTenantKey(): string {
+  if (typeof window === 'undefined') return 'default'
+  const urlParams = new URLSearchParams(window.location.search)
+  return urlParams.get('store') || urlParams.get('storeId') || localStorage.getItem('amugar_saas_active_slug') || localStorage.getItem('amugar_saas_active_store') || 'default'
+}
+
+/** Get cached settings for the CURRENT tenant. Falls back to
+ *  localStorage (per-tenant key) if the in-memory cache is empty. */
+function getCachedSettings(): StoreSettings {
+  const key = getTenantKey()
+  // 1) In-memory cache
+  if (cacheMap.has(key)) return cacheMap.get(key)!
+  // 2) localStorage cache (per-tenant)
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(`amugar_settings_v5__${key}`)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed && parsed.settings) {
+          cacheMap.set(key, parsed.settings)
+          return parsed.settings
+        }
+      }
+    } catch {}
+  }
+  // 3) Fallback to defaultSettings (neutral, not jewelry)
   return { ...defaultSettings }
 }
 
-let cache: StoreSettings = getInitialSettings()
-let loaded = false
-
-export function isSettingsLoaded(): boolean {
-  return loaded
+export function getSettings(): StoreSettings {
+  const key = getTenantKey()
+  if (!loadedSet.has(key)) void syncSettings()
+  return getCachedSettings()
 }
 
-/** Clear the settings cache — called when the active store changes
- *  to prevent store A's settings from leaking into store B. */
+export function isSettingsLoaded(): boolean {
+  return loadedSet.has(getTenantKey())
+}
+
 export function clearSettingsCache(): void {
-  cache = { ...defaultSettings }
-  loaded = false
+  cacheMap.clear()
+  loadedSet.clear()
 }
 
 // ─── Pub/Sub ───────────────────────────────────────────────────────────────
 const subscribers = new Set<() => void>()
 
-/** Subscribe to settings changes. Returns an unsubscribe function. */
 export function subscribeSettings(fn: () => void): () => void {
   subscribers.add(fn)
   return () => subscribers.delete(fn)
 }
 
 function notifySettingsChanged() {
-  subscribers.forEach(fn => {
-    try { fn() } catch {}
-  })
-}
-
-// Listen for cross-tab `storage` events (fired when ANOTHER tab writes
-// to localStorage). When the settings key changes, parse the new value
-// directly from the event's newValue — NO server refetch needed because
-// the other tab already fetched it and we trust its result.
-//
-// IMPORTANT (performance fix): the previous implementation called
-// syncSettings() on every storage event, which triggered a server
-// round-trip. On a slow connection this made the storefront laggy
-// whenever the merchant saved anything. We now parse newValue directly.
-//
-// For SAME-tab saves, see `saveSettings()` below — it updates `cache`
-// synchronously and calls notifySettingsChanged() directly (no event).
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'amugar_settings_v3' && e.newValue) {
-      try {
-        const parsed = JSON.parse(e.newValue)
-        if (parsed && parsed.settings) {
-          cache = parsed.settings
-          loaded = true
-          notifySettingsChanged()
-        }
-      } catch {
-        // Malformed value — ignore, the next getSettings() will refetch.
-      }
-    }
-  })
+  subscribers.forEach(fn => { try { fn() } catch {} })
 }
 
 export async function syncSettings(): Promise<StoreSettings> {
+  const key = getTenantKey()
   try {
     const s = await fetchSettings()
-    if (s) cache = s
-    loaded = true
-    return cache
+    if (s) {
+      cacheMap.set(key, s)
+      loadedSet.add(key)
+      notifySettingsChanged()
+      return s
+    }
+    loadedSet.add(key)
+    return getCachedSettings()
   } catch {
-    loaded = true
-    return cache
+    loadedSet.add(key)
+    return getCachedSettings()
   }
 }
 
-export function getSettings(): StoreSettings {
-  if (!loaded) void syncSettings()
-  return cache
-}
-
 export async function saveSettings(s: StoreSettings): Promise<StoreSettings> {
+  const key = getTenantKey()
   const next = await saveSettingsApi(s)
-  cache = next
-  // Notify same-tab subscribers (e.g. the storefront header / footer /
-  // home page) that the settings have changed so they can re-render
-  // with the new values. Cross-tab subscribers are notified via the
-  // `storage` event listener above.
+  cacheMap.set(key, next)
   notifySettingsChanged()
   return next
 }
 
 export async function updateSettings(patch: Partial<StoreSettings>): Promise<StoreSettings> {
+  const key = getTenantKey()
   const next = await updateSettingsApi(patch)
-  cache = next
+  cacheMap.set(key, next)
   notifySettingsChanged()
   return next
 }
 
-// Sync-compat shims for UI code that doesn't await
+// Sync-compat shims
 export function saveSettingsSync(s: StoreSettings) { void saveSettings(s) }
 export function updateSettingsSync(patch: Partial<StoreSettings>) { void updateSettings(patch) }

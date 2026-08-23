@@ -3,8 +3,8 @@ import { ArrowLeft, Truck, ShieldCheck, Sparkles, BadgeCheck, Star, Quote, Packa
 import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
 import { SmartImage } from '../components/SmartImage'
-import { getProducts, syncProducts, clearProductsCache } from '../services/api/products'
-import { getSettings, subscribeSettings, syncSettings, isSettingsLoaded, clearSettingsCache } from '../services/api/settings'
+import { getProducts, syncProducts } from '../services/api/products'
+import { getSettings, subscribeSettings, syncSettings } from '../services/api/settings'
 import { getActiveDomain } from '../services/api/domains'
 import { trackVisit } from '../services/api/client'
 import { useEffect, useState } from 'react'
@@ -33,10 +33,6 @@ export default function Home(){
   const [products, setProducts] = useState(()=> getProducts())
   const [store, setStore] = useState(()=> getSettings())
   const [domain, setDomain] = useState(()=> getActiveDomain())
-  // Loading guard: if settings haven't been loaded from the API yet AND
-  // the cache still has the default jewelry-themed settings, show a
-  // loading spinner instead of the wrong store (Aurore flash fix).
-  const [loading, setLoading] = useState(true)
   const featuredAll = products.filter(p=>p.isFeatured)
   const domainCats = new Set(domain.categories.map(c=>c.key))
   const featured = (()=> {
@@ -46,35 +42,29 @@ export default function Home(){
   useEffect(()=>{
     window.scrollTo({top:0, left:0, behavior:'auto'})
 
-    // ─── CRITICAL: Clear BOTH caches to prevent store A's data from
-    // leaking into store B. The products.ts and settings.ts caches are
-    // module-level variables shared across all stores — if store A was
-    // visited before, its data is still in cache. We MUST clear both
-    // before loading the current store's data.
-    clearProductsCache()
-    clearSettingsCache()
+    // ─── NO spinner, NO loading screen ────────────────────────────────
+    // The per-tenant caches (products.ts + settings.ts) are now keyed
+    // by storeId/slug. Each store has its OWN cache entry. When the
+    // user visits store B after store A, getProducts() returns store B's
+    // cache (or empty array if first visit) — NEVER store A's products.
+    //
+    // We render IMMEDIATELY from whatever is in the per-tenant cache
+    // (could be from localStorage = instant, or empty = shows empty
+    // state). Then we fetch fresh data from the API in the background.
+    // When the API responds, the state updates and React re-renders
+    // with the fresh data. NO spinner needed.
 
-    // Fetch real settings AND products from the API in parallel.
-    // Show the store as soon as BOTH arrive — no stale data from
-    // a previous store.
-    void Promise.all([
-      syncSettings(),
-      syncProducts(),
-    ]).then(([s, prods]) => {
+    // Background sync — updates state when fresh data arrives
+    void syncSettings().then(s => {
       if (s) {
         setStore(s)
         setDomain(getActiveDomain())
       }
-      // syncProducts already updated the cache; read from it
+    }).catch(() => {})
+
+    void syncProducts().then(() => {
       setProducts([...getProducts()])
-      setLoading(false)
-    }).catch(() => {
-      // Even on error, show what we have from cache
-      setProducts([...getProducts()])
-      setStore(getSettings())
-      setDomain(getActiveDomain())
-      setLoading(false)
-    })
+    }).catch(() => {})
 
     // ─── Track the storefront visit (for merchant analytics) ──────────
     const s = getSettings()
@@ -100,21 +90,6 @@ export default function Home(){
   const primary = store.primaryColor || 'var(--color-primary)'
   const secondary = store.secondaryColor || 'var(--color-secondary)'
   const textColor = store.textColor || 'var(--color-text)'
-
-  // ─── Loading Guard ──────────────────────────────────────────────────
-  // While settings are being fetched from the API for the first time,
-  // show a minimal loading screen instead of the default/jewelry store.
-  // This eliminates the "Aurore flash" — the brief flicker of the wrong
-  // store content before the real store data arrives.
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#FFFCF8] flex flex-col items-center justify-center">
-        <img src="/logo.webp" alt="Amugar" className="w-16 h-16 rounded-2xl object-contain mb-4 animate-pulse" />
-        <div className="w-8 h-8 border-2 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin mb-3" />
-        <p className="text-sm font-bold text-[#9A8A6B]">جاري تحميل المتجر…</p>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen" style={{background: store.bgColor || "var(--color-bg)", color: textColor}}>
