@@ -9,7 +9,7 @@ import { createOrder } from '../services/api/orders'
 import { Tracking } from '../services/tracking'
 
 export default function Cart() {
-  const { items, updateQty, removeItem, total, discount, subtotal, clearCart } = useCart()
+  const { items, updateQty, removeItem, total, discount, subtotal } = useCart()
   const nav = useNavigate()
   const wilayas = getWilayas()
   const [wilayaCode, setWilayaCode] = useState('16')
@@ -114,7 +114,10 @@ export default function Cart() {
       } as any)
 
       Tracking.purchase(order.orderNumber, grand, orderItems)
-      if (typeof clearCart === 'function') clearCart()
+
+      // تفريغ السلة بعد نجاح الطلب
+      items.forEach((i) => removeItem(i.product._id, i.variantId))
+
       nav(`/thank-you/${order.orderNumber}`)
     } catch (error: any) {
       if (error?.message === 'DUPLICATE_ORDER' || error?.body?.error === 'DUPLICATE_ORDER') {
@@ -442,7 +445,6 @@ export default function Cart() {
               />
             </div>
 
-            {/* Error Message */}
             {err && (
               <div className="mt-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-3.5 py-2.5 text-xs font-bold flex items-center gap-2">
                 <Package size={14} className="shrink-0" />
