@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Truck, ShieldCheck, Sparkles, BadgeCheck, Star, Quote } from 'lucide-react'
+import { ArrowLeft, Truck, ShieldCheck, Sparkles, BadgeCheck, Star, Quote, Package } from 'lucide-react'
 import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
 import { SmartImage } from '../components/SmartImage'
@@ -10,20 +10,14 @@ import { trackVisit } from '../services/api/client'
 import { useEffect, useState } from 'react'
 import { formatDZD } from '../lib/utils'
 
-const categoryImages: Record<string,string> = {
-  necklace: 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?w=600&q=80',
-  ring: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&q=80',
-  earring: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&q=80',
-  bracelet: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&q=80',
-  dress: 'https://images.unsplash.com/photo-1515372039744-f1fd71e2a961?w=600&q=80',
-  abaya: 'https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?w=600&q=80',
-  hijab: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&q=80',
-  bag: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&q=80',
-  shoes: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80',
-  perfume: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&q=80',
-  makeup: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&q=80',
-  skincare: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600&q=80',
-  hair: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&q=80',
+// ─── Smart category image: picks a product image from that category ────────
+// Instead of hardcoded jewelry images, we find a real product image
+// from the store's catalog that matches the category. If no product
+// exists in that category, we show a neutral gradient placeholder.
+function getCategoryImage(catKey: string, products: any[]): string {
+  const productInCat = products.find(p => p.category === catKey && p.images?.[0])
+  if (productInCat) return productInCat.images[0]
+  return ''  // empty → the card will show a gradient placeholder instead
 }
 
 // Reusable fade-up wrapper for scroll-reveal animations.
@@ -109,13 +103,10 @@ export default function Home(){
       {/* ═══ HERO ═══════════════════════════════════════════════════ */}
       <section className="max-w-[1280px] mx-auto px-4 md:px-6 pt-6">
         <motion.div {...fadeUp(0)} className="grid lg:grid-cols-[1.15fr_0.85fr] gap-4">
-          <div className="relative rounded-[28px] overflow-hidden min-h-[520px] flex" style={{ background: secondary }}>
-            <SmartImage src={domain.heroImage} alt={domain.heroTitleAr} size="hero" eager className="absolute inset-0 w-full h-full" style={{ opacity: 0.95, zIndex: 0 }} />
-            {/* Gradient overlay — softened so the image is more visible.
-                Before: from-black/70 via-black/30 (too dark, hid the image)
-                After:  from-black/50 via-black/15 (subtle darkening for text contrast) */}
+          <div className="relative rounded-[28px] overflow-hidden min-h-[420px] md:min-h-[520px] flex" style={{ background: secondary }}>
+            {/* Use a real product image as hero background if available */}
+            <SmartImage src={products[0]?.images?.[0] || domain.heroImage} alt={domain.heroTitleAr} size="hero" eager className="absolute inset-0 w-full h-full" style={{ opacity: 0.95, zIndex: 0 }} />
             <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/15 to-transparent" style={{ zIndex: 1 }}/>
-            {/* Animated accent gradient overlay — subtle sweeping tint */}
             <div className="hero-overlay-anim absolute inset-0 bg-gradient-to-tr from-[var(--color-accent)]/0 via-[var(--color-accent)]/5 to-[var(--color-primary)]/5 pointer-events-none" style={{ zIndex: 1 }}/>
 
             {/* Floating trust badge */}
@@ -140,57 +131,57 @@ export default function Home(){
               </div>
             </div>
             {/* floating price card — glass-card effect on stats */}
-            <div className="hidden lg:block absolute bottom-6 left-6 glass-card rounded-2xl p-3 shadow-xl w-[220px]">
-              <div className="flex gap-3">
-                <img src={products.find(p=> domainCats.has(p.category))?.images[0] || "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=200&q=80"} className="w-16 h-16 rounded-xl object-cover"/>
-                <div>
-                  <div className="text-xs" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>الأكثر مبيعاً</div>
-                  <div className="font-bold text-sm leading-tight line-clamp-1" style={{ color: textColor }}>{products.find(p=> domainCats.has(p.category))?.nameAr || domain.nameAr}</div>
-                  <div className="font-extrabold text-sm gradient-text">{products.find(p=> domainCats.has(p.category)) ? formatDZD(products.find(p=> domainCats.has(p.category))!.price) : formatDZD(6800)}</div>
+            <div className="hidden lg:block absolute bottom-6 left-6 glass-card rounded-2xl p-3 shadow-xl w-[200px]">
+              <div className="flex gap-2">
+                <img src={products.find(p=> domainCats.has(p.category))?.images?.[0] || ''} className="w-12 h-12 rounded-lg object-cover bg-[#F5EFE6] shrink-0" onError={e => e.currentTarget.style.display='none'}/>
+                <div className="min-w-0">
+                  <div className="text-[10px]" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>الأكثر مبيعاً</div>
+                  <div className="font-bold text-xs leading-tight line-clamp-1" style={{ color: textColor }}>{products.find(p=> domainCats.has(p.category))?.nameAr || domain.nameAr}</div>
+                  <div className="font-extrabold text-xs gradient-text">{products.find(p=> domainCats.has(p.category)) ? formatDZD(products.find(p=> domainCats.has(p.category))!.price) : formatDZD(6800)}</div>
                 </div>
               </div>
-              <Link to={products.find(p=> domainCats.has(p.category)) ? `/product/${products.find(p=> domainCats.has(p.category))!._id}` : '/shop'} className="btn-premium mt-3 block text-center text-white rounded-full py-2 text-xs font-bold" style={{ background: secondary }}>اطلب الآن - COD</Link>
+              <Link to={products.find(p=> domainCats.has(p.category)) ? `/product/${products.find(p=> domainCats.has(p.category))!._id}` : '/shop'} className="btn-premium mt-2 block text-center text-white rounded-full py-1.5 text-[10px] font-bold" style={{ background: secondary }}>اطلب الآن - COD</Link>
             </div>
           </div>
-          <div className="grid grid-rows-[1.1fr_0.9fr] gap-4">
-            {/* عروض الكمية — هذه البطاقة وحدها باللمسة الوردية الغامقة */}
-            <div className={`rounded-[28px] overflow-hidden relative p-6 flex flex-col justify-between min-h-[260px] border card-shadow ${store.enableRoseEdition ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-[#F5EFE6] border-[#EDE6D8]'}`}>
-              <img src={categoryImages[domain.categories[0]?.key] || 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=800&q=80'} className="absolute inset-0 w-full h-full object-cover opacity-[0.08]"/>
-              {store.enableRoseEdition && <div className="absolute top-0 left-0 w-32 h-32 bg-[#A02A5B]/10 rounded-full blur-2xl -translate-x-6 -translate-y-6"/>}
+          <div className="grid grid-rows-[1.1fr_0.9fr] gap-3">
+            {/* عروض الكمية — مصغرة */}
+            <div className={`rounded-2xl overflow-hidden relative p-4 flex flex-col justify-between min-h-[180px] border card-shadow ${store.enableRoseEdition ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-[#F5EFE6] border-[#EDE6D8]'}`}>
+              {(() => { const img = getCategoryImage(domain.categories[0]?.key || '', products); return img ? <img src={img} className="absolute inset-0 w-full h-full object-cover opacity-[0.08]"/> : null })()}
+              {store.enableRoseEdition && <div className="absolute top-0 left-0 w-24 h-24 bg-[#A02A5B]/10 rounded-full blur-2xl -translate-x-4 -translate-y-4"/>}
               <div className="relative">
-                <span className={`border rounded-full px-3 py-1 text-xs font-bold inline-flex gap-1.5 items-center ${store.enableRoseEdition ? 'bg-white border-[#F6C0D4] text-[#A02A5B]' : 'bg-white border-[#EDE6D8] text-[#7A6F5A]'}`}><Sparkles size={12} className={store.enableRoseEdition ? 'text-[#A02A5B]' : 'text-[#C9A96A]'}/> عروض الكمية {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B] animate-pulse"></span>}</span>
-                <h3 className="text-[28px] font-extrabold leading-none mt-3" style={{ color: textColor }}>وفّر حتى <span style={{ color: store.enableRoseEdition ? '#A02A5B' : primary }}>22%</span><br/>عند شراء 3 قطع</h3>
-                <p className={`text-sm mt-2 ${store.enableRoseEdition ? 'text-[#7A5A65]' : 'text-[#7A6F5A]'}`}>شارك الأناقة مع الأصدقاء — خصم تلقائي في السلة</p>
+                <span className={`border rounded-full px-2 py-0.5 text-[10px] font-bold inline-flex gap-1 items-center ${store.enableRoseEdition ? 'bg-white border-[#F6C0D4] text-[#A02A5B]' : 'bg-white border-[#EDE6D8] text-[#7A6F5A]'}`}><Sparkles size={10} className={store.enableRoseEdition ? 'text-[#A02A5B]' : 'text-[#C9A96A]'}/> عروض الكمية</span>
+                <h3 className="text-[20px] font-extrabold leading-none mt-2" style={{ color: textColor }}>وفّر حتى <span style={{ color: store.enableRoseEdition ? '#A02A5B' : primary }}>22%</span><br/>عند شراء 3 قطع</h3>
+                <p className={`text-[11px] mt-1 ${store.enableRoseEdition ? 'text-[#7A5A65]' : 'text-[#7A6F5A]'}`}>شارك الأناقة — خصم تلقائي في السلة</p>
               </div>
-              <Link to="/shop" className={`btn-premium relative inline-flex w-fit px-5 py-2.5 rounded-full text-sm font-bold mt-4 ${store.enableRoseEdition ? 'bg-[#A02A5B] text-white hover:bg-[#7A1F44]' : 'text-white hover:opacity-90'}`} style={!store.enableRoseEdition ? { background: secondary } : undefined}>استفد من العرض</Link>
+              <Link to="/shop" className={`btn-premium relative inline-flex w-fit px-3 py-1.5 rounded-full text-[11px] font-bold mt-2 ${store.enableRoseEdition ? 'bg-[#A02A5B] text-white hover:bg-[#7A1F44]' : 'text-white hover:opacity-90'}`} style={!store.enableRoseEdition ? { background: secondary } : undefined}>استفد من العرض</Link>
             </div>
-            {/* بطاقة الدفع عند الاستلام — تبقى ذهبية كما هي */}
-            <div className="rounded-[28px] p-6 text-white relative overflow-hidden card-shadow" style={{ background: primary }}>
-              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/15 rounded-full blur-2xl"/>
-              <div className="absolute -left-10 -top-10 w-32 h-32 bg-black/10 rounded-full"/>
+            {/* بطاقة الدفع عند الاستلام — مصغرة */}
+            <div className="rounded-2xl p-4 text-white relative overflow-hidden card-shadow" style={{ background: primary }}>
+              <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/15 rounded-full blur-2xl"/>
+              <div className="absolute -left-8 -top-8 w-24 h-24 bg-black/10 rounded-full"/>
               <div className="relative">
-                <div className="text-xs tracking-[0.2em] opacity-90">{domain.name.toUpperCase()} CARE</div>
-                <h4 className="text-[22px] font-bold leading-tight mt-2">الدفع عند الاستلام<br/>58 ولاية • بدون بطاقة</h4>
-                <div className="flex gap-2 mt-4 text-xs">
-                  <span className="bg-white text-[#1A1A1E] px-3 py-1.5 rounded-full font-bold flex items-center gap-1"><ShieldCheck size={14}/> مضمون</span>
-                  <span className="bg-black/15 border border-white/20 px-3 py-1.5 rounded-full">تأكيد بالهاتف • {store.phone}</span>
+                <div className="text-[10px] tracking-[0.2em] opacity-90">{domain.name.toUpperCase()} CARE</div>
+                <h4 className="text-[16px] font-bold leading-tight mt-1">الدفع عند الاستلام<br/>58 ولاية • بدون بطاقة</h4>
+                <div className="flex gap-1.5 mt-2 text-[10px]">
+                  <span className="bg-white text-[#1A1A1E] px-2 py-1 rounded-full font-bold flex items-center gap-1"><ShieldCheck size={12}/> مضمون</span>
+                  <span className="bg-black/15 border border-white/20 px-2 py-1 rounded-full" dir="ltr">{store.phone || 'تأكيد بالهاتف'}</span>
                 </div>
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* ═══ TRUST BAR ══════════════════════════════════════════════ */}
-        <motion.div {...fadeUp(0.05)} className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+        {/* ═══ TRUST BAR — مصغرة ═══════════════════════════════════════ */}
+        <motion.div {...fadeUp(0.05)} className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
           {[
-            {icon:Truck, t:"توصيل سريع", d:"24-96 ساعة لكل الولايات", rose:false},
-            {icon:ShieldCheck, t:"الدفع عند الاستلام", d: store.enableCod ? "ادفع عند وصول الطلب" : "الدفع عند الاستلام متوقف", rose: store.enableRoseEdition},
-            {icon:BadgeCheck, t:"ضمان 12 شهر", d: "جودة مضمونة + استرجاع 14 يوم", rose:false},
-            {icon:Sparkles, t:"تغليف هدية مجاني", d:`علبة ${store.storeName} فاخرة`, rose:false},
+            {icon:Truck, t:"توصيل سريع", d:"24-96 ساعة"},
+            {icon:ShieldCheck, t:"الدفع عند الاستلام", d: store.enableCod ? "ادفع عند الوصول" : "متوقف", rose: store.enableRoseEdition},
+            {icon:BadgeCheck, t:"ضمان 12 شهر", d: "استرجاع 14 يوم"},
+            {icon:Sparkles, t:"تغليف هدية", d:`علبة ${store.storeName} فاخرة`},
           ].map(c=> (
-            <div key={c.t} className={`rounded-2xl p-4 flex gap-3 items-center border card-shadow card-shadow-hover ${c.rose ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-[#EDE6D8]'}`}>
-              <div className={`w-10 h-10 rounded-full grid place-items-center shrink-0 ${c.rose ? 'bg-[#FCE7F0] text-[#A02A5B] border border-[#F6C0D4]' : ''}`} style={!c.rose ? { background: 'color-mix(in srgb, var(--color-primary) 12%, white)', color: 'var(--color-primary)' } : undefined}><c.icon size={18}/></div>
-              <div><div className={`font-bold text-sm ${c.rose ? 'text-[#7A1F44]' : ''}`} style={!c.rose ? { color: textColor } : undefined}>{c.t}</div><div className={`text-xs ${c.rose ? 'text-[#A02A5B]/70' : ''}`} style={!c.rose ? { color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' } : undefined}>{c.d}</div></div>
+            <div key={c.t} className={`rounded-xl p-2.5 flex gap-2 items-center border card-shadow ${c.rose ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-[#EDE6D8]'}`}>
+              <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${c.rose ? 'bg-[#FCE7F0] text-[#A02A5B] border border-[#F6C0D4]' : ''}`} style={!c.rose ? { background: 'color-mix(in srgb, var(--color-primary) 12%, white)', color: 'var(--color-primary)' } : undefined}><c.icon size={14}/></div>
+              <div className="min-w-0"><div className={`font-bold text-xs ${c.rose ? 'text-[#7A1F44]' : ''}`} style={!c.rose ? { color: textColor } : undefined}>{c.t}</div><div className={`text-[10px] truncate ${c.rose ? 'text-[#A02A5B]/70' : ''}`} style={!c.rose ? { color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' } : undefined}>{c.d}</div></div>
             </div>
           ))}
         </motion.div>
@@ -207,12 +198,25 @@ export default function Home(){
           <Link to="/shop" className="hidden md:inline-flex text-sm font-bold border rounded-full px-4 py-2 bg-white hover:text-white btn-premium" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: textColor }} >عرض الكل</Link>
         </motion.div>
         <motion.div {...fadeUp(0.08)} className={`grid gap-4 mt-4 ${domain.categories.length<=3 ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
-          {domain.categories.map((c, i)=> (
+          {domain.categories.filter(c => countByCat(c.key) > 0).map((c, i)=> (
             <motion.div key={c.key} {...fadeUp(0.05 * i)} className="contents">
             <Link to={`/shop?cat=${c.key}`} className="group relative rounded-[22px] overflow-hidden h-[220px] card-shadow card-shadow-hover" style={{ background: 'var(--color-secondary)' }}>
-              <div className="img-zoom absolute inset-0">
-                <img src={categoryImages[c.key] || `https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=600&q=80`} className="absolute inset-0 w-full h-full object-cover opacity-80"/>
-              </div>
+              {(() => {
+                const catImg = getCategoryImage(c.key, products)
+                if (catImg) {
+                  return (
+                    <div className="img-zoom absolute inset-0">
+                      <img src={catImg} className="absolute inset-0 w-full h-full object-cover opacity-80"/>
+                    </div>
+                  )
+                }
+                // No product in this category → gradient placeholder
+                return (
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#F5EFE6] to-[#EDE6D8] grid place-items-center">
+                    <Package size={48} className="text-[#C9A96A]/30" />
+                  </div>
+                )
+              })()}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent group-hover:from-black/80 group-hover:via-black/30 transition-all duration-500"/>
               {/* Product count badge */}
               <span className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur text-[10px] font-bold px-2 py-1 rounded-full" style={{ color: textColor }}>{countByCat(c.key)} منتج</span>
@@ -251,9 +255,9 @@ export default function Home(){
               <li className="flex gap-2"><BadgeCheck size={18} className="mt-0.5" style={{ color: 'var(--color-primary)' }}/> كل طلب يأتي بتغليف فاخر + ضمان جودة + استرجاع 14 يوم.</li>
             </ul>
             <div className="mt-6 flex gap-3">
-              <img src={categoryImages[domain.categories[0]?.key] || 'https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?w=200&q=80'} className="w-20 h-20 rounded-2xl object-cover"/>
-              <img src={categoryImages[domain.categories[1]?.key] || 'https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=200&q=80'} className="w-20 h-20 rounded-2xl object-cover"/>
-              <img src={categoryImages[domain.categories[2]?.key] || 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=200&q=80'} className="w-20 h-20 rounded-2xl object-cover"/>
+              <img src={getCategoryImage(domain.categories[0]?.key || '', products) || ''} className="w-20 h-20 rounded-2xl object-cover bg-[#F5EFE6]" onError={e => e.currentTarget.style.display='none'}/>
+              <img src={getCategoryImage(domain.categories[1]?.key || '', products) || ''} className="w-20 h-20 rounded-2xl object-cover bg-[#F5EFE6]" onError={e => e.currentTarget.style.display='none'}/>
+              <img src={getCategoryImage(domain.categories[2]?.key || '', products) || ''} className="w-20 h-20 rounded-2xl object-cover bg-[#F5EFE6]" onError={e => e.currentTarget.style.display='none'}/>
             </div>
           </div>
         </motion.div>
@@ -290,7 +294,7 @@ export default function Home(){
             <div className="text-xs mt-1" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>شارك صور منتجاتك بـ #AmugarDz • {store.phone}</div>
           </div>
           <div className="relative flex gap-2 overflow-x-auto thumb-scroll scrollbar-hide">
-            {[1,2,3,4].map(i=> <img key={i} src={`https://images.unsplash.com/photo-${['1515562141207-7a88fb7ce338','1599643477877-530eb83abc8e','1535632066927-ab7c9ab60908','1611591437281-460bfbe1220a'][i-1]}?w=200&q=80`} className={`w-16 h-16 rounded-xl object-cover shrink-0 hover:scale-105 transition ${i===2 && store.enableRoseEdition ? 'ring-2 ring-[#A02A5B]/30 ring-offset-2' : ''}`}/> )}
+            {products.slice(0, 4).map((p, i)=> <img key={p._id || i} src={p.images?.[0] || ''} className={`w-16 h-16 rounded-xl object-cover shrink-0 hover:scale-105 transition bg-[#F5EFE6] ${i===1 && store.enableRoseEdition ? 'ring-2 ring-[#A02A5B]/30 ring-offset-2' : ''}`} onError={e => e.currentTarget.style.display='none'}/> )}
           </div>
         </div>
       </motion.section>
