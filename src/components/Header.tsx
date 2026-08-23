@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ShoppingBag, Search, Menu, X, Heart } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
@@ -13,11 +13,27 @@ export default function Header(){
   const [q, setQ] = useState('')
   const [store, setStore] = useState(()=> getSettings())
   const [scrolled, setScrolled] = useState(false)
+  
   const nav = useNavigate()
+  const location = useLocation()
   const { storeId, storeSlug } = useTenant()
-  const storeParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('store') : null
-  const storeQuery = storeParam ? `?store=${encodeURIComponent(storeParam)}` : ''
-  const onSearch = (e:React.FormEvent)=>{ e.preventDefault(); if(q.trim()){ nav(`/shop?q=${encodeURIComponent(q)}${storeQuery}`); setOpen(false) } }
+  const urlParams = new URLSearchParams(location.search)
+  const activeSlug = storeSlug || urlParams.get('store')
+  const activeId = storeId || urlParams.get('storeId')
+  const storeQuery = activeSlug ? `?store=${encodeURIComponent(activeSlug)}` : (activeId ? `?storeId=${encodeURIComponent(activeId)}` : '')
+
+  const onSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (q.trim()) {
+      const params = new URLSearchParams()
+      params.set('q', q.trim())
+      if (activeSlug) params.set('store', activeSlug)
+      else if (activeId) params.set('storeId', activeId)
+      nav(`/shop?${params.toString()}`)
+      setOpen(false)
+    }
+  }
+
   useEffect(() => {
     // One-time sync on mount + when storeId/storeSlug changes.
     // No setInterval — the cache is updated reactively by the service layer.
@@ -66,7 +82,8 @@ export default function Header(){
           <nav className="hidden md:flex items-center gap-7 text-[14px] font-semibold text-[#1A1A1E]">
             <Link to={`/${storeQuery}`} className="hover:text-[#C9A96A]">الرئيسية</Link>
             <Link to={`/shop${storeQuery}`} className="hover:text-[#C9A96A]">المتجر</Link>
-            <Link to="/#collection" onClick={e=>{ e.preventDefault(); setOpen(false); if(window.location.pathname==='/'){ document.getElementById('collection')?.scrollIntoView({behavior:'smooth'}) }else{ nav(`/#collection${storeQuery}`) }}} className="hover:text-[#C9A96A]">الكولكشن</Link>
+           <a href={`/${storeQuery}#collection`} onClick={e=>{ e.preventDefault(); setOpen(false); if(window.location.pathname==='/'){ document.getElementById('collection')?.scrollIntoView({behavior:'smooth'}) }else{ nav(`/${storeQuery}#collection`) }}} className="hover:text-[#C9A96A]">الكولكشن</a>
+
           </nav>
         </div>
 
