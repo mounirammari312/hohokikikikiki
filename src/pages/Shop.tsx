@@ -2,8 +2,9 @@ import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { SlidersHorizontal, Search, PackageOpen, ChevronDown } from 'lucide-react'
 import { motion } from 'framer-motion'
+
 import ProductCard from '../components/ProductCard'
-import { getProducts } from '../services/api/products'
+import { getProducts, syncProducts } from '../services/api/products'
 import { getActiveDomain } from '../services/api/domains'
 
 export default function Shop(){
@@ -15,14 +16,22 @@ export default function Shop(){
   const [products, setProducts] = useState(()=> getProducts())
   const [domain, setDomain] = useState(()=> getActiveDomain())
 
-  useEffect(()=> setSearch(q),[q])
-  useEffect(()=>{
-    // Sync once on mount — the service layer keeps its own cache fresh
-    // via background re-fetch, so we no longer need to poll every 1.5s
-    // (which caused redundant re-renders + battery drain on mobile).
+    useEffect(() => {
     setProducts([...getProducts()])
     setDomain(getActiveDomain())
-  },[])
+
+    // جلب منتجات هذا المتجر فوراً من السيرفر عند فتح الرابط المباشر
+    void syncProducts().then(fresh => {
+      if (fresh && fresh.length > 0) {
+        setProducts(fresh)
+      } else {
+        setProducts([...getProducts()])
+      }
+    }).catch(() => {})
+  }, [params.get('store'), params.get('storeId')])
+
+
+  
 
   const domainCatKeys = domain.categories.map(c=>c.key)
 
