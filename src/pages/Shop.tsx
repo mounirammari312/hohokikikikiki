@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { SlidersHorizontal, Search, PackageOpen, ChevronDown } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -13,8 +13,12 @@ export default function Shop(){
   const cat = params.get('cat') || 'all'
   const [search, setSearch] = useState(q)
   const [sort, setSort] = useState('featured')
-  const [products, setProducts] = useState(()=> getProducts())
-  const [domain, setDomain] = useState(()=> getActiveDomain())
+  
+  const [products, setProducts] = useState(() => getProducts())
+  const [domain, setDomain] = useState(() => getActiveDomain())
+  const [loading, setLoading] = useState(() => getProducts().length === 0)
+  const [visibleCount, setVisibleCount] = useState(12)
+  const observerRef = useRef<HTMLDivElement | null>(null)
 
     useEffect(() => {
     setProducts([...getProducts()])
@@ -27,8 +31,30 @@ export default function Shop(){
       } else {
         setProducts([...getProducts()])
       }
-    }).catch(() => {})
+      setLoading(false)
+    }).catch(() => setLoading(false))
   }, [params.get('store'), params.get('storeId')])
+
+  // إعادة ضبط العداد إلى 12 عند تغيير الفئة أو البحث أو الترتيب
+  useEffect(() => {
+    setVisibleCount(12)
+  }, [cat, search, sort])
+
+  // مستشعر التمرير الذكي (Infinite Scroll Observer)
+  useEffect(() => {
+    if (!observerRef.current) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => prev + 12)
+        }
+      },
+      { rootMargin: '250px' }
+    )
+
+    observer.observe(observerRef.current)
+    return () => observer.disconnect()
+  }, [filtered.length])
 
 
   
@@ -112,10 +138,34 @@ export default function Shop(){
           <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-800">أنت تستعرض فئة خارج المجال النشط ({domain.nameAr}). يمكنك تغيير المجال من لوحة التحكم أو تصفح كل المنتجات.</div>
         )}
 
-        {/* ═══ PRODUCT GRID ══════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5 mt-6">
-          {filtered.map((p, i)=> <ProductCard key={p._id} p={p} index={i}/> )}
-        </div>
+                {/* ═══ PRODUCT GRID ══════════════════════════════════════════ */}
+        {loading && products.length === 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5 mt-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white border border-[#EDE6D8] rounded-[22px] overflow-hidden p-3 space-y-3">
+                <div className="aspect-square skeleton rounded-xl" />
+                <div className="h-4 skeleton rounded w-3/4" />
+                <div className="h-4 skeleton rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5 mt-6">
+              {filtered.slice(0, visibleCount).map((p, i) => (
+                <ProductCard key={p._id} p={p} index={i} />
+              ))}
+            </div>
+
+            {/* مستشعر التمرير اللانهائي */}
+            {visibleCount < filtered.length && (
+              <div ref={observerRef} className="py-8 flex justify-center items-center">
+                <div className="w-8 h-8 border-3 border-[#EDE6D8] border-t-[var(--color-primary)] rounded-full animate-spin" />
+              </div>
+            )}
+          </>
+        )}
+
 
         {/* ═══ EMPTY STATE ═══════════════════════════════════════════ */}
         {filtered.length===0 && (
