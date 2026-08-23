@@ -3,7 +3,7 @@ import { ArrowLeft, Truck, ShieldCheck, Sparkles, BadgeCheck, Star, Quote, Packa
 import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
 import { SmartImage } from '../components/SmartImage'
-import { getProducts } from '../services/api/products'
+import { getProducts, syncProducts } from '../services/api/products'
 import { getSettings, subscribeSettings, syncSettings, isSettingsLoaded } from '../services/api/settings'
 import { getActiveDomain } from '../services/api/domains'
 import { trackVisit } from '../services/api/client'
@@ -45,19 +45,34 @@ export default function Home(){
   })()
   useEffect(()=>{
     window.scrollTo({top:0, left:0, behavior:'auto'})
-    setProducts([...getProducts()])
-    setStore(getSettings())
-    setDomain(getActiveDomain())
 
-    // Fetch real settings from the API. When done, update the store
-    // and dismiss the loading spinner.
-    void syncSettings().then(s => {
+    // Fetch real settings AND products from the API. When BOTH are done,
+    // update the state and dismiss the loading spinner.
+    // This fixes "products don't show on first visit" — the old code
+    // only synced settings, leaving products empty until the user
+    // navigated away and back.
+    void Promise.all([
+      syncSettings(),
+      syncProducts(),
+    ]).then(([s, prods]) => {
       if (s) {
         setStore(s)
         setDomain(getActiveDomain())
       }
+      if (prods && prods.length) {
+        setProducts(prods)
+      } else {
+        // Fallback: read from cache (syncProducts updates it)
+        setProducts([...getProducts()])
+      }
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => {
+      // Even on error, show what we have from cache
+      setProducts([...getProducts()])
+      setStore(getSettings())
+      setDomain(getActiveDomain())
+      setLoading(false)
+    })
 
     // ─── Track the storefront visit (for merchant analytics) ──────────
     const s = getSettings()
