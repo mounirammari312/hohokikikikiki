@@ -37,17 +37,17 @@ export default function Home(){
   const activeSlug = storeSlug || urlParams.get('store')
   const activeId = storeId || urlParams.get('storeId')
   const storeQuery = activeSlug ? `?store=${encodeURIComponent(activeSlug)}` : (activeId ? `?storeId=${encodeURIComponent(activeId)}` : '')
-  const [products, setProducts] = useState(()=> getProducts())
 
+  const [products, setProducts] = useState(() => getProducts())
+  const [store, setStore] = useState(() => getSettings())
+  const [domain, setDomain] = useState(() => getActiveDomain())
 
-  
-    const featuredAll = products.filter(p => p.isFeatured)
+  const featuredAll = products.filter(p => p.isFeatured)
   const domainCats = new Set(domain.categories.map(c => c.key))
   const featured = (() => {
     const match = featuredAll.filter(p => domainCats.has(p.category))
     if (match.length > 0) return match
     if (featuredAll.length > 0) return featuredAll
-    // إذا لم يحدد التاجر منتجات مميزة، اعرض أحدث 8 منتجات حتى لا تظهر الصفحة فارغة
     return products.slice(0, 8)
   })()
 
