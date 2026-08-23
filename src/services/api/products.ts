@@ -23,8 +23,12 @@ const loadedSet = new Set<string>()
 function getTenantKey(): string {
   if (typeof window === 'undefined') return 'default'
   const urlParams = new URLSearchParams(window.location.search)
-  return urlParams.get('store') || urlParams.get('storeId') || localStorage.getItem('amugar_saas_active_slug') || localStorage.getItem('amugar_saas_active_store') || 'default'
+  // الاعتماد حصراً على معرّف المتجر الموجود في الرابط لمنع تسريب كاش المتاجر السابقة
+  return urlParams.get('store') || urlParams.get('storeId') || 'default'
 }
+
+
+
 
 /** Get the cached products for the CURRENT tenant. */
 export function getProducts(): Product[] {
