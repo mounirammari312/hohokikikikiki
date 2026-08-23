@@ -7,24 +7,45 @@ import ProductCard from '../components/ProductCard'
 import { getProducts, syncProducts } from '../services/api/products'
 import { getActiveDomain } from '../services/api/domains'
 
+
 export default function Shop(){
   const [params, setParams] = useSearchParams()
   const q = params.get('q') || ''
   const cat = params.get('cat') || 'all'
   const [search, setSearch] = useState(q)
   const [sort, setSort] = useState('featured')
-  
   const [products, setProducts] = useState(() => getProducts())
   const [domain, setDomain] = useState(() => getActiveDomain())
   const [loading, setLoading] = useState(() => getProducts().length === 0)
   const [visibleCount, setVisibleCount] = useState(12)
   const observerRef = useRef<HTMLDivElement | null>(null)
 
-    useEffect(() => {
+  // 1. تصفية وترتيب المنتجات
+  const domainCatKeys = domain.categories.map(c => c.key)
+
+  const filtered = useMemo(() => {
+    let list = [...products]
+    if (cat !== 'all') list = list.filter(p => p.category === cat)
+    if (search.trim()) {
+      const s = search.toLowerCase()
+      list = list.filter(p => p.name.toLowerCase().includes(s) || p.nameAr.includes(search) || p.materialAr.includes(search) || p.category.includes(s))
+    }
+    if (sort === 'price-asc') list.sort((a, b) => a.price - b.price)
+    if (sort === 'price-desc') list.sort((a, b) => b.price - a.price)
+    if (sort === 'rating') list.sort((a, b) => b.rating - a.rating)
+    return list
+  }, [products, cat, search, sort])
+
+  const countInDomain = products.filter(p => domainCatKeys.includes(p.category)).length
+
+  // 2. مزامنة البحث
+  useEffect(() => setSearch(q), [q])
+
+  // 3. جلب منتجات المتجر من الخادم
+  useEffect(() => {
     setProducts([...getProducts()])
     setDomain(getActiveDomain())
 
-    // جلب منتجات هذا المتجر فوراً من السيرفر عند فتح الرابط المباشر
     void syncProducts().then(fresh => {
       if (fresh && fresh.length > 0) {
         setProducts(fresh)
@@ -35,12 +56,12 @@ export default function Shop(){
     }).catch(() => setLoading(false))
   }, [params.get('store'), params.get('storeId')])
 
-  // إعادة ضبط العداد إلى 12 عند تغيير الفئة أو البحث أو الترتيب
+  // 4. إعادة ضبط عدد المنتجات المعروضة عند تغيير الفلتر
   useEffect(() => {
     setVisibleCount(12)
   }, [cat, search, sort])
 
-  // مستشعر التمرير الذكي (Infinite Scroll Observer)
+  // 5. مستشعر التمرير اللانهائي
   useEffect(() => {
     if (!observerRef.current) return
     const observer = new IntersectionObserver(
@@ -57,6 +78,10 @@ export default function Shop(){
   }, [filtered.length])
 
 
+
+
+
+  
   
 
   const domainCatKeys = domain.categories.map(c=>c.key)
