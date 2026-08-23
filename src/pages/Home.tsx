@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { useTenant } from '../context/TenantContext'
 import { ArrowLeft, Truck, ShieldCheck, Sparkles, BadgeCheck, Star, Quote, Package } from 'lucide-react'
 import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
@@ -30,9 +31,13 @@ const fadeUp = (delay = 0) => ({
 })
 
 export default function Home(){
+  const { storeSlug, storeId } = useTenant()
+  const location = useLocation()
+  const urlParams = new URLSearchParams(location.search)
+  const activeSlug = storeSlug || urlParams.get('store')
+  const activeId = storeId || urlParams.get('storeId')
+  const storeQuery = activeSlug ? `?store=${encodeURIComponent(activeSlug)}` : (activeId ? `?storeId=${encodeURIComponent(activeId)}` : '')
   const [products, setProducts] = useState(()=> getProducts())
-  const [store, setStore] = useState(()=> getSettings())
-  const [domain, setDomain] = useState(()=> getActiveDomain())
 
 
   
@@ -135,7 +140,8 @@ export default function Home(){
               <h1 className="cormorant text-[38px] md:text-[52px] leading-[0.95] font-bold text-white mt-4" style={{whiteSpace:'pre-line'}}>{domain.heroTitleAr}</h1>
               <p className="text-white/85 mt-4 leading-7">{domain.heroSubtitleAr}</p>
               <div className="flex flex-wrap gap-3 mt-6">
-                <Link to="/shop" className="btn-premium text-white px-7 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg" style={{ background: primary }}>تسوّق الآن <ArrowLeft size={16}/></Link>
+                <Link to={`/shop${storeQuery}`} className="btn-premium text-white px-7 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg" style={{ background: primary }}>تسوّق الآن <ArrowLeft size={16}/></Link>
+
                 <a href="#collection" className="btn-premium bg-white px-7 py-3 rounded-full font-bold shadow-lg" style={{ color: textColor }}>اكتشف الكولكشن</a>
               </div>
               <div className="flex items-center gap-6 mt-6 text-white/90 text-xs">
@@ -153,7 +159,8 @@ export default function Home(){
                   <div className="font-extrabold text-xs gradient-text">{products.find(p=> domainCats.has(p.category)) ? formatDZD(products.find(p=> domainCats.has(p.category))!.price) : formatDZD(6800)}</div>
                 </div>
               </div>
-              <Link to={products.find(p=> domainCats.has(p.category)) ? `/product/${products.find(p=> domainCats.has(p.category))!._id}` : '/shop'} className="btn-premium mt-2 block text-center text-white rounded-full py-1.5 text-[10px] font-bold" style={{ background: secondary }}>اطلب الآن - COD</Link>
+              <Link to={products.find(p=> domainCats.has(p.category)) ? `/product/${products.find(p=> domainCats.has(p.category))!._id}${storeQuery}` : `/shop${storeQuery}`} className="btn-premium mt-2 block text-center text-white rounded-full py-1.5 text-[10px] font-bold" style={{ background: secondary }}>اطلب الآن - COD</Link>
+
             </div>
           </div>
           <div className="grid grid-rows-[1.1fr_0.9fr] gap-3">
@@ -166,7 +173,8 @@ export default function Home(){
                 <h3 className="text-[20px] font-extrabold leading-none mt-2" style={{ color: textColor }}>وفّر حتى <span style={{ color: store.enableRoseEdition ? '#A02A5B' : primary }}>22%</span><br/>عند شراء 3 قطع</h3>
                 <p className={`text-[11px] mt-1 ${store.enableRoseEdition ? 'text-[#7A5A65]' : 'text-[#7A6F5A]'}`}>شارك الأناقة — خصم تلقائي في السلة</p>
               </div>
-              <Link to="/shop" className={`btn-premium relative inline-flex w-fit px-3 py-1.5 rounded-full text-[11px] font-bold mt-2 ${store.enableRoseEdition ? 'bg-[#A02A5B] text-white hover:bg-[#7A1F44]' : 'text-white hover:opacity-90'}`} style={!store.enableRoseEdition ? { background: secondary } : undefined}>استفد من العرض</Link>
+              <Link to={`/shop${storeQuery}`} className={`btn-premium relative inline-flex w-fit px-3 py-1.5 rounded-full text-[11px] font-bold mt-2 ${store.enableRoseEdition ? 'bg-[#A02A5B] text-white hover:bg-[#7A1F44]' : 'text-white hover:opacity-90'}`} style={!store.enableRoseEdition ? { background: secondary } : undefined}>استفد من العرض</Link>
+
             </div>
             {/* بطاقة الدفع عند الاستلام — مصغرة */}
             <div className="rounded-2xl p-4 text-white relative overflow-hidden card-shadow" style={{ background: primary }}>
@@ -208,12 +216,14 @@ export default function Home(){
             <h2 className="text-[28px] font-extrabold mt-1" style={{ color: textColor }}>تسوّق حسب الفئة <span className="text-[15px]">— {domain.nameAr}</span></h2>
             <p className="text-xs mt-1 line-clamp-1" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>{domain.descriptionAr}</p>
           </div>
-          <Link to="/shop" className="hidden md:inline-flex text-sm font-bold border rounded-full px-4 py-2 bg-white hover:text-white btn-premium" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: textColor }} >عرض الكل</Link>
+          <Link to={`/shop${storeQuery}`} className="hidden md:inline-flex text-sm font-bold border rounded-full px-4 py-2 bg-white hover:text-white btn-premium" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: textColor }} >عرض الكل</Link>
+
         </motion.div>
         <motion.div {...fadeUp(0.08)} className={`grid gap-4 mt-4 ${domain.categories.length<=3 ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
           {domain.categories.filter(c => countByCat(c.key) > 0).map((c, i)=> (
             <motion.div key={c.key} {...fadeUp(0.05 * i)} className="contents">
-            <Link to={`/shop?cat=${c.key}`} className="group relative rounded-[22px] overflow-hidden h-[220px] card-shadow card-shadow-hover" style={{ background: 'var(--color-secondary)' }}>
+            <Link to={`/shop?cat=${c.key}${storeQuery ? `&${storeQuery.slice(1)}` : ''}`} className="group relative rounded-[22px] overflow-hidden h-[220px] card-shadow card-shadow-hover" style={{ background: 'var(--color-secondary)' }}>
+
               {(() => {
                 const catImg = getCategoryImage(c.key, products)
                 if (catImg) {
@@ -247,7 +257,9 @@ export default function Home(){
       <section className="max-w-[1280px] mx-auto px-4 md:px-6 mt-12">
         <motion.div {...fadeUp(0)} className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-[26px] font-extrabold" style={{ color: textColor }}>الأكثر مبيعاً <span className="gradient-text">2026</span> <span className="text-xs font-bold bg-white border px-2 py-1 rounded-full ms-2" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)' }}>{featured.length} منتجات مميزة • {domain.nameAr}</span></h2>
-          <Link to="/shop" className="text-sm font-bold hover:underline" style={{ color: 'var(--color-primary)' }}>عرض كل المنتجات ←</Link>
+          
+          <Link to={`/shop${storeQuery}`} className="text-sm font-bold hover:underline" style={{ color: 'var(--color-primary)' }}>عرض كل المنتجات ←</Link>
+
         </motion.div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
           {featured.map((p, i)=> <ProductCard key={p._id} p={p} index={i}/> )}
