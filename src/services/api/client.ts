@@ -99,78 +99,53 @@ export function clearTenantCache(): void {
 function getActiveStoreId(): string | undefined {
   if (!isBrowser()) return undefined
   const urlParams = new URLSearchParams(window.location.search)
-  // 1) ?storeId= explicit query — highest priority (dashboard, super-admin)
   const explicitId = urlParams.get('storeId')
   if (explicitId) return explicitId
-  // 2) ?store=<slug> query — if present, DON'T fall back to cached storeId.
-  //    The server will resolve the slug → storeId via x-store-slug header.
-  //    Returning the old cached storeId here would override the URL slug
-  //    and cause the wrong store's data to load.
-  const slugFromUrl = urlParams.get('store')
-  if (slugFromUrl) return undefined  // let the server resolve via x-store-slug
-  // 3) No URL tenant → use cached storeId from previous dashboard login
-  try {
-    const cached = localStorage.getItem('amugar_saas_active_store')
-    if (cached) return cached
-  } catch {}
-  // 4) Fall back to undefined — the server will resolve via hostname
   return undefined
 }
 
-/** Get the ?store= slug from the URL (if any). Used as a fallback for
- *  environments where subdomains aren't available (vercel.app, localhost).
- *
- *  IMPORTANT: if there's a ?store= slug in the URL, we return ONLY that
- *  and ignore the cached slug — so visiting `/?store=my-shop` always
- *  loads `my-shop`'s data, not the previously-cached store's. */
 function getActiveStoreSlug(): string | undefined {
   if (!isBrowser()) return undefined
   const urlParams = new URLSearchParams(window.location.search)
   const slugFromUrl = urlParams.get('store')
   if (slugFromUrl) return slugFromUrl
-  // No URL slug → fall back to cached slug from a previous registration.
-  // But ONLY if there's also no ?storeId= in the URL (because ?storeId=
-  // means the user is accessing a specific store directly and we
-  // shouldn't send a stale slug header that might confuse the server).
-  const explicitStoreId = urlParams.get('storeId')
-  if (explicitStoreId) return undefined
-  try {
-    const cached = localStorage.getItem('amugar_saas_active_slug')
-    if (cached) return cached
-  } catch {}
   return undefined
 }
 
-function buildHeaders(extra?: Record<string, string>): Record<string, string> {
+
+
+function buildHeaders(extra?: Record<string, string>, path?: string): Record<string, string> {
   const h: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(extra || {}),
   }
-  // Attach the explicit storeId if available (highest priority on server)
-  const sid = getActiveStoreId()
-  if (sid) h['x-store-id'] = sid
-  // Attach the slug if available (fallback for vercel.app / localhost
-  // where subdomains aren't usable — server resolves slug → storeId)
-  const slug = getActiveStoreSlug()
-  if (slug) h['x-store-slug'] = slug
-  // ─── Auth token ──────────────────────────────────────────────────
-  // Send the token in BOTH headers so the server (which accepts either)
-  // can read it regardless of which `extractToken()` branch runs first.
-  // The canonical header is `Authorization: Bearer <token>`; we also
-  // send `x-merchant-token` for backwards-compat with older code paths.
+
+  // منع إرسال ترويسات متجر محدد أثناء طلب منتجات الماركت بليس العامة
+  const isMarketplace = path && path.startsWith('/api/marketplace')
+
+  if (!isMarketplace) {
+    const sid = getActiveStoreId()
+    if (sid) h['x-store-id'] = sid
+    const slug = getActiveStoreSlug()
+    if (slug) h['x-store-slug'] = slug
+  }
+
   const token = getToken()
   if (token) {
     h['Authorization'] = `Bearer ${token}`
     h['x-merchant-token'] = token
   }
-  // ─── CSRF token ────────────────────────────────────────────────────
-  // DISABLED: in-memory CSRF tokens don't work on Vercel serverless
-  // (each request may hit a different instance). Security is maintained
-  // via SameSite cookies + rate limiting + bcrypt + auth tokens.
-  // The CSRF endpoint still exists (GET /api/auth/csrf) for backwards
-  // compat, but validation is disabled server-side.
   return h
 }
+
+
+
+
+
+
+
+
+
 
 // ─── CSRF token cache ───────────────────────────────────────────────────────
 // Fetched once from /api/auth/csrf, cached in memory, refreshed after 50 min.
@@ -210,11 +185,17 @@ async function apiFetch<T>(path: string, init?: RequestInit, timeoutMs = 12000):
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
-    const res = await fetch(path, {
+
+    
+       const res = await fetch(path, {
       ...init,
       signal: ctrl.signal,
-      headers: buildHeaders(init?.headers as Record<string, string> | undefined),
+      headers: buildHeaders(init?.headers as Record<string, string> | undefined, path),
     })
+
+
+
+    
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       const err: any = new Error(body.error || `HTTP_${res.status}`)
