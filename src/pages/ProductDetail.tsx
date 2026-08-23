@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { Star, ShieldCheck, Truck, Gift, Minus, Plus, Check, Phone, MapPin, AlertTriangle, Heart, Share2, Droplet, Ruler, Layers, ChevronLeft, ChevronRight, Expand, X, Copy, CheckCheck, ShoppingBag } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { getProductById, syncProducts } from '../services/api/products'
+
+import { getProductById, syncProducts, subscribeProducts } from '../services/api/products'
+
 import { getWilayas } from '../services/api/wilayas'
 import { getDomainById, getDomains } from '../services/api/domains'
 import { createOrder } from '../services/api/orders'
@@ -81,29 +83,47 @@ export default function ProductDetail(){
   const [product, setProduct] = useState<Product | undefined>(() => getProductById(id || ''))
   const [loading, setLoading] = useState(!product)
 
-  useEffect(() => {
+    useEffect(() => {
     if (!id) return
-    // Try sync first (instant if cache is warm from navigating within the app)
     const found = getProductById(id)
     if (found) {
       setProduct(found)
       setLoading(false)
-      return
+    } else {
+      setLoading(true)
     }
-    // Cache miss — likely a fresh page load. Fetch from API.
-    setLoading(true)
+
+    // جلب بيانات المتجر في الخلفية مع الاشتراك في التحديث الفوري
     let cancelled = false
     void syncProducts().then(() => {
       if (cancelled) return
       const fresh = getProductById(id)
-      setProduct(fresh)
-      setLoading(false)
+      if (fresh) {
+        setProduct(fresh)
+        setLoading(false)
+      }
     }).catch(() => {
       if (cancelled) return
       setLoading(false)
     })
-    return () => { cancelled = true }
+
+    const unsub = subscribeProducts(() => {
+      const fresh = getProductById(id)
+      if (fresh) {
+        setProduct(fresh)
+        setLoading(false)
+      }
+    })
+
+    return () => {
+      cancelled = true
+      unsub()
+    }
   }, [id])
+
+
+
+  
 
   // ─── Track the product view (for merchant analytics) ────────────────
   // Fire-and-forget. Tracks once per product ID load (uses a session
@@ -452,15 +472,36 @@ export default function ProductDetail(){
     setShowOrderModal(false)
   }
 
-  // Loading state — show spinner while fetching product from API.
-  // This happens on direct URL access (e.g. shared link) when the
-  // in-memory cache hasn't been populated yet.
-  if (loading) return (
-    <div className="max-w-[1280px] mx-auto px-4 py-20 text-center">
-      <div className="w-12 h-12 border-4 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin mx-auto mb-4" />
-      <p className="text-sm text-[#9A8A6B]">جاري تحميل المنتج…</p>
+    // Instant Skeleton Shell — يظهر في 0ms لزوار الإعلانات الخارجية
+  if (loading && !product) return (
+    <div className="bg-[#FFFCF8] min-h-screen py-6 px-4 md:px-6">
+      <div className="max-w-[1280px] mx-auto grid lg:grid-cols-[1.15fr_0.85fr] gap-6 animate-pulse">
+        {/* Gallery skeleton */}
+        <div className="space-y-3">
+          <div className="aspect-[4/5] bg-[#EDE6D8]/60 rounded-2xl w-full" />
+          <div className="flex gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="w-16 h-16 bg-[#EDE6D8]/60 rounded-xl" />
+            ))}
+          </div>
+        </div>
+        {/* Info + Order Form skeleton */}
+        <div className="space-y-4">
+          <div className="bg-white rounded-[24px] border border-[#EDE6D8] p-6 space-y-4">
+            <div className="h-4 bg-[#EDE6D8] rounded w-1/4" />
+            <div className="h-8 bg-[#EDE6D8] rounded w-3/4" />
+            <div className="h-6 bg-[#EDE6D8] rounded w-1/3" />
+            <div className="h-20 bg-[#EDE6D8]/40 rounded-xl" />
+          </div>
+          <div className="bg-[#1A1A1E] rounded-[24px] p-6 space-y-3">
+            <div className="h-6 bg-white/10 rounded w-1/2 mx-auto" />
+            <div className="h-12 bg-[var(--color-primary)] rounded-2xl w-full" />
+          </div>
+        </div>
+      </div>
     </div>
   )
+
 
   if(!product) return <div className="max-w-[1280px] mx-auto px-4 py-12 text-center">المنتج غير موجود. <Link to="/shop" className="text-[#C9A96A] underline">العودة للمتجر</Link></div>
 
@@ -586,7 +627,7 @@ export default function ProductDetail(){
               <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#FFF8EE] group select-none" onMouseEnter={()=>setSliderHovered(true)} onMouseLeave={()=>setSliderHovered(false)}>
                 {/* main slider */}
                 <AnimatePresence initial={false} custom={direction} mode="wait">
-                  <motion.img
+                <motion.img
                     key={selectedImg + images[selectedImg]}
                     src={images[selectedImg]}
                     alt={product.nameAr}
@@ -606,7 +647,12 @@ export default function ProductDetail(){
                     onClick={()=> setShowLightbox(true)}
                     className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
                     draggable={false}
+                    // @ts-ignore
+                    fetchpriority="high"
                   />
+
+
+                  
                 </AnimatePresence>
 
                 {/* nav arrows — semi-transparent, always visible on mobile, hover on desktop */}
