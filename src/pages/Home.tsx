@@ -33,12 +33,22 @@ export default function Home(){
   const [products, setProducts] = useState(()=> getProducts())
   const [store, setStore] = useState(()=> getSettings())
   const [domain, setDomain] = useState(()=> getActiveDomain())
-  const featuredAll = products.filter(p=>p.isFeatured)
-  const domainCats = new Set(domain.categories.map(c=>c.key))
-  const featured = (()=> {
-    const match = featuredAll.filter(p=> domainCats.has(p.category))
-    return match.length ? match : featuredAll
+
+
+  
+    const featuredAll = products.filter(p => p.isFeatured)
+  const domainCats = new Set(domain.categories.map(c => c.key))
+  const featured = (() => {
+    const match = featuredAll.filter(p => domainCats.has(p.category))
+    if (match.length > 0) return match
+    if (featuredAll.length > 0) return featuredAll
+    // إذا لم يحدد التاجر منتجات مميزة، اعرض أحدث 8 منتجات حتى لا تظهر الصفحة فارغة
+    return products.slice(0, 8)
   })()
+
+
+
+  
   useEffect(()=>{
     window.scrollTo({top:0, left:0, behavior:'auto'})
 
@@ -62,9 +72,19 @@ export default function Home(){
       }
     }).catch(() => {})
 
-    void syncProducts().then(() => {
-      setProducts([...getProducts()])
+
+    
+        void syncProducts().then(fresh => {
+      if (fresh && fresh.length > 0) {
+        setProducts(fresh)
+      } else {
+        setProducts([...getProducts()])
+      }
     }).catch(() => {})
+
+
+
+    
 
     // ─── Track the storefront visit (for merchant analytics) ──────────
     const s = getSettings()
