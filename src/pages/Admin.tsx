@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
-import { getOrders, updateOrderStatus, deleteOrder, exportOrdersCsv, syncOrders } from '../services/api/orders'
-import { getWilayas, updateWilayaRate, addWilaya, syncWilayas } from '../services/api/wilayas'
+import { getOrders, updateOrderStatus, deleteOrder, exportOrdersCsv } from '../services/api/orders'
+import { getWilayas, updateWilayaRate, addWilaya } from '../services/api/wilayas'
 import { getProducts, addProduct, updateProduct, deleteProduct, duplicateProduct, toggleProductFlag, syncProducts } from '../services/api/products'
-import { getSettings, saveSettings, syncSettings } from '../services/api/settings'
+import { getSettings, saveSettings } from '../services/api/settings'
 import { updateStoreApi, authUpdateProfile, authChangePassword, listMyStores, toggleMarketplacePublishApi } from '../services/api/client'
 import {
   fetchAnalyticsOverview, fetchAnalyticsTimeline, fetchAnalyticsSources, fetchAnalyticsTopProducts,
@@ -148,30 +148,9 @@ export default function Admin() {
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [isSavingPw, setIsSavingPw] = useState(false)
 
-    useEffect(() => {
-    const syncAllData = async () => {
-      try {
-        await Promise.allSettled([
-          typeof syncOrders === 'function' ? syncOrders() : Promise.resolve(),
-          syncProducts(),
-          syncWilayas(),
-          syncSettings(),
-        ])
-        setOrders(getOrders())
-        setProducts(getProducts())
-        setWilayas(getWilayas())
-        setSettings(getSettings())
-        setStoreForm(getSettings())
-        setDomains(getDomains())
-        setActiveDomainState(getActiveDomain())
-      } catch {}
-    }
-
-    void syncAllData()
-    const interval = setInterval(syncAllData, 30000)
-    return () => clearInterval(interval)
+  useEffect(() => {
+    setOrders(getOrders()); setWilayas(getWilayas()); setProducts(getProducts()); setSettings(getSettings()); setStoreForm(getSettings()); setDomains(getDomains()); setActiveDomainState(getActiveDomain())
   }, [tab])
-
 
   // ─── Mark this session as "admin" so visit tracking is skipped ──────
   // The storefront's trackVisit() checks this flag and skips logging
@@ -199,16 +178,6 @@ export default function Admin() {
   }, [user])
 
   useEffect(()=>{ if(!showProdModal) setProdForm(makeEmptyProduct(activeDomain)) }, [activeDomain.id])
-    // تحديث المخزون الأساسي تلقائياً عند تغيير كميات المتغيرات
-  useEffect(() => {
-    if (prodForm.variants && prodForm.variants.length > 0) {
-      const sum = prodForm.variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0)
-      if (sum > 0 && prodForm.stock !== sum) {
-        setProdForm(f => ({ ...f, stock: sum }))
-      }
-    }
-  }, [prodForm.variants])
-
 
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t) } }, [toast])
   const showToast = (msg: string) => setToast(msg)
@@ -3079,7 +3048,7 @@ function AnalyticsDashboard({ storeId }: { storeId: string }) {
   const todayTimeline = timeline.find(t => t.date === todayDate)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-hidden">
       {/* Header */}
       <div className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] rounded-2xl p-5 text-white relative overflow-hidden">
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#C9A96A]/15 rounded-full blur-2xl"/>
@@ -3161,15 +3130,15 @@ function AnalyticsDashboard({ storeId }: { storeId: string }) {
           ) : (
             <div className="space-y-2.5">
               {sources.slice(0, 8).map((s, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-20 text-xs font-bold text-[#1A1A1E] truncate flex items-center gap-1">
+                <div key={i} className="flex items-center gap-2 min-w-0">
+                  <div className="w-16 sm:w-20 text-xs font-bold text-[#1A1A1E] flex items-center gap-1 shrink-0 overflow-hidden">
                     <SourceIcon source={s.source} />
                     <span className="truncate">{getSourceLabel(s.source)}</span>
                   </div>
-                  <div className="flex-1 h-6 bg-[#F3F0E8] rounded-full overflow-hidden relative">
+                  <div className="flex-1 min-w-0 h-6 bg-[#F3F0E8] rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-l from-[#C9A96A] to-[#D4AF37] rounded-full transition-all" style={{ width: `${Math.max(s.percentage, 2)}%` }} />
                   </div>
-                  <div className="w-16 text-left">
+                  <div className="w-12 sm:w-16 text-left shrink-0">
                     <div className="text-xs font-extrabold text-[#1A1A1E]">{s.visits}</div>
                     <div className="text-[9px] text-[#9A8A6B]">{s.percentage}%</div>
                   </div>
@@ -3190,12 +3159,12 @@ function AnalyticsDashboard({ storeId }: { storeId: string }) {
           ) : (
             <div className="space-y-2">
               {topProducts.slice(0, 6).map((p, i) => (
-                <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#FFFCF8] transition">
+                <div key={i} className="flex items-center gap-2 p-2 rounded-xl hover:bg-[#FFFCF8] transition min-w-0">
                   <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#C9A96A] to-[#B8945A] text-white text-xs font-extrabold grid place-items-center shrink-0">{i + 1}</div>
-                  <div className="w-10 h-10 rounded-lg bg-[#F3F0E8] overflow-hidden shrink-0 border border-[#EDE6D8]">
-                    {p.image ? <img src={p.image} alt={p.productNameAr} className="w-full h-full object-cover" /> : <Package size={14} className="text-[#9A8A6B] m-auto mt-3" />}
+                  <div className="w-9 h-9 rounded-lg bg-[#F3F0E8] overflow-hidden shrink-0 border border-[#EDE6D8]">
+                    {p.image ? <img src={p.image} alt={p.productNameAr} className="w-full h-full object-cover" /> : <Package size={14} className="text-[#9A8A6B] m-auto mt-2.5" />}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <div className="text-xs font-bold text-[#1A1A1E] truncate">{p.productNameAr}</div>
                     <div className="text-[10px] text-[#9A8A6B]">{p.price ? formatDZD(p.price) : '—'}</div>
                   </div>
@@ -3316,4 +3285,3 @@ function getSourceLabel(source: string): string {
   if (s === 'direct') return 'مباشر'
   return source.length > 12 ? source.slice(0, 10) + '…' : source
 }
-

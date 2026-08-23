@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { Star, ShieldCheck, Truck, Gift, Minus, Plus, Check, Phone, MapPin, AlertTriangle, Heart, Share2, Droplet, Ruler, Layers, ChevronLeft, ChevronRight, Expand, X, Copy, CheckCheck, ShoppingBag } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getProductById, syncProducts } from '../services/api/products'
-import { getWilayas, syncWilayas } from '../services/api/wilayas'
+import { getWilayas } from '../services/api/wilayas'
 import { getDomainById, getDomains } from '../services/api/domains'
 import { createOrder } from '../services/api/orders'
 import { trackVisit } from '../services/api/client'
@@ -11,35 +11,48 @@ import { calcItemTotal, formatDZD, validateDZPhone } from '../lib/utils'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
 import { Tracking } from '../services/tracking'
-import type { Product, Variant, WilayaRate } from '../services/api/types'
+import type { Product, Variant } from '../services/api/types'
 
 // ─── Helper: convert video URLs to embed URLs ──────────────────────────────
+// Supports: YouTube (including m.youtube.com, Shorts), TikTok, Vimeo, Instagram
 function getEmbedUrl(url: string): string {
   if (!url) return ''
   const lower = url.toLowerCase()
 
+  // YouTube: youtube.com/watch?v=ID, youtu.be/ID, m.youtube.com, /embed/, /shorts/
   const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/|m\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/)
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`
 
+  // TikTok: tiktok.com/@user/video/ID
   const tiktokMatch = url.match(/tiktok\.com\/.*\/video\/(\d+)/)
   if (tiktokMatch) return `https://www.tiktok.com/embed/v2/${tiktokMatch[1]}`
 
+  // Vimeo: vimeo.com/ID
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/)
   if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`
 
+  // Instagram Reels: instagram.com/reel/ID/
   const igMatch = url.match(/instagram\.com\/(?:reel|reels|p)\/([a-zA-Z0-9_-]+)/)
   if (igMatch) return `https://www.instagram.com/p/${igMatch[1]}/embed`
 
+  // Already an embed URL
   if (lower.includes('/embed/')) return url
+
+  // Fallback: return as-is
   return url
 }
 
 // ─── Helper: detect if video is vertical (9:16) ─────────────────────────────
+// YouTube Shorts, TikTok, Instagram Reels → vertical 9:16
+// Regular YouTube, Vimeo → horizontal 16:9
 function isVerticalVideo(url: string): boolean {
   if (!url) return false
   const lower = url.toLowerCase()
+  // YouTube Shorts
   if (lower.includes('/shorts/')) return true
+  // TikTok
   if (lower.includes('tiktok.com')) return true
+  // Instagram Reels
   if (lower.includes('instagram.com/reel') || lower.includes('instagram.com/reels')) return true
   return false
 }
@@ -52,17 +65,32 @@ export default function ProductDetail(){
   const { toggle: toggleWish, isWished: checkWished } = useWishlist()
 
   // ─── Product loading — ASYNC with loading state ───────────────────────
+  // CRITICAL FIX: Previously this used `useMemo(() => getProductById(id), [id])`
+  // which is SYNCHRONOUS. On a fresh page load (e.g. user opens a product
+  // URL directly), the in-memory cache contains only seedProducts (default
+  // demo products), NOT the actual store's products from the API. The API
+  // fetch happens in the background via syncProducts() but by the time
+  // it completes, this component already rendered "product not found"
+  // and won't re-render (useMemo with [id] dep doesn't re-run when cache
+  // updates).
+  //
+  // Fix: use useState + useEffect. Try sync first (instant if cache is
+  // warm). If not found, trigger syncProducts() and re-check. Show a
+  // loading spinner while fetching so the user knows something is
+  // happening (not a dead "not found" page).
   const [product, setProduct] = useState<Product | undefined>(() => getProductById(id || ''))
   const [loading, setLoading] = useState(!product)
 
   useEffect(() => {
     if (!id) return
+    // Try sync first (instant if cache is warm from navigating within the app)
     const found = getProductById(id)
     if (found) {
       setProduct(found)
       setLoading(false)
       return
     }
+    // Cache miss — likely a fresh page load. Fetch from API.
     setLoading(true)
     let cancelled = false
     void syncProducts().then(() => {
@@ -77,15 +105,9 @@ export default function ProductDetail(){
     return () => { cancelled = true }
   }, [id])
 
-  // ─── Dynamic Wilayas Sync ──────────────────────────────────────────
-  const [wilayas, setWilayas] = useState<WilayaRate[]>(() => getWilayas())
-  useEffect(() => {
-    void syncWilayas().then(() => {
-      setWilayas(getWilayas())
-    }).catch(() => {})
-  }, [])
-
   // ─── Track the product view (for merchant analytics) ────────────────
+  // Fire-and-forget. Tracks once per product ID load (uses a session
+  // ref so navigating back to the same product doesn't double-count).
   const trackedRef = useRef<string | null>(null)
   useEffect(() => {
     if (!product?._id || trackedRef.current === product._id) return
@@ -97,7 +119,7 @@ export default function ProductDetail(){
       Tracking.viewContent(product._id, product.price || 0)
     }
   }, [product?._id, product?.storeId, product?.price])
-
+  const wilayas = useMemo(()=> getWilayas(), [])
   const [qty, setQty] = useState(1)
   const [selectedImg, setSelectedImg] = useState(0)
   const [direction, setDirection] = useState(0)
@@ -137,13 +159,18 @@ export default function ProductDetail(){
         if(found.size) setSelSize(found.size)
       }
     }
-  }, [product?._id, searchParams])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?._id])
 
   // ─── SEO: dynamic title + JSON-LD structured data ────────────────────
+  // Updates <title> + injects a <script type="application/ld+json"> with
+  // schema.org Product markup so Google shows rich results (price,
+  // availability, rating) directly in search results.
   useEffect(() => {
     if (!product) return
+    // Title
     document.title = `${product.nameAr} — ${formatDZD(product.price)} | ${product.name}`
-    
+    // Meta description
     let metaDesc = document.querySelector('meta[name="description"]')
     if (!metaDesc) {
       metaDesc = document.createElement('meta')
@@ -151,7 +178,7 @@ export default function ProductDetail(){
       document.head.appendChild(metaDesc)
     }
     metaDesc.setAttribute('content', (product.descriptionAr || '').slice(0, 155))
-
+    // Open Graph
     let ogTitle = document.querySelector('meta[property="og:title"]')
     if (ogTitle) ogTitle.setAttribute('content', product.nameAr)
     let ogDesc = document.querySelector('meta[property="og:description"]')
@@ -163,7 +190,7 @@ export default function ProductDetail(){
       document.head.appendChild(ogImage)
     }
     ogImage.setAttribute('content', product.images?.[0] || '')
-
+    // JSON-LD structured data — schema.org/Product
     const scriptId = 'product-jsonld'
     document.getElementById(scriptId)?.remove()
     const script = document.createElement('script')
@@ -182,7 +209,9 @@ export default function ProductDetail(){
         'url': window.location.href,
         'priceCurrency': 'DZD',
         'price': product.price,
-        'availability': product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        'availability': product.stock > 0
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock',
         'itemCondition': 'https://schema.org/NewCondition',
       },
       ...(product.rating ? {
@@ -195,18 +224,22 @@ export default function ProductDetail(){
     })
     document.head.appendChild(script)
     return () => {
+      // Clean up on unmount
       document.getElementById(scriptId)?.remove()
     }
-  }, [product])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?._id])
 
+  // handle hash #order scroll — only when the product id actually changes
   useEffect(()=>{
     if(window.location.hash==='#order' && product){
+      // Use a longer delay to ensure images/layout settle before scrolling.
       const t = setTimeout(()=> {
         orderRef.current?.scrollIntoView({behavior:'smooth', block:'start'})
       }, 320)
       return ()=> clearTimeout(t)
     }
-  }, [product])
+  }, [product?._id])
 
   const hasVariants = !!(product?.variants && product.variants.length)
   const colors = useMemo(()=>{
@@ -218,7 +251,6 @@ export default function ProductDetail(){
     })
     return Array.from(map.values())
   }, [product, hasVariants])
-
   const sizes = useMemo(()=>{
     if(!hasVariants) return []
     const s=new Set<string>()
@@ -254,6 +286,7 @@ export default function ProductDetail(){
     return undefined
   }, [hasVariants, selColor, selSize, product])
 
+  // keep url in sync with variant (without triggering navigation scroll)
   useEffect(()=>{
     if(!hasVariants || !selectedVariant) return
     const current = searchParams.get('variant')
@@ -262,7 +295,8 @@ export default function ProductDetail(){
       next.set('variant', selectedVariant.id)
       setSearchParams(next, { replace: true })
     }
-  }, [selectedVariant?.id, hasVariants, searchParams, setSearchParams])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVariant?.id])
 
   const needColor = hasVariants && colors.length>0
   const needSize = hasVariants && sizes.length>0
@@ -273,7 +307,8 @@ export default function ProductDetail(){
       if(colors.length===1 && !selColor) setSelColor(colors[0].colorAr||colors[0].color)
       if(sizes.length===1 && !selSize) setSelSize(sizes[0])
     }
-  }, [product?._id, hasVariants, colors, sizes, selColor, selSize])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?._id])
 
   const unitPrice = useMemo(()=> (product?.price || 0) + (selectedVariant?.priceAdjustment||0), [product, selectedVariant])
   const effectiveStock = selectedVariant ? selectedVariant.stock : (product?.stock||0)
@@ -283,20 +318,30 @@ export default function ProductDetail(){
     if(!product) return []
     const base = product.images
     if(selectedVariant?.image){
+      // put variant image first if exists
       return [selectedVariant.image, ...base.filter(b=> b!==selectedVariant.image)]
     }
     return base
   }, [product, selectedVariant])
 
+  // Scroll to top ONLY when navigating to a different product (id change).
+  // Previously depended on [product, unitPrice] where `product` was a fresh
+  // reference on every render — meaning every keystroke in the form triggered
+  // a scroll to top. Now using product?._id (a stable string) so this only
+  // fires on actual navigation. Using behavior:'auto' for instant snap.
   useEffect(()=>{
     if(product){
       Tracking.viewContent(product._id, unitPrice)
       window.scrollTo({top:0, left:0, behavior:'auto'})
     }
-  },[product?._id, unitPrice])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[product?._id])
 
+  // reset selectedImg when variant changes (to show variant image)
   useEffect(()=>{ setSelectedImg(0); setDirection(0) }, [selectedVariant?.id, product?._id])
 
+  // Auto-advance slider every 4.5 seconds.
+  // Paused when: lightbox open, share modal open, user hovering, or only 1 image.
   const [sliderHovered, setSliderHovered] = useState(false)
   useEffect(()=>{
     if(showLightbox || showShare || sliderHovered || images.length<=1) return
@@ -338,6 +383,9 @@ export default function ProductDetail(){
     if(e){ e.preventDefault(); e.stopPropagation() }
     if(!product) return
     const base = window.location.origin
+    // Preserve the ?store= param so the shared link stays scoped to the
+    // current tenant (important on vercel.app / localhost). If a variant
+    // is selected, include both `?variant=` and `&store=`.
     const storeSlug = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('store') : null
     let queryParams = ''
     if (selectedVariant && storeSlug) queryParams = `?variant=${selectedVariant.id}&store=${encodeURIComponent(storeSlug)}`
@@ -347,6 +395,7 @@ export default function ProductDetail(){
     setShareUrl(url)
     try{
       if(navigator.share && window.innerWidth < 768){
+        // try native share without modal
         await navigator.share({ title: product.nameAr, text: product.descriptionAr.slice(0,90), url })
         try{ await navigator.clipboard.writeText(url)}catch{}
         showToast('تمت المشاركة ✓')
@@ -357,6 +406,9 @@ export default function ProductDetail(){
     try{ await navigator.clipboard.writeText(url); setCopied(true); setTimeout(()=> setCopied(false), 2000)}catch{}
   }
 
+  // Lock body scroll when a modal/lightbox is open so the background doesn't
+  // jump around on mobile when the soft keyboard appears or when the user
+  // accidentally drags the backdrop.
   useEffect(()=>{
     const lock = showLightbox || showShare || showOrderModal
     if(lock){
@@ -370,8 +422,11 @@ export default function ProductDetail(){
         document.body.style.paddingRight = prevPad
       }
     }
-  }, [showLightbox, showShare, showOrderModal])
+  }, [showLightbox, showShare])
 
+  // Hide the mobile sticky bottom CTA bar when the user is focused inside
+  // the order form — this prevents the keyboard from overlapping the bar and
+  // stops the browser from trying to scroll the input above the fixed bar.
   const [formFocused, setFormFocused] = useState(false)
   const onFormFocus = ()=> setFormFocused(true)
   const onFormBlur = ()=> setFormFocused(false)
@@ -382,8 +437,10 @@ export default function ProductDetail(){
 
   const openOrderModal = (e?:React.MouseEvent)=>{
     if(e){ e.preventDefault(); e.stopPropagation() }
+    // If variants exist and user hasn't selected, show a toast instead
     if(variantMissing){
       showToast('اختر اللون والمقاس أولاً')
+      // scroll to variant selector
       const el = document.getElementById('variant-selector')
       el?.scrollIntoView({behavior:'smooth', block:'center'})
       return
@@ -395,6 +452,9 @@ export default function ProductDetail(){
     setShowOrderModal(false)
   }
 
+  // Loading state — show spinner while fetching product from API.
+  // This happens on direct URL access (e.g. shared link) when the
+  // in-memory cache hasn't been populated yet.
   if (loading) return (
     <div className="max-w-[1280px] mx-auto px-4 py-20 text-center">
       <div className="w-12 h-12 border-4 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin mx-auto mb-4" />
@@ -409,11 +469,15 @@ export default function ProductDetail(){
     if(!form.name.trim() || form.name.trim().length<3) e.name='الاسم مطلوب (3 أحرف على الأقل)'
     if(!validateDZPhone(form.phone)) e.phone='رقم هاتف غير صحيح. مثال: 0550123456'
     if(!form.wilaya) e.wilaya='اختر الولاية'
+    // commune + address are OPTIONAL — the merchant will confirm them by phone.
+    // This is the high-converting COD strategy: minimal friction = more orders.
+    // The merchant calls the customer to confirm delivery details anyway.
     if(variantMissing) e.variant='اختر اللون والمقاس'
     if(effectiveStock<=0) e.stock='المنتج غير متوفر بهذا المتغير'
     if(qty>effectiveStock) e.qty=`الكمية المطلوبة أكبر من المخزون (${effectiveStock})`
     setErrors(e)
     if(e.variant || e.stock || e.qty){
+      // scroll to variant selector
       const el = document.getElementById('variant-selector')
       el?.scrollIntoView({behavior:'smooth', block:'center'})
     }
@@ -429,37 +493,26 @@ export default function ProductDetail(){
 
   const handleDirectOrder = async (e:any)=>{
     e.preventDefault()
-    if(submitting || !validate()) return
+    if(!validate()) return
     setSubmitting(true)
     try{
       Tracking.initiateCheckout(grandTotal, qty)
       const order = await createOrder({
-        storeId: product.storeId, // ضمان تمرير المعرف المباشر للمتجر
-        customerName: form.name.trim(),
-        phone: form.phone.trim(),
-        phone2: form.phone2.trim(),
+        customerName: form.name,
+        phone: form.phone,
+        phone2: form.phone2,
         wilaya: wilaya!.code,
         wilayaNameAr: wilaya!.nameAr,
-        commune: form.commune.trim(),
-        address: form.address.trim(),
+        commune: form.commune,
+        address: form.address,
         deliveryType,
-        items: [{
-          productId: product._id,
-          nameAr: product.nameAr + (variantLabel ? ` — ${variantLabel}`:''),
-          image: selectedVariant?.image || product.images[0],
-          qty,
-          unitPrice,
-          total: productTotal,
-          variantLabel,
-          variantId: selectedVariant?.id
-        }],
+        items: [{ productId: product._id, nameAr: product.nameAr + (variantLabel ? ` — ${variantLabel}`:''), image: selectedVariant?.image || product.images[0], qty, unitPrice, total: productTotal, variantLabel, variantId: selectedVariant?.id }],
         subtotal: unitPrice*qty,
         discount: discountAmount,
         shippingCost: shipping,
         total: grandTotal,
       } as any)
       Tracking.purchase(order.orderNumber, grandTotal, [{id: product._id, qty, variantLabel}])
-      setShowOrderModal(false)
       nav(`/thank-you/${order.orderNumber}`)
     }catch(err:any){
       if(err.message==='DUPLICATE_ORDER'){ setDuplicateWarn(true); setTimeout(()=>setDuplicateWarn(false),4000)}
@@ -474,6 +527,7 @@ export default function ProductDetail(){
   const goTo = (idx:number)=>{
     setDirection(idx > selectedImg ? 1 : -1)
     setSelectedImg(idx)
+    // keep thumb in view
     const el = thumbsRef.current?.children[idx] as HTMLElement | undefined
     el?.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'})
   }
@@ -527,70 +581,74 @@ export default function ProductDetail(){
         </div>
 
         <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-6 mt-4">
-          {/* gallery */}
+          {/* gallery — full-width, no white frame wrapper */}
           <div className="min-w-0">
-            <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#FFF8EE] group select-none" onMouseEnter={()=>setSliderHovered(true)} onMouseLeave={()=>setSliderHovered(false)}>
-              <AnimatePresence initial={false} custom={direction} mode="wait">
-                <motion.img
-                  key={selectedImg + images[selectedImg]}
-                  src={images[selectedImg]}
-                  alt={product.nameAr}
-                  custom={direction}
-                  initial={{ opacity: 0, x: direction * 40, scale: 0.98 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -direction * 40, scale: 0.98 }}
-                  transition={{ duration: 0.42, ease: [0.25, 0.1, 0.25, 1] }}
-                  drag="x"
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={0.18}
-                  onDragEnd={(_, info) => {
-                    const offset = info.offset.x
-                    if(offset < -80) paginate(1)
-                    else if(offset > 80) paginate(-1)
-                  }}
-                  onClick={()=> setShowLightbox(true)}
-                  className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
-                  draggable={false}
-                />
-              </AnimatePresence>
+              <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#FFF8EE] group select-none" onMouseEnter={()=>setSliderHovered(true)} onMouseLeave={()=>setSliderHovered(false)}>
+                {/* main slider */}
+                <AnimatePresence initial={false} custom={direction} mode="wait">
+                  <motion.img
+                    key={selectedImg + images[selectedImg]}
+                    src={images[selectedImg]}
+                    alt={product.nameAr}
+                    custom={direction}
+                    initial={{ opacity: 0, x: direction * 40, scale: 0.98 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -direction * 40, scale: 0.98 }}
+                    transition={{ duration: 0.42, ease: [0.25, 0.1, 0.25, 1] }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.18}
+                    onDragEnd={(_, info) => {
+                      const offset = info.offset.x
+                      if(offset < -80) paginate(1)
+                      else if(offset > 80) paginate(-1)
+                    }}
+                    onClick={()=> setShowLightbox(true)}
+                    className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
+                    draggable={false}
+                  />
+                </AnimatePresence>
 
-              <button type="button" onClick={()=> paginate(-1)} className="absolute top-1/2 -translate-y-1/2 right-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur text-white grid place-items-center hover:bg-black/50 transition md:opacity-0 md:group-hover:opacity-100 z-10">
-                <ChevronRight size={14}/>
-              </button>
-              <button type="button" onClick={()=> paginate(1)} className="absolute top-1/2 -translate-y-1/2 left-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur text-white grid place-items-center hover:bg-black/50 transition md:opacity-0 md:group-hover:opacity-100 z-10">
-                <ChevronLeft size={14}/>
-              </button>
+                {/* nav arrows — semi-transparent, always visible on mobile, hover on desktop */}
+                <button type="button" onClick={()=> paginate(-1)} className="absolute top-1/2 -translate-y-1/2 right-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur text-white grid place-items-center hover:bg-black/50 transition md:opacity-0 md:group-hover:opacity-100 z-10">
+                  <ChevronRight size={14}/>
+                </button>
+                <button type="button" onClick={()=> paginate(1)} className="absolute top-1/2 -translate-y-1/2 left-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur text-white grid place-items-center hover:bg-black/50 transition md:opacity-0 md:group-hover:opacity-100 z-10">
+                  <ChevronLeft size={14}/>
+                </button>
 
-              <button type="button" onClick={()=> setShowLightbox(true)} className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/30 backdrop-blur text-white grid place-items-center hover:bg-black/50 transition md:opacity-0 md:group-hover:opacity-100 z-10" aria-label="تكبير">
-                <Expand size={12}/>
-              </button>
+                {/* small transparent zoom button — top-left, always visible but subtle */}
+                <button type="button" onClick={()=> setShowLightbox(true)} className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/30 backdrop-blur text-white grid place-items-center hover:bg-black/50 transition md:opacity-0 md:group-hover:opacity-100 z-10" aria-label="تكبير">
+                  <Expand size={12}/>
+                </button>
 
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/30 backdrop-blur text-white px-2.5 py-1 rounded-full pointer-events-none">
-                {images.map((_, i)=> <span key={i} className={`h-1.5 rounded-full transition-all ${i===selectedImg ? 'w-4 bg-white' : 'w-1.5 bg-white/40'}`}></span>)}
+                {/* auto-advance progress dots — bottom center, minimal */}
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/30 backdrop-blur text-white px-2.5 py-1 rounded-full pointer-events-none">
+                  {images.map((_, i)=> <span key={i} className={`h-1.5 rounded-full transition-all ${i===selectedImg ? 'w-4 bg-white' : 'w-1.5 bg-white/40'}`}></span>)}
+                </div>
               </div>
-            </div>
 
-            {/* thumbnails */}
-            <div className="relative mt-2">
-              <div ref={thumbsRef} className="flex gap-2 overflow-x-auto thumb-scroll scroll-smooth snap-x snap-mandatory pb-1" style={{scrollbarWidth:'thin'}}>
-                {images.map((img,i)=> (
-                  <button
-                    key={i+img}
-                    type="button"
-                    onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); goTo(i)}}
-                    className={`shrink-0 w-[64px] h-[64px] md:w-20 md:h-20 rounded-xl overflow-hidden border-2 snap-start relative transition-all duration-300 ${selectedImg===i ? (isRoseProduct ? 'border-[#A02A5B] shadow-[0_4px_12px_rgba(160,42,91,0.2)]' : 'shadow') : 'border-transparent hover:border-[#EDE6D8] hover:scale-105'}`}
-                    style={selectedImg===i && !isRoseProduct ? { borderColor: 'var(--color-primary)' } : undefined}
-                  >
-                    <img src={img} alt={`صورة ${i+1}`} className="w-full h-full object-cover" draggable={false} loading="lazy"/>
-                    {selectedImg===i && <span className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-xl pointer-events-none"></span>}
-                  </button>
-                ))}
+              {/* thumbnails */}
+              <div className="relative mt-2">
+                <div ref={thumbsRef} className="flex gap-2 overflow-x-auto thumb-scroll scroll-smooth snap-x snap-mandatory pb-1" style={{scrollbarWidth:'thin'}}>
+                  {images.map((img,i)=> (
+                    <button
+                      key={i+img}
+                      type="button"
+                      onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); goTo(i)}}
+                      className={`shrink-0 w-[64px] h-[64px] md:w-20 md:h-20 rounded-xl overflow-hidden border-2 snap-start relative transition-all duration-300 ${selectedImg===i ? (isRoseProduct ? 'border-[#A02A5B] shadow-[0_4px_12px_rgba(160,42,91,0.2)]' : 'shadow') : 'border-transparent hover:border-[#EDE6D8] hover:scale-105'}`}
+                      style={selectedImg===i && !isRoseProduct ? { borderColor: 'var(--color-primary)' } : undefined}
+                    >
+                      <img src={img} alt={`صورة ${i+1}`} className="w-full h-full object-cover" draggable={false} loading="lazy"/>
+                      {selectedImg===i && <span className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-xl pointer-events-none"></span>}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" onClick={()=> thumbsRef.current?.scrollBy({left: -120, behavior:'smooth'})} className="hidden md:grid absolute top-1/2 -translate-y-1/2 -right-2 w-8 h-8 rounded-full bg-white border border-[#EDE6D8] place-items-center shadow-md hover:scale-110 transition-transform" style={{ color: 'var(--color-primary)' }}><ChevronRight size={14}/></button>
+                <button type="button" onClick={()=> thumbsRef.current?.scrollBy({left: 120, behavior:'smooth'})} className="hidden md:grid absolute top-1/2 -translate-y-1/2 -left-2 w-8 h-8 rounded-full bg-white border border-[#EDE6D8] place-items-center shadow-md hover:scale-110 transition-transform" style={{ color: 'var(--color-primary)' }}><ChevronLeft size={14}/></button>
               </div>
-              <button type="button" onClick={()=> thumbsRef.current?.scrollBy({left: -120, behavior:'smooth'})} className="hidden md:grid absolute top-1/2 -translate-y-1/2 -right-2 w-8 h-8 rounded-full bg-white border border-[#EDE6D8] place-items-center shadow-md hover:scale-110 transition-transform" style={{ color: 'var(--color-primary)' }}><ChevronRight size={14}/></button>
-              <button type="button" onClick={()=> thumbsRef.current?.scrollBy({left: 120, behavior:'smooth'})} className="hidden md:grid absolute top-1/2 -translate-y-1/2 -left-2 w-8 h-8 rounded-full bg-white border border-[#EDE6D8] place-items-center shadow-md hover:scale-110 transition-transform" style={{ color: 'var(--color-primary)' }}><ChevronLeft size={14}/></button>
-            </div>
 
-            {/* compact trust badges */}
+            {/* compact trust badges — much smaller */}
             <div className="grid grid-cols-3 gap-1.5 mt-2">
               {[
                 {t:"توصيل 24-72ساعة", i:Truck, rose:false},
@@ -603,7 +661,6 @@ export default function ProductDetail(){
                 </div>
               ))}
             </div>
-
             {product.attributes && Object.keys(product.attributes).length>0 && (
               <div className="mt-3 bg-white border border-[#EDE6D8] rounded-2xl p-4">
                 <h4 className="font-bold text-sm flex items-center gap-1.5"><Layers size={14} className="text-[#C9A96A]"/> تفاصيل {domain?.nameAr}</h4>
@@ -632,7 +689,7 @@ export default function ProductDetail(){
               <p className="cormorant tracking-widest text-xs text-[#9A8A6B]">{product.name.toUpperCase()} • {product.material} — SKU: {product.sku} {domain && `• ${domain.nameAr}`}</p>
               <p className="text-sm leading-6 text-[#5A5340] mt-3">{product.descriptionAr}</p>
 
-              {/* Video Embed */}
+              {/* ─── Video (AliExpress-style, supports 16:9 + 9:16) ──────────── */}
               {product.videoUrl && (() => {
                 const embedUrl = getEmbedUrl(product.videoUrl)
                 const isVertical = isVerticalVideo(product.videoUrl)
@@ -643,7 +700,9 @@ export default function ProductDetail(){
                       فيديو المنتج
                     </div>
                     <div className={`relative rounded-xl overflow-hidden bg-black mx-auto ${
-                      isVertical ? 'w-full max-w-[340px] aspect-[9/16]' : 'w-full aspect-video'
+                      isVertical
+                        ? 'w-full max-w-[340px] aspect-[9/16]'  // Vertical (Shorts/Reels/TikTok)
+                        : 'w-full aspect-video'                   // Horizontal (YouTube/Vimeo)
                     }`}>
                       <iframe
                         src={embedUrl}
@@ -658,7 +717,7 @@ export default function ProductDetail(){
                 )
               })()}
 
-              {/* Description Images */}
+              {/* ─── Description Images (AliExpress-style gallery) ─────────── */}
               {product.descriptionImages && product.descriptionImages.length > 0 && (
                 <div className="mt-5">
                   <div className="text-xs font-bold flex items-center gap-1.5 mb-2">
@@ -748,7 +807,7 @@ export default function ProductDetail(){
                 </div>
               </div>
 
-              {/* qty selector */}
+              {/* qty selector — stays in info card, controls price calc */}
               <div className="flex items-center gap-3 mt-4">
                 <div className="flex items-center border border-[#EDE6D8] rounded-full p-1 bg-[#FFFCF8]">
                   <button type="button" onClick={()=>setQty(q=>Math.max(1,q-1))} className="w-8 h-8 rounded-full bg-white border border-[#EDE6D8] grid place-items-center"><Minus size={14}/></button>
@@ -760,7 +819,7 @@ export default function ProductDetail(){
               {errors.qty && <p className="text-xs text-red-600 mt-1">{errors.qty}</p>}
             </div>
 
-            {/* Pulsing CTA Bar */}
+            {/* ─── Pulsing CTA: "اطلب الآن" opens a modal ─── */}
             <div className="bg-gradient-to-br from-[#1A1A1E] to-[#2D2D35] rounded-[24px] p-5 md:p-6 text-white relative overflow-hidden">
               <div className="absolute -top-10 -left-10 w-40 h-40 bg-[var(--color-primary)]/20 rounded-full blur-2xl"/>
               <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-[var(--color-accent)]/15 rounded-full blur-2xl"/>
@@ -769,6 +828,7 @@ export default function ProductDetail(){
                 <div className="text-2xl font-extrabold mb-1">{formatDZD(grandTotal)}</div>
                 <div className="text-xs text-white/60 mb-4">شحن {wilaya ? formatDZD(shipping) : '—'} • تأكيد هاتفي خلال 2-4 ساعات</div>
 
+                {/* Pulsing CTA button */}
                 <button
                   type="button"
                   onClick={openOrderModal}
@@ -784,6 +844,7 @@ export default function ProductDetail(){
                 </button>
                 {!canAdd && variantMissing && <p className="text-amber-300 text-xs mt-2">اختر اللون والمقاس أولاً</p>}
 
+                {/* Secondary actions */}
                 <div className="flex items-center justify-center gap-3 mt-4 text-[11px] text-white/50">
                   <span className="flex gap-1 items-center"><ShieldCheck size={12}/> حماية الطلبات المكررة</span>
                   <span>•</span>
@@ -792,7 +853,7 @@ export default function ProductDetail(){
               </div>
             </div>
 
-            {/* compact action bar */}
+            {/* compact action bar — below the payment form, smaller buttons */}
             <div className="bg-white rounded-[24px] border border-[#EDE6D8] p-3 md:p-4">
               <div className="flex items-center gap-2">
                 <button type="button" onClick={handleAddToCart} disabled={!canAdd} className={`flex-1 min-w-0 rounded-full py-2.5 px-3 text-xs font-bold border-2 transition flex items-center justify-center gap-1.5 ${canAdd ? 'bg-white border-[#1A1A1E] text-[#1A1A1E] hover:bg-[#1A1A1E] hover:text-white' : 'bg-[#F5EFE6] border-[#EDE6D8] text-[#9A8A6B] cursor-not-allowed'}`}>
@@ -813,7 +874,6 @@ export default function ProductDetail(){
         </div>
       </div>
 
-      {/* mobile bottom sticky bar */}
       <div className={`md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#EDE6D8] p-3 flex gap-3 items-center shadow-[0_-8px_24px_rgba(0,0,0,0.08)] transition-transform duration-300 ${formFocused ? 'translate-y-full pointer-events-none' : 'translate-y-0'}`}>
         <div className="flex-1 min-w-0">
           <div className="text-xs text-[#9A8A6B] truncate">الإجمالي {variantLabel && `• ${variantLabel}`}</div><div className={`font-extrabold ${isRoseProduct ? 'text-[#A02A5B]' : 'text-[#1A1A1E]'}`}>{formatDZD(grandTotal)}</div>
@@ -936,4 +996,3 @@ export default function ProductDetail(){
     </div>
   )
 }
-
