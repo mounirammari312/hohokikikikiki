@@ -116,53 +116,20 @@ function TenantStorefront() {
     void syncSettings()
     void syncDomains()
 
-    // Track the last store visit (for the smart redirect)
-    if (typeof window !== 'undefined' && (storeSlug || storeId)) {
-      try {
-        localStorage.setItem('amugar_last_store_visit', JSON.stringify({
-          slug: storeSlug,
-          storeId,
-          ts: Date.now(),
-        }))
-      } catch {}
-    }
+
+
+    
+
+    
   }, [tenantKey, storeSlug, storeId, isPlatformHost, hasTenantContext])
 
   if (isPlatformHost && !hasTenantContext) {
-    // ─── Smart redirect: if the visitor was in a store within the last
-    // 30 minutes, automatically redirect them there. This solves the
-    // "I pressed back and ended up on the SaaS landing" problem that
-    // customers hitting a store ad → store → root flow experience.
-    //
-    // We store `amugar_last_store_visit` in localStorage with a timestamp
-    // + slug. If the timestamp is < 30min ago AND the visitor is on the
-    // platform host root (no ?store=), redirect. Otherwise → SaaS landing.
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('amugar_last_store_visit')
-        if (raw) {
-          const data = JSON.parse(raw)
-          const THIRTY_MIN = 30 * 60 * 1000
-          if (data?.slug && data?.ts && (Date.now() - data.ts) < THIRTY_MIN) {
-            // Only redirect if we're on the root path (no ?store=, no hash, no other path)
-            const url = new URL(window.location.href)
-            const isRoot = url.pathname === '/' && !url.searchParams.get('store') && !url.searchParams.get('storeId')
-            if (isRoot) {
-              // Redirect to the last-visited store
-              window.location.href = `/?store=${encodeURIComponent(data.slug)}`
-              return null  // render nothing while redirecting
-            }
-          }
-        }
-      } catch {
-        // localStorage might be unavailable (private browsing) — ignore
-      }
-    }
     return <PlatformLanding />
   }
 
-  return (
-    <>
+
+    return (
+    <div key={tenantKey} className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
         <Suspense fallback={<PageFallback />}>
@@ -178,6 +145,11 @@ function TenantStorefront() {
       </main>
       <Footer />
       <WhatsAppButton />
+    </div>
+  )
+
+
+  
     </>
   )
 }
