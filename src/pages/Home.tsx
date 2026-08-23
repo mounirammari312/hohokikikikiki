@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
 import { SmartImage } from '../components/SmartImage'
 import { getProducts } from '../services/api/products'
-import { getSettings, subscribeSettings } from '../services/api/settings'
+import { getSettings, subscribeSettings, syncSettings } from '../services/api/settings'
 import { getActiveDomain } from '../services/api/domains'
 import { trackVisit } from '../services/api/client'
 import { useEffect, useState } from 'react'
@@ -45,18 +45,20 @@ export default function Home(){
     const match = featuredAll.filter(p=> domainCats.has(p.category))
     return match.length ? match : featuredAll
   })()
-  useEffect(()=>{
-    // Instant scroll to top on mount (Home is the landing page). Use 'auto'
-    // so it doesn't animate if the user came from a long page on a different
-    // route — ScrollToTop now handles general route restoration, but keep
-    // this as a defensive measure.
+    useEffect(()=>{
     window.scrollTo({top:0, left:0, behavior:'auto'})
-    // Sync once on mount — the service layer keeps its own cache fresh
-    // via background re-fetch, so we no longer need to poll every 1.5s
-    // (which caused redundant re-renders + battery drain on mobile).
     setProducts([...getProducts()])
     setStore(getSettings())
     setDomain(getActiveDomain())
+
+    // طلب الإعدادات الحديثة للمتجر من السيرفر فور فتح الصفحة
+    void syncSettings().then(s => {
+      if (s) {
+        setStore(s)
+        setDomain(getActiveDomain())
+      }
+    })
+
 
     // ─── Track the storefront visit (for merchant analytics) ──────────
     // Fire-and-forget — never blocks. Skipped if the merchant is previewing
