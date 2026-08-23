@@ -193,32 +193,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
 
   
-    const resolvedSlug = slugFromQuery || slugFromHost || cachedSlug
-
-    if (explicitStoreId) {
-      setStoreId(explicitStoreId)
-      setStoreSlug(resolvedSlug)
-      setIsPlatformHost(false)
-    } else if (resolvedSlug) {
-      // When resolving by slug, clear explicit storeId so client.ts uses x-store-slug header
-      setStoreId(null)
-      setStoreSlug(resolvedSlug)
-      setIsPlatformHost(false)
-    } else if (resolvedStoreId) {
-      setStoreId(resolvedStoreId)
-      setStoreSlug(resolvedSlug)
-      setIsPlatformHost(false)
-    } else if (platformHost) {
-      setStoreId(null)
-      setStoreSlug(null)
-      setStore(null)
-    } else {
-      setStoreId(null)
-      setStoreSlug(null)
-    }
-    setLoading(false)
-  }, [])
-
+    
 
 
   
