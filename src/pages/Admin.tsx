@@ -70,11 +70,23 @@ export default function Admin() {
       return new URLSearchParams(window.location.search).get('onboarding') === '1'
     } catch { return false }
   })
-  const currentSlug = (() => {
+
+
+  
+    const currentSlug = (() => {
     try {
-      return localStorage.getItem('amugar_saas_active_slug') || 'demo'
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search)
+        const s = params.get('store') || params.get('storeId')
+        if (s) return s
+      }
+      return 'demo'
     } catch { return 'demo' }
   })()
+
+
+
+  
   const [q, setQ] = useState('')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
   const [editingWilaya, setEditingWilaya] = useState<Record<string, Partial<WilayaRate>>>({})
@@ -149,9 +161,21 @@ export default function Admin() {
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [isSavingPw, setIsSavingPw] = useState(false)
 
-  useEffect(() => {
-    setOrders(getOrders()); setWilayas(getWilayas()); setProducts(getProducts()); setSettings(getSettings()); setStoreForm(getSettings()); setDomains(getDomains()); setActiveDomainState(getActiveDomain())
+    useEffect(() => {
+    setOrders(getOrders())
+    setWilayas(getWilayas())
+    setProducts(getProducts())
+    setSettings(getSettings())
+    setStoreForm(getSettings())
+    setDomains(getDomains())
+    setActiveDomainState(getActiveDomain())
+
+    // جلب أحدث المنتجات والإعدادات من الخادم فوراً
+    void syncProducts().then(prods => {
+      if (prods && prods.length > 0) setProducts(prods)
+    })
   }, [tab])
+
 
   // ─── Mark this session as "admin" so visit tracking is skipped ──────
   // The storefront's trackVisit() checks this flag and skips logging
