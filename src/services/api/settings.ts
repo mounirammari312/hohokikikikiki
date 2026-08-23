@@ -18,8 +18,10 @@ const loadedSet = new Set<string>()
 function getTenantKey(): string {
   if (typeof window === 'undefined') return 'default'
   const urlParams = new URLSearchParams(window.location.search)
-  return urlParams.get('store') || urlParams.get('storeId') || localStorage.getItem('amugar_saas_active_slug') || localStorage.getItem('amugar_saas_active_store') || 'default'
+  // الاعتماد حصراً على معرّف المتجر الموجود في الرابط
+  return urlParams.get('store') || urlParams.get('storeId') || 'default'
 }
+
 
 /** Get cached settings for the CURRENT tenant. Falls back to
  *  localStorage (per-tenant key) if the in-memory cache is empty. */
