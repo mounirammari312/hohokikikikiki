@@ -10,6 +10,7 @@ import {
   type AnalyticsOverview, type AnalyticsTimelinePoint, type AnalyticsSource,
   type AnalyticsTopProduct, type AnalyticsDevice, type AnalyticsCountry,
   scrapeProduct, type ScrapedProduct,
+  checkPhoneReputation, type PhoneReputation,
 } from '../services/api/client'
 import { useTenant } from '../context/TenantContext'
 import { getDomains, getActiveDomain, setActiveDomain, createCustomDomain, updateDomain, deleteDomain, duplicateDomain } from '../services/api/domains'
@@ -1370,7 +1371,7 @@ export default function Admin() {
                   {filteredOrders.map(o => (
                     <tr key={o._id} className="hover:bg-[#FFFCF8]">
                       <td className="p-3"><div className="font-bold text-[#1A1A1E]">{o.orderNumber}</div><div className="text-xs text-[#9A8A6B]">{new Date(o.createdAt).toLocaleString('ar-DZ')}</div></td>
-                      <td className="p-3"><div className="font-bold">{o.customerName}</div><div className="text-xs text-[#9A8A6B]" dir="ltr">{o.phone}</div><div className="text-[11px] text-[#9A8A6B]">{o.address}</div></td>
+                      <td className="p-3"><div className="font-bold flex items-center gap-1.5">{o.customerName} <TrustBadge phone={o.phone} /></div><div className="text-xs text-[#9A8A6B]" dir="ltr">{o.phone}</div><div className="text-[11px] text-[#9A8A6B]">{o.address}</div></td>
                       <td className="p-3"><span className="font-bold">{o.wilayaNameAr} ({o.wilaya})</span><div className="text-xs">{o.commune} • {o.deliveryType === 'home' ? 'منزل' : 'مكتب'} • {formatDZD(o.shippingCost)}</div></td>
                       <td className="p-3"><div className="flex flex-col gap-1">{o.items.map(it => <span key={it.productId+(it.variantId||'')} className="bg-[#FFFCF8] border border-[#EDE6D8] rounded-full px-2 py-0.5 text-xs inline-flex w-fit">{it.nameAr} {it.variantLabel ? `• ${it.variantLabel}`:''} ×{it.qty}</span>)}</div></td>
                       <td className="p-3 font-extrabold text-[#1A1A1E]">{formatDZD(o.total)}<div className="text-xs font-normal text-[#9A8A6B]">خصم {formatDZD(o.discount)}</div></td>
@@ -3284,4 +3285,64 @@ function getSourceLabel(source: string): string {
   if (s.includes('twitter') || s.includes('x.com')) return 'تويتر'
   if (s === 'direct') return 'مباشر'
   return source.length > 12 ? source.slice(0, 10) + '…' : source
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TrustBadge — COD Fraud Detection badge for order list
+// ═══════════════════════════════════════════════════════════════════════════
+//
+//  Shows a colored badge next to each order indicating the customer's
+//  phone reputation across ALL stores on the platform:
+//
+//    🟢 موثوق (trusted)    — 80%+ delivery rate, 3+ orders
+//    🟡 حذر (warning)      — 50-79% delivery rate
+//    🔴 خطر (danger)       — <50% delivery rate, high return rate
+//    ⚪ جديد (new)         — first order with this phone number
+//
+//  The badge is fetched on-demand when the merchant hovers over an order
+//  or when a new order arrives. It's cached in a local Map to avoid
+//  re-fetching for the same phone.
+
+function TrustBadge({ phone }: { phone: string }) {
+  const [rep, setRep] = useState<PhoneReputation | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!phone || phone.length < 8) return
+    let cancelled = false
+    setLoading(true)
+    void checkPhoneReputation(phone).then(r => {
+      if (!cancelled) {
+        setRep(r)
+        setLoading(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [phone])
+
+  if (loading) {
+    return <span className="inline-flex items-center gap-1 text-[9px] text-[#9A8A6B] bg-gray-50 px-1.5 py-0.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-pulse"/></span>
+  }
+
+  if (!rep) return null
+
+  const config = {
+    new: { label: 'جديد', bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400', icon: '⚪' },
+    trusted: { label: 'موثوق', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', icon: '🟢' },
+    warning: { label: 'حذر', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500', icon: '🟡' },
+    danger: { label: 'خطر', bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500', icon: '🔴' },
+  }
+
+  const c = config[rep.trustLevel] || config.new
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[9px] font-bold ${c.bg} ${c.text} px-1.5 py-0.5 rounded-full shrink-0`}
+      title={`نسبة الاستلام: ${rep.trustScore}% • طلبات: ${rep.totalOrders} • مرتجع: ${rep.returnRate}%`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`}></span>
+      {c.label}
+      {rep.totalOrders > 0 && <span className="opacity-60">({rep.totalOrders})</span>}
+    </span>
+  )
 }

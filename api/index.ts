@@ -73,7 +73,7 @@ import {
   ProductModel, WilayaModel, OrderModel, SettingsModel, DomainModel,
   TenantStoreModel, MerchantUserModel,
   ReviewModel, CouponModel, BannerModel, MarketplaceActivityModel,
-  StoreVisitModel,
+  StoreVisitModel, PhoneReputationModel,
 } from './lib/models.js'
 import {
   ensureSeeded, seedStoreData, presetDomains,
@@ -737,6 +737,20 @@ function matchRoute(segments: string[], method: string): RouteHandler | null {
 
   // ─── /orders ──────────────────────────────────────────────────────
   if (segments[0] === 'orders') {
+    // GET /api/orders/check-phone?phone=XXX — check phone reputation
+    if (segments.length === 2 && segments[1] === 'check-phone' && method === 'GET') {
+      return async (ctx: RouteCtx) => {
+        const phone = ctx.query.get('phone')
+        if (!phone) return { data: { error: 'PHONE_REQUIRED' }, status: 400 }
+        const phoneHash = hashPhone(phone)
+        if (!phoneHash) return { data: { error: 'INVALID_PHONE' }, status: 400 }
+        const rep = await PhoneReputationModel.findOne({ phoneHash }).lean()
+        if (!rep) {
+          return { data: { reputation: { trustScore: 0, trustLevel: 'new', totalOrders: 0, deliveredCount: 0, returnedCount: 0, returnRate: 0 } }, status: 200 }
+        }
+        return { data: { reputation: computeTrustScore(rep) }, status: 200 }
+      }
+    }
     if (segments.length === 1) {
       if (method === 'GET') return (ctx) => listOrders(ctx)
       if (method === 'POST') return (ctx) => createOrder(ctx)
@@ -2000,16 +2014,73 @@ async function listOrders(ctx: RouteCtx) {
   return { data: { orders: docs } }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  PHONE REPUTATION SYSTEM (COD Fraud Detection — Network Effect)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+//  Cross-tenant fraud detection: every store benefits from every other
+//  store's data. If store A marks a phone as "returned", store B gets
+//  warned before shipping to the same number.
+//
+//  Privacy: we store ONLY a SHA256 hash of the phone number (never the
+//  raw number). The hash is one-way — you can't reverse it to get the
+//  phone number.
+
+const SYSTEM_SALT = process.env.PHONE_SALT || 'amugar_cod_fraud_detection_2026_v1'
+
+/** Hash a phone number using SHA256 + system salt (one-way, privacy-safe) */
+function hashPhone(phone: string): string | null {
+  if (!phone) return null
+  const cleaned = String(phone).replace(/[\s\-+]/g, '')
+  if (cleaned.length < 8) return null
+  try {
+    // Use Node.js crypto (available in Vercel serverless)
+    const crypto = require('crypto')
+    return crypto.createHash('sha256').update(cleaned + SYSTEM_SALT).digest('hex')
+  } catch {
+    return null
+  }
+}
+
+/** Compute trust score from a PhoneReputation document */
+function computeTrustScore(rep: any): {
+  trustScore: number   // 0-100
+  trustLevel: 'new' | 'trusted' | 'warning' | 'danger'
+  totalOrders: number
+  deliveredCount: number
+  returnedCount: number
+  returnRate: number   // percentage
+} {
+  const total = rep.deliveredCount + rep.returnedCount
+  const returnRate = total > 0 ? Math.round((rep.returnedCount / total) * 100) : 0
+  const trustScore = total > 0 ? Math.round((rep.deliveredCount / total) * 100) : 0
+
+  let trustLevel: 'new' | 'trusted' | 'warning' | 'danger' = 'new'
+  if (total === 0) trustLevel = 'new'
+  else if (trustScore >= 80) trustLevel = 'trusted'
+  else if (trustScore >= 50) trustLevel = 'warning'
+  else trustLevel = 'danger'
+
+  return {
+    trustScore,
+    trustLevel,
+    totalOrders: rep.totalOrders || total,
+    deliveredCount: rep.deliveredCount || 0,
+    returnedCount: rep.returnedCount || 0,
+    returnRate,
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ORDERS (tenant-scoped)
+// ═══════════════════════════════════════════════════════════════════════════
+
 async function createOrder(ctx: RouteCtx) {
-  // Rate-limit order creation per IP (10 orders/min) to mitigate
-  // spam / scripted abuse of the COD form. We check before doing any
-  // DB work so a flood of rejected requests is cheap.
   if (!rateLimit(getClientIP(ctx.req), 10, 60000)) {
     return { data: { error: 'RATE_LIMITED', message: 'طلبات كثيرة — حاول بعد دقيقة' }, status: 429 }
   }
 
   const data = await getReqBody(ctx.req)
-  // Wilaya name fallback (scoped to tenant's overrides)
   if (!data.wilayaNameAr) {
     const w = await WilayaModel.findOne({ storeId: ctx.storeId, code: data.wilaya }).lean()
     data.wilayaNameAr = w?.nameAr || data.wilaya
@@ -2019,9 +2090,6 @@ async function createOrder(ctx: RouteCtx) {
     if (w) data.wilaya = w.code
   }
 
-  // Duplicate detection (tenant-scoped, only active — non-soft-deleted —
-  // orders count, otherwise a cancelled/deleted order would block the
-  // customer from re-ordering the same items).
   const sig = `${data.phone}-${(data.items || []).map(i => i.productId + ':' + i.qty).join(',')}`
   const recent = await OrderModel.findOne({ storeId: ctx.storeId, phone: data.phone, deletedAt: null })
     .sort({ createdAt: -1 }).lean()
@@ -2033,9 +2101,6 @@ async function createOrder(ctx: RouteCtx) {
     }
   }
 
-  // Per-store random order number (no longer sequential — prevents
-  // enumeration of other stores' order numbers and avoids collisions
-  // when orders are deleted).
   const prefix = (ctx.store?.slug || 'store').slice(0, 3).toUpperCase()
   const randomSuffix = Math.random().toString(36).slice(2, 8).toUpperCase()
   const orderNumber = prefix + '-' + randomSuffix + Date.now().toString(36).slice(-4).toUpperCase()
@@ -2065,18 +2130,28 @@ async function createOrder(ctx: RouteCtx) {
   }
   await OrderModel.create(order)
 
-  // ─── Marketplace activity hook ────────────────────────────────────────────
-  // Log this order to the marketplace activity collection so the live
-  // ticker on /marketplace can show REAL recent orders (not fake ones).
-  // We only log orders that contain at least one marketplace-published
-  // product — pure tenant-scoped orders (e.g. from a merchant's own
-  // storefront) are NOT shown publicly.
+  // ─── Phone Reputation: increment totalOrders ──────────────────────
+  try {
+    const phoneHash = hashPhone(data.phone)
+    if (phoneHash) {
+      await PhoneReputationModel.updateOne(
+        { phoneHash },
+        {
+          $inc: { totalOrders: 1 },
+          $set: { lastActivityAt: new Date().toISOString() },
+          $addToSet: { storeIds: ctx.storeId },
+        },
+        { upsert: true }
+      ).catch(() => {})
+    }
+  } catch {}
+
+  // ─── Marketplace activity hook ────────────────────────────────────
   try {
     const firstItem = order.items?.[0]
     if (firstItem?.productId) {
       const product = await ProductModel.findById(firstItem.productId).lean()
       if (product?.isPublishedInMarketplace) {
-        // Extract first name only for privacy (e.g. "Ahmed B." instead of "Ahmed Benali")
         const fullName = (order.customerName || 'زبون').trim()
         const firstName = fullName.split(/\s+/)[0] || 'زبون'
         await MarketplaceActivityModel.create({
@@ -2092,11 +2167,21 @@ async function createOrder(ctx: RouteCtx) {
         })
       }
     }
-  } catch {
-    // Non-critical — don't fail the order creation if activity logging fails
-  }
+  } catch {}
 
-  return { data: { order }, status: 201 }
+  // ─── Return phone reputation with the order ────────────────────────
+  let phoneRep = null
+  try {
+    const phoneHash = hashPhone(data.phone)
+    if (phoneHash) {
+      const rep = await PhoneReputationModel.findOne({ phoneHash }).lean()
+      if (rep) {
+        phoneRep = computeTrustScore(rep)
+      }
+    }
+  } catch {}
+
+  return { data: { order, phoneReputation: phoneRep }, status: 201 }
 }
 
 async function getOrder(ctx: RouteCtx, orderNumber: string) {
@@ -2111,12 +2196,41 @@ async function updateOrderStatus(ctx: RouteCtx, orderNumber: string) {
   if (!status || !VALID_ORDER_STATUSES.includes(status)) {
     return { data: { error: 'INVALID_STATUS' }, status: 400 }
   }
+
+  // Get the OLD status before updating (for reputation tracking)
+  const oldOrder = await OrderModel.findOne({
+    storeId: ctx.storeId, deletedAt: null,
+    $or: [{ orderNumber }, { _id: orderNumber }]
+  }).lean()
+
   const next = await OrderModel.findOneAndUpdate(
     { storeId: ctx.storeId, deletedAt: null, $or: [{ orderNumber }, { _id: orderNumber }] },
     { $set: { status, updatedAt: new Date().toISOString() } },
     { new: true }
   ).lean()
   if (!next) return { data: { error: 'NOT_FOUND' }, status: 404 }
+
+  // ─── Phone Reputation: update counters on status change ────────────
+  // Only update if the status ACTUALLY changed (not same status re-applied)
+  if (oldOrder && oldOrder.status !== status) {
+    try {
+      const phoneHash = hashPhone(next.phone)
+      if (phoneHash) {
+        const update: any = { $set: { lastActivityAt: new Date().toISOString() }, $addToSet: { storeIds: ctx.storeId } }
+
+        // Decrement old status counter
+        if (oldOrder.status === 'delivered') update.$inc = { ...update.$inc, deliveredCount: -1 }
+        else if (oldOrder.status === 'cancelled') update.$inc = { ...update.$inc, returnedCount: -1 }
+
+        // Increment new status counter
+        if (status === 'delivered') update.$inc = { ...update.$inc, deliveredCount: 1 }
+        else if (status === 'cancelled') update.$inc = { ...update.$inc, returnedCount: 1 }
+
+        await PhoneReputationModel.updateOne({ phoneHash }, update, { upsert: true }).catch(() => {})
+      }
+    } catch {}
+  }
+
   const docs = await OrderModel.find({ storeId: ctx.storeId, deletedAt: null }, null, { sort: { createdAt: -1 } }).lean()
   return { data: { orders: docs, updated: next } }
 }

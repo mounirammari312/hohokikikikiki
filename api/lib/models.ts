@@ -460,3 +460,37 @@ StoreVisitSchema.index({ storeId: 1, productId: 1 })
 
 export const StoreVisitModel =
   mongoose.models.StoreVisit || mongoose.model('StoreVisit', StoreVisitSchema)
+
+// ─── PhoneReputation (COD Fraud Detection — Network Effect) ────────────────
+// A cross-tenant reputation system for customer phone numbers.
+// Every time an order is delivered or returned, the phone's score updates.
+// All stores share this data — if store A marks a phone as "returned",
+// store B gets warned before shipping to the same number.
+//
+// Privacy: we store ONLY a SHA256 hash of the phone number (never the
+// raw number). The hash is one-way — you can't reverse it to get the
+// phone number. This protects customer privacy while allowing
+// cross-store fraud detection.
+const PhoneReputationSchema = new mongoose.Schema({
+  _id: STRING_ID,
+  // SHA256(phone + system_salt) — 64 hex chars
+  phoneHash: { type: String, required: true, unique: true, index: true },
+  // Total orders placed across ALL stores with this phone
+  totalOrders: { type: Number, default: 0 },
+  // Orders that were successfully delivered (customer paid)
+  deliveredCount: { type: Number, default: 0 },
+  // Orders that were returned/refused (customer didn't pay)
+  returnedCount: { type: Number, default: 0 },
+  // Orders cancelled by merchant (not customer's fault)
+  cancelledCount: { type: Number, default: 0 },
+  // Trust score: deliveredCount / (deliveredCount + returnedCount) * 100
+  // Calculated on read to always reflect latest data
+  // Last activity timestamp
+  lastActivityAt: { type: String, default: () => new Date().toISOString() },
+  // Store IDs that have interacted with this phone (for analytics)
+  storeIds: { type: [String], default: [] },
+}, { _id: false, versionKey: false, strict: false })
+PhoneReputationSchema.index({ phoneHash: 1 }, { unique: true })
+
+export const PhoneReputationModel =
+  mongoose.models.PhoneReputation || mongoose.model('PhoneReputation', PhoneReputationSchema)

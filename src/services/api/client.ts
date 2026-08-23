@@ -735,6 +735,29 @@ export async function fetchAnalyticsCountries(storeId: string): Promise<{ countr
 
 const ORDERS_PATH = '/api/orders'
 
+// ─── Phone Reputation (COD Fraud Detection) ────────────────────────────────
+
+export interface PhoneReputation {
+  trustScore: number       // 0-100
+  trustLevel: 'new' | 'trusted' | 'warning' | 'danger'
+  totalOrders: number
+  deliveredCount: number
+  returnedCount: number
+  returnRate: number      // percentage
+}
+
+/** GET /api/orders/check-phone?phone=XXX — check a phone's cross-tenant reputation */
+export async function checkPhoneReputation(phone: string): Promise<PhoneReputation> {
+  try {
+    const { reputation } = await apiFetch<{ reputation: PhoneReputation }>(
+      `${ORDERS_PATH}/check-phone?phone=${encodeURIComponent(phone)}`
+    )
+    return reputation || { trustScore: 0, trustLevel: 'new', totalOrders: 0, deliveredCount: 0, returnedCount: 0, returnRate: 0 }
+  } catch {
+    return { trustScore: 0, trustLevel: 'new', totalOrders: 0, deliveredCount: 0, returnedCount: 0, returnRate: 0 }
+  }
+}
+
 export async function fetchOrders(): Promise<Order[]> {
   const { orders } = await cachedGet<{ orders: Order[] }>(ORDERS_PATH, 'amugar_orders_v5', { orders: [] as Order[] })
   return orders || []
