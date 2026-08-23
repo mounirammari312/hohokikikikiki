@@ -159,34 +159,40 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // Resolve the tenant based on the current URL/hostname.
-  // Resolution order (mirrors the server's resolveTenant in api/lib/tenant.ts):
-  //   1. ?storeId= explicit query → use directly
-  //   2. ?store=slug query → cache slug, server resolves it via x-store-slug header
-  //   3. subdomain slug.amugar.saas → cache slug
-  //   4. cached active slug from localStorage (from previous registration)
-  //   5. nothing → platform host (SaaS landing)
+
   const resolveTenant = useCallback(async () => {
     const platformHost = isPlatformHostNow()
     setIsPlatformHost(platformHost)
 
-    // Check URL tenant sources
+    // قراءة هوية المتجر حصراً من الرابط الحالي
     const explicitStoreId = detectStoreIdFromQuery()
     const slugFromQuery = detectTenantSlugFromQuery()
     const slugFromHost = detectTenantSlugFromHost()
 
-    // If an explicit store query is present in the URL, prioritize it over cached localStorage!
-    const hasExplicitUrlTenant = !!explicitStoreId || !!slugFromQuery || !!slugFromHost
+    const resolvedSlug = slugFromQuery || slugFromHost
 
-    let cachedSlug: string | null = null
-    let cachedStoreId: string | null = null
-    if (!hasExplicitUrlTenant) {
-      try {
-        cachedSlug = localStorage.getItem(ACTIVE_SLUG_KEY)
-        cachedStoreId = localStorage.getItem(ACTIVE_STORE_KEY)
-      } catch {}
+    if (explicitStoreId) {
+      setStoreId(explicitStoreId)
+      setStoreSlug(resolvedSlug)
+      setIsPlatformHost(false)
+    } else if (resolvedSlug) {
+      setStoreId(null)
+      setStoreSlug(resolvedSlug)
+      setIsPlatformHost(false)
+    } else {
+      // لا يوجد متجر في الرابط -> نحن في الواجهة العامة للمنصة أو الماركت بليس
+      setStoreId(null)
+      setStoreSlug(null)
+      setStore(null)
+      setIsPlatformHost(true)
     }
+    setLoading(false)
+  }, [])
 
-    const resolvedStoreId = explicitStoreId || cachedStoreId
+
+
+
+  
     const resolvedSlug = slugFromQuery || slugFromHost || cachedSlug
 
     if (explicitStoreId) {
@@ -213,6 +219,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     setLoading(false)
   }, [])
 
+
+
+  
   useEffect(() => {
     void resolveTenant()
     // Re-resolve if the user navigates to a different hostname (e.g.
