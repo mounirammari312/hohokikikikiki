@@ -3,8 +3,8 @@ import { ArrowLeft, Truck, ShieldCheck, Sparkles, BadgeCheck, Star, Quote, Packa
 import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
 import { SmartImage } from '../components/SmartImage'
-import { getProducts, syncProducts } from '../services/api/products'
-import { getSettings, subscribeSettings, syncSettings, isSettingsLoaded } from '../services/api/settings'
+import { getProducts, syncProducts, clearProductsCache } from '../services/api/products'
+import { getSettings, subscribeSettings, syncSettings, isSettingsLoaded, clearSettingsCache } from '../services/api/settings'
 import { getActiveDomain } from '../services/api/domains'
 import { trackVisit } from '../services/api/client'
 import { useEffect, useState } from 'react'
@@ -36,7 +36,7 @@ export default function Home(){
   // Loading guard: if settings haven't been loaded from the API yet AND
   // the cache still has the default jewelry-themed settings, show a
   // loading spinner instead of the wrong store (Aurore flash fix).
-  const [loading, setLoading] = useState(() => !isSettingsLoaded() && (getSettings().storeNameAr === 'أموغار' || getSettings().storeNameAr === 'متجر أموغار'))
+  const [loading, setLoading] = useState(true)
   const featuredAll = products.filter(p=>p.isFeatured)
   const domainCats = new Set(domain.categories.map(c=>c.key))
   const featured = (()=> {
@@ -46,11 +46,17 @@ export default function Home(){
   useEffect(()=>{
     window.scrollTo({top:0, left:0, behavior:'auto'})
 
-    // Fetch real settings AND products from the API. When BOTH are done,
-    // update the state and dismiss the loading spinner.
-    // This fixes "products don't show on first visit" — the old code
-    // only synced settings, leaving products empty until the user
-    // navigated away and back.
+    // ─── CRITICAL: Clear BOTH caches to prevent store A's data from
+    // leaking into store B. The products.ts and settings.ts caches are
+    // module-level variables shared across all stores — if store A was
+    // visited before, its data is still in cache. We MUST clear both
+    // before loading the current store's data.
+    clearProductsCache()
+    clearSettingsCache()
+
+    // Fetch real settings AND products from the API in parallel.
+    // Show the store as soon as BOTH arrive — no stale data from
+    // a previous store.
     void Promise.all([
       syncSettings(),
       syncProducts(),
@@ -59,12 +65,8 @@ export default function Home(){
         setStore(s)
         setDomain(getActiveDomain())
       }
-      if (prods && prods.length) {
-        setProducts(prods)
-      } else {
-        // Fallback: read from cache (syncProducts updates it)
-        setProducts([...getProducts()])
-      }
+      // syncProducts already updated the cache; read from it
+      setProducts([...getProducts()])
       setLoading(false)
     }).catch(() => {
       // Even on error, show what we have from cache
@@ -107,7 +109,8 @@ export default function Home(){
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FFFCF8] flex flex-col items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin mb-4" />
+        <img src="/logo.webp" alt="Amugar" className="w-16 h-16 rounded-2xl object-contain mb-4 animate-pulse" />
+        <div className="w-8 h-8 border-2 border-[#EDE6D8] border-t-[#C9A96A] rounded-full animate-spin mb-3" />
         <p className="text-sm font-bold text-[#9A8A6B]">جاري تحميل المتجر…</p>
       </div>
     )

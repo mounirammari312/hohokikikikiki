@@ -34,6 +34,13 @@ let cache: Product[] = []
 let loaded = false
 const waiting: Array<() => void> = []
 
+/** Clear the products cache — called when the active store changes
+ *  to prevent products from store A leaking into store B. */
+export function clearProductsCache(): void {
+  cache = []
+  loaded = false
+}
+
 /** Background-load products from the API on app startup. */
 export async function syncProducts(): Promise<Product[]> {
   try {

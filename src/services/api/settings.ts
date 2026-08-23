@@ -52,6 +52,13 @@ export function isSettingsLoaded(): boolean {
   return loaded
 }
 
+/** Clear the settings cache — called when the active store changes
+ *  to prevent store A's settings from leaking into store B. */
+export function clearSettingsCache(): void {
+  cache = { ...defaultSettings }
+  loaded = false
+}
+
 // ─── Pub/Sub ───────────────────────────────────────────────────────────────
 const subscribers = new Set<() => void>()
 
