@@ -4,7 +4,7 @@
   "description": "منصة جزائرية لإنشاء المتاجر الإلكترونية مع الدفع عند الاستلام في 58 ولاية",
   "lang": "ar",
   "dir": "rtl",
-  "start_url": "/?source=pwa",
+  "start_url": "/marketplace?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -50,22 +50,53 @@
   ],
   "shortcuts": [
     {
-      "name": "المتجر",
+      "name": "دليل الماركت بلايس",
+      "short_name": "الماركت",
+      "url": "/marketplace?source=pwa",
+      "description": "استكشف آلاف المتاجر والعروض الحصرية",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "لوحة تحكم التاجر",
+      "short_name": "التاجر",
+      "url": "/admin?source=pwa",
+      "description": "متابعة الطلبات وإدارة المتجر",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "المتجر الحالي",
       "short_name": "المتجر",
       "url": "/shop?source=pwa",
-      "description": "تصفح كل المنتجات"
+      "description": "تصفح كل منتجات المتجر",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
-      "name": "السلة",
+      "name": "سلة المشتريات",
       "short_name": "السلة",
       "url": "/cart?source=pwa",
-      "description": "إتمام الطلب"
-    },
-    {
-      "name": "لوحة التحكم",
-      "short_name": "لوحة التحكم",
-      "url": "/admin?source=pwa",
-      "description": "إدارة متجرك"
+      "description": "إتمام الطلبات وتأكيد الشحن",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
+
