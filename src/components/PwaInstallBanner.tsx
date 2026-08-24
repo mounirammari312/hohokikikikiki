@@ -1,9 +1,7 @@
+
 import { useEffect, useState } from 'react'
 import { X, Download, Store, ShoppingBag, ShieldCheck } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-
-const DISMISS_KEY = 'amugar_pwa_install_dismissed_until'
-const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000  // 7 days
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -53,16 +51,23 @@ export function PwaInstallBanner() {
     if (window.matchMedia('(display-mode: standalone)').matches) return
     if ((navigator as any).standalone === true) return
 
-    try {
-      const dismissedUntil = Number(localStorage.getItem(DISMISS_KEY) || '0')
-      if (Date.now() < dismissedUntil) return
-    } catch {}
+    // 1. التقاط الحدث في حال تم تخزينه مسبقاً من قبل index.html
+    const checkPrompt = () => {
+      if ((window as any).deferredPwaPrompt) {
+        setDeferredPrompt((window as any).deferredPwaPrompt)
+        setVisible(true)
+      }
+    }
 
+    checkPrompt()
+    window.addEventListener('pwa-prompt-ready', checkPrompt)
+
+    // 2. التقاط الحدث المباشر في حال إطلاقه أثناء وجود المستخدم داخل الصفحة
     const handler = (e: Event) => {
       e.preventDefault()
+      ;(window as any).deferredPwaPrompt = e
       setDeferredPrompt(e as BeforeInstallPromptEvent)
-      // Show after a short delay so the page content renders first
-      setTimeout(() => setVisible(true), 3000)
+      setVisible(true)
     }
 
     window.addEventListener('beforeinstallprompt', handler)
@@ -70,11 +75,12 @@ export function PwaInstallBanner() {
     const installedHandler = () => {
       setVisible(false)
       setDeferredPrompt(null)
-      try { localStorage.removeItem(DISMISS_KEY) } catch {}
+      ;(window as any).deferredPwaPrompt = null
     }
     window.addEventListener('appinstalled', installedHandler)
 
     return () => {
+      window.removeEventListener('pwa-prompt-ready', checkPrompt)
       window.removeEventListener('beforeinstallprompt', handler)
       window.removeEventListener('appinstalled', installedHandler)
     }
@@ -89,8 +95,8 @@ export function PwaInstallBanner() {
       if (choice.outcome === 'accepted') {
         setVisible(false)
         setDeferredPrompt(null)
+        ;(window as any).deferredPwaPrompt = null
       }
-      setDeferredPrompt(null)
     } catch (err) {
       console.warn('[PWA] install prompt failed:', err)
     } finally {
@@ -99,10 +105,8 @@ export function PwaInstallBanner() {
   }
 
   const handleDismiss = () => {
+    // إخفاء فوري فقط دون تخزين أي حظر لمدة 7 أيام
     setVisible(false)
-    try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_DURATION_MS))
-    } catch {}
   }
 
   // Hide instantly if on product/cart or unauthorized pages, or if event not ready
@@ -156,4 +160,3 @@ export function PwaInstallBanner() {
     </div>
   )
 }
-
