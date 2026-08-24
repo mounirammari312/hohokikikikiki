@@ -636,10 +636,14 @@ export default async function handler(req: any, res: any) {
     const matched = matchRoute(segments, method)
     if (!matched) return reply(res, { error: 'NOT_FOUND', path: url.pathname, method }, 404)
 
+        // ─── استثناء إنشاء الطلب (POST /api/orders) ليكون متاحاً للزبائن بدون تسجيل دخول ───
+    const isOrderCreation = segments[0] === 'orders' && method === 'POST' && segments.length === 1
+
     // For mutations, check the auth token BEFORE connecting to the DB
     // — but only the "is there a token?" part. The actual user lookup
     // happens after connectDB() below (same buffering fix as above).
     const isMutation =
+      !isOrderCreation &&
       method !== 'GET' &&
       (segments[0] === 'products' || segments[0] === 'orders' ||
        segments[0] === 'settings' || segments[0] === 'domains' ||
@@ -650,6 +654,8 @@ export default async function handler(req: any, res: any) {
       if (!token) return reply(res, { error: 'UNAUTHORIZED' }, 401)
     }
 
+
+    
     // Now we know we need the DB — connect (cached) + ensure seeded.
     await connectDB()
     await ensureSeeded()
