@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react'
 import { X, Download, Store, ShoppingBag, ShieldCheck } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
@@ -14,12 +13,25 @@ export function PwaInstallBanner() {
   const [installing, setInstalling] = useState(false)
   const location = useLocation()
 
-  // ─── Smart Route Filtering (Strategy Enforcement) ────────────────────────
+  // ─── استخراج معرّف المتجر والمسار الحالي ───────────────────────────────────
   const path = location.pathname
-  const isForbidden = path.includes('/product') || path.includes('/cart')
-  const isAllowed = path.startsWith('/admin') || path.startsWith('/marketplace') || path.startsWith('/thank-you')
+  const urlParams = new URLSearchParams(location.search)
+  const storeSlug = urlParams.get('store') || urlParams.get('storeId')
+  const isMerchantStore = !!storeSlug
 
-  // Determine context message & icon
+  // حظر الظهور في السلة لمنع تشتيت العميل أثناء الدفع
+  const isForbidden = path.includes('/cart')
+
+  // السماح بالظهور في: لوحة التحكم، الماركت بلايس، صفحة الشكر، متاجر التجار، وصفحة المتجر
+  const isAllowed =
+    path.startsWith('/admin') ||
+    path.startsWith('/marketplace') ||
+    path.startsWith('/thank-you') ||
+    isMerchantStore ||
+    path === '/' ||
+    path.startsWith('/shop')
+
+  // ─── تخصيص النصوص والأيقونات بذكاء حسب المكان ─────────────────────────────
   const getContextInfo = () => {
     if (path.startsWith('/admin')) {
       return {
@@ -35,9 +47,16 @@ export function PwaInstallBanner() {
         icon: <ShoppingBag size={18} className="text-amber-700" />
       }
     }
+    if (storeSlug) {
+      return {
+        title: `تثبيت متجر ${storeSlug}`,
+        subtitle: 'تسوق أسرع وتتبع طلباتك مباشرة من هاتفك',
+        icon: <Store size={18} className="text-emerald-700" />
+      }
+    }
     return {
       title: 'تثبيت المتجر لشاشتك الرئيسية',
-      subtitle: 'لتتبع حالة شحنتك والوصول السريع',
+      subtitle: 'لتتبع حالة شحنتك والوصول السريع للمنتجات',
       icon: <ShieldCheck size={18} className="text-emerald-700" />
     }
   }
@@ -45,13 +64,15 @@ export function PwaInstallBanner() {
   const contextInfo = getContextInfo()
 
   useEffect(() => {
+    // التحقق من أجهزة iOS
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
     if (isIOS) return
 
+    // عدم الظهور إذا كان التطبيق مثبتاً ويعمل بوضع standalone
     if (window.matchMedia('(display-mode: standalone)').matches) return
     if ((navigator as any).standalone === true) return
 
-    // 1. التقاط الحدث في حال تم تخزينه مسبقاً من قبل index.html
+    // 1. فحص الحدث المخزن مسبقاً في نافذة المتصفح بواسطة index.html
     const checkPrompt = () => {
       if ((window as any).deferredPwaPrompt) {
         setDeferredPrompt((window as any).deferredPwaPrompt)
@@ -62,7 +83,7 @@ export function PwaInstallBanner() {
     checkPrompt()
     window.addEventListener('pwa-prompt-ready', checkPrompt)
 
-    // 2. التقاط الحدث المباشر في حال إطلاقه أثناء وجود المستخدم داخل الصفحة
+    // 2. التقاط الحدث في حال إطلاقه من المتصفح أثناء التنقل
     const handler = (e: Event) => {
       e.preventDefault()
       ;(window as any).deferredPwaPrompt = e
@@ -72,6 +93,7 @@ export function PwaInstallBanner() {
 
     window.addEventListener('beforeinstallprompt', handler)
 
+    // 3. عند نجاح التثبيت يتم إخفاء البانر وتفريغ الحدث
     const installedHandler = () => {
       setVisible(false)
       setDeferredPrompt(null)
@@ -105,11 +127,11 @@ export function PwaInstallBanner() {
   }
 
   const handleDismiss = () => {
-    // إخفاء فوري فقط دون تخزين أي حظر لمدة 7 أيام
+    // إخفاء مباشر وسلس دون حظر لمدة 7 أيام
     setVisible(false)
   }
 
-  // Hide instantly if on product/cart or unauthorized pages, or if event not ready
+  // عدم العرض إذا كانت الصفحة محظورة، أو غير مسموحة، أو إذا لم يكن حدث التثبيت جاهزاً
   if (isForbidden || !isAllowed || !visible || !deferredPrompt) return null
 
   return (
@@ -160,3 +182,4 @@ export function PwaInstallBanner() {
     </div>
   )
 }
+
