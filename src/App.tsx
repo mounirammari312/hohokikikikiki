@@ -229,6 +229,40 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = 'ar'
     document.documentElement.dir = 'rtl'
+
+    // ─── ضبط Manifest الـ PWA ديناميكياً لمتجر التاجر النشط ───
+    try {
+      const urlParams = new URLSearchParams(window.location.search)
+      const storeSlug = urlParams.get('store') || urlParams.get('storeId')
+      const manifestLink = document.querySelector('link[rel="manifest"]')
+
+      if (storeSlug && manifestLink) {
+        const dynamicManifest = {
+          name: `متجر ${storeSlug} — Amugar`,
+          short_name: storeSlug,
+          description: `تسوق مباشرة من متجر ${storeSlug}`,
+          lang: 'ar',
+          dir: 'rtl',
+          start_url: `/?store=${encodeURIComponent(storeSlug)}&source=pwa`,
+          scope: '/',
+          display: 'standalone',
+          background_color: '#FFFCF8',
+          theme_color: '#1A1A1E',
+          icons: [
+            { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+            { src: '/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: '/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: '/logo.webp', sizes: 'any', type: 'image/webp' }
+          ]
+        }
+
+        const stringManifest = JSON.stringify(dynamicManifest)
+        const blob = new Blob([stringManifest], { type: 'application/json' })
+        const manifestURL = URL.createObjectURL(blob)
+        manifestLink.setAttribute('href', manifestURL)
+      }
+    } catch {}
   }, [])
 
   return (
