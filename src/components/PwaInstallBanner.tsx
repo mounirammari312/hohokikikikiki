@@ -15,19 +15,23 @@ export function PwaInstallBanner() {
 
   // ─── استخراج معرّف المتجر والمسار الحالي ───────────────────────────────────
   const path = location.pathname
+  const hash = location.hash
   const urlParams = new URLSearchParams(location.search)
   const storeSlug = urlParams.get('store') || urlParams.get('storeId')
   const isMerchantStore = !!storeSlug
 
-  // حظر الظهور في السلة لمنع تشتيت العميل أثناء الدفع
-  const isForbidden = path.includes('/cart')
+  // ⛔ حظر مطلق: منع الظهور نهائياً داخل صفحة تفاصيل المنتج، السلة، ونافذة إدخال بيانات الطلب
+  const isForbidden =
+    path.includes('/product') ||
+    path.includes('/cart') ||
+    hash.includes('order')
 
-  // السماح بالظهور في: لوحة التحكم، الماركت بلايس، صفحة الشكر، متاجر التجار، وصفحة المتجر
+  // ✅ السماح بالظهور فقط في: لوحة التحكم، الماركت بلايس، صفحة الشكر، ورئيسية المتجر/الكتالوج
   const isAllowed =
     path.startsWith('/admin') ||
     path.startsWith('/marketplace') ||
     path.startsWith('/thank-you') ||
-    isMerchantStore ||
+    (isMerchantStore && (path === '/' || path.startsWith('/shop'))) ||
     path === '/' ||
     path.startsWith('/shop')
 
@@ -47,7 +51,7 @@ export function PwaInstallBanner() {
         icon: <ShoppingBag size={18} className="text-amber-700" />
       }
     }
-    if (storeSlug) {
+    if (isMerchantStore && storeSlug) {
       return {
         title: `تثبيت متجر ${storeSlug}`,
         subtitle: 'تسوق أسرع وتتبع طلباتك مباشرة من هاتفك',
@@ -127,11 +131,10 @@ export function PwaInstallBanner() {
   }
 
   const handleDismiss = () => {
-    // إخفاء مباشر وسلس دون حظر لمدة 7 أيام
     setVisible(false)
   }
 
-  // عدم العرض إذا كانت الصفحة محظورة، أو غير مسموحة، أو إذا لم يكن حدث التثبيت جاهزاً
+  // إخفاء فوري إذا كانت الصفحة محظورة، أو غير مسموحة، أو إذا لم يكن حدث التثبيت جاهزاً
   if (isForbidden || !isAllowed || !visible || !deferredPrompt) return null
 
   return (
@@ -182,4 +185,3 @@ export function PwaInstallBanner() {
     </div>
   )
 }
-
