@@ -50,7 +50,14 @@ export default function ProductDetail(){
   const [loading, setLoading] = useState(!product)
 
   useEffect(() => {
-    if (!id) return
+    if (!id) {
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+
+    // 1. فحص الكاش الفوري
     const found = getProductById(id)
     if (found) {
       setProduct(found)
@@ -59,20 +66,28 @@ export default function ProductDetail(){
       setLoading(true)
     }
 
-    let cancelled = false
-    void syncProducts().then(() => {
-      if (cancelled) return
-      const fresh = getProductById(id)
-      if (fresh) {
-        setProduct(fresh)
-        setLoading(false)
-      }
-    }).catch(() => {
-      if (cancelled) return
-      setLoading(false)
-    })
+    // 2. قاطع أمان زمني يمنع تعليق شاشة التحميل لأكثر من ثانيتين
+    const timer = setTimeout(() => {
+      if (!cancelled) setLoading(false)
+    }, 2000)
+
+    // 3. مزامنة البيانات مع إيقاف التحميل حتماً في finally
+    void syncProducts()
+      .then(() => {
+        if (cancelled) return
+        const fresh = getProductById(id)
+        if (fresh) setProduct(fresh)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false)
+          clearTimeout(timer)
+        }
+      })
 
     const unsub = subscribeProducts(() => {
+      if (cancelled) return
       const fresh = getProductById(id)
       if (fresh) {
         setProduct(fresh)
@@ -82,10 +97,27 @@ export default function ProductDetail(){
 
     return () => {
       cancelled = true
+      clearTimeout(timer)
       unsub()
     }
   }, [id])
 
+
+  
+  
+  
+
+
+
+    
+
+    
+    
+
+
+
+
+  
   const trackedRef = useRef<string | null>(null)
   useEffect(() => {
     if (!product?._id || trackedRef.current === product._id) return
