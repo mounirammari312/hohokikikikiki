@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
-import { CheckCircle, Truck, Phone, Gift, ArrowLeft } from 'lucide-react'
+import { CheckCircle, Truck, Phone, Gift, ArrowLeft, ShoppingBag, Sparkles } from 'lucide-react'
 import { getOrder } from '../services/api/orders'
 import { formatDZD } from '../lib/utils'
 import { useEffect, useState } from 'react'
@@ -83,6 +83,31 @@ export default function ThankYou(){
               </ol>
             </div>
 
+            {/* ─── بطاقة الترويج للماركت بلايس ودليل المتاجر ─── */}
+            <div className="bg-gradient-to-r from-[#FFF9EE] to-[#FFF2F6] border border-[#F5D8E4] rounded-2xl p-4 relative overflow-hidden">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#A02A5B] to-[#C9A96A] grid place-items-center shrink-0 shadow-md">
+                  <ShoppingBag size={20} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-extrabold text-xs text-[#1A1A1E] flex items-center gap-1.5">
+                    <span>دليل المتاجر والعروض الحصرية</span>
+                    <Sparkles size={13} className="text-[#C9A96A]" />
+                  </div>
+                  <p className="text-[11px] text-[#7A6F5A] mt-0.5 leading-snug">
+                    تصفح آلاف المنتجات المخفضة في مختلف المتاجر الجزائرية عبر منصتنا
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/marketplace"
+                className="mt-3 w-full bg-white border border-[#EDE6D8] hover:border-[#C9A96A] text-[#1A1A1E] py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs hover:shadow-sm transition-all"
+              >
+                استكشاف الماركت بلايس
+                <ArrowLeft size={14} className="text-[#A02A5B]" />
+              </Link>
+            </div>
+
             <div className="flex gap-3">
               <Link to="/shop" className="flex-1 bg-[#1A1A1E] text-white rounded-full py-3 text-center font-bold flex items-center justify-center gap-2 hover:bg-black transition"><ArrowLeft size={16}/> متابعة التسوق</Link>
               <a href={`https://wa.me/${store.whatsapp}?text=${encodeURIComponent('استفسار عن الطلب ' + order.orderNumber)}`} target="_blank" className="flex-1 bg-[#25D366] text-white rounded-full py-3 text-center font-bold hover:bg-[#1DA851] transition">واتساب</a>
@@ -94,3 +119,4 @@ export default function ThankYou(){
     </div>
   )
 }
+
