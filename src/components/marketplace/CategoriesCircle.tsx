@@ -1,10 +1,17 @@
 /**
- * CategoriesCircle — Horizontal scrolling circular category icons.
+ * CategoriesCircle — Minimalist monochrome category selector.
  *
- * Temu/AliExpress style: a row of circular icon buttons that scroll
- * horizontally. Each icon has a colored gradient background.
+ * Refactored from a colorful circular-icon row into a clean, capsule-
+ * shaped pill grid that matches the neutral Slate + white palette of
+ * the new marketplace.
  *
- * Clicking a category triggers the parent's onCategory callback.
+ * Design rules:
+ *   - No colorful gradients. Background is white, border is slate-200.
+ *   - Icons use a unified dark gray (slate-700) for consistency.
+ *   - Active state: bg-slate-900 + text-white + border-slate-900 + shadow-sm.
+ *   - Hover: border darkens to slate-400 (subtle).
+ *
+ * Clicking a category triggers the parent's onSelect callback.
  */
 
 import { useRef } from 'react'
@@ -18,26 +25,25 @@ export interface CategoryItem {
   key: string
   labelAr: string
   icon: any
-  gradient: string
 }
 
 export const CATEGORY_CIRCLES: CategoryItem[] = [
-  { key: 'all',         labelAr: 'الكل',          icon: ShoppingBag, gradient: 'from-[#1A1A1E] to-[#3D3D45]' },
-  { key: 'electronics', labelAr: 'إلكترونيات',    icon: Smartphone,  gradient: 'from-[#3B82F6] to-[#1E40AF]' },
-  { key: 'fashion',     labelAr: 'موضة',          icon: Shirt,       gradient: 'from-[#EC4899] to-[#BE185D]' },
-  { key: 'beauty',      labelAr: 'جمال',          icon: Heart,       gradient: 'from-[#F43F5E] to-[#9F1239]' },
-  { key: 'jewelry',     labelAr: 'مجوهرات',       icon: Crown,       gradient: 'from-[#C9A96A] to-[#92653A]' },
-  { key: 'watches',     labelAr: 'ساعات',         icon: Watch,       gradient: 'from-[#0EA5E9] to-[#0369A1]' },
-  { key: 'home',        labelAr: 'منزل',          icon: HomeIcon,    gradient: 'from-[#10B981] to-[#047857]' },
-  { key: 'perfume',     labelAr: 'عطور',          icon: Droplet,     gradient: 'from-[#8B5CF6] to-[#5B21B6]' },
-  { key: 'books',       labelAr: 'كتب',          icon: Book,         gradient: 'from-[#F59E0B] to-[#B45309]' },
-  { key: 'toys',        labelAr: 'ألعاب',         icon: Gamepad2,    gradient: 'from-[#06B6D4] to-[#0E7490]' },
-  { key: 'sports',      labelAr: 'رياضة',         icon: Dumbbell,    gradient: 'from-[#EF4444] to-[#B91C1C]' },
-  { key: 'baby',        labelAr: 'أطفال',         icon: Baby,        gradient: 'from-[#F472B6] to-[#BE185D]' },
-  { key: 'tools',       labelAr: 'أدوات',         icon: Wrench,      gradient: 'from-[#64748B] to-[#334155]' },
-  { key: 'art',         labelAr: 'فن',            icon: Palette,     gradient: 'from-[#A855F7] to-[#7E22CE]' },
-  { key: 'gifts',       labelAr: 'هدايا',         icon: Gift,        gradient: 'from-[#14B8A6] to-[#0F766E]' },
-  { key: 'general',     labelAr: 'أخرى',          icon: Package,     gradient: 'from-[#9CA3AF] to-[#4B5563]' },
+  { key: 'all',         labelAr: 'الكل',          icon: ShoppingBag },
+  { key: 'electronics', labelAr: 'إلكترونيات',    icon: Smartphone },
+  { key: 'fashion',     labelAr: 'موضة',          icon: Shirt },
+  { key: 'beauty',      labelAr: 'جمال',          icon: Heart },
+  { key: 'jewelry',     labelAr: 'مجوهرات',       icon: Crown },
+  { key: 'watches',     labelAr: 'ساعات',         icon: Watch },
+  { key: 'home',        labelAr: 'منزل',          icon: HomeIcon },
+  { key: 'perfume',     labelAr: 'عطور',          icon: Droplet },
+  { key: 'books',       labelAr: 'كتب',           icon: Book },
+  { key: 'toys',        labelAr: 'ألعاب',         icon: Gamepad2 },
+  { key: 'sports',      labelAr: 'رياضة',         icon: Dumbbell },
+  { key: 'baby',        labelAr: 'أطفال',         icon: Baby },
+  { key: 'tools',       labelAr: 'أدوات',         icon: Wrench },
+  { key: 'art',         labelAr: 'فن',            icon: Palette },
+  { key: 'gifts',       labelAr: 'هدايا',         icon: Gift },
+  { key: 'general',     labelAr: 'أخرى',          icon: Package },
 ]
 
 interface Props {
@@ -51,7 +57,7 @@ export function CategoriesCircle({ active, onSelect, className = '' }: Props) {
 
   const scroll = (dir: 'left' | 'right') => {
     if (!scrollRef.current) return
-    scrollRef.current.scrollBy({ left: dir === 'left' ? 200 : -200, behavior: 'smooth' })
+    scrollRef.current.scrollBy({ left: dir === 'left' ? 240 : -240, behavior: 'smooth' })
   }
 
   return (
@@ -59,24 +65,24 @@ export function CategoriesCircle({ active, onSelect, className = '' }: Props) {
       {/* Right arrow (desktop) */}
       <button
         onClick={() => scroll('right')}
-        className="hidden md:grid absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white shadow-md border border-[#E5E7EB] place-items-center hover:bg-[#F3F4F6] transition"
+        className="hidden md:grid absolute right-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white shadow-sm border border-slate-200 place-items-center hover:bg-slate-50 hover:border-slate-300 transition"
         aria-label="السابق"
       >
-        <ChevronRight size={16} />
+        <ChevronRight size={16} className="text-slate-700" />
       </button>
       {/* Left arrow (desktop) */}
       <button
         onClick={() => scroll('left')}
-        className="hidden md:grid absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white shadow-md border border-[#E5E7EB] place-items-center hover:bg-[#F3F4F6] transition"
+        className="hidden md:grid absolute left-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white shadow-sm border border-slate-200 place-items-center hover:bg-slate-50 hover:border-slate-300 transition"
         aria-label="التالي"
       >
-        <ChevronLeft size={16} />
+        <ChevronLeft size={16} className="text-slate-700" />
       </button>
 
-      {/* Scrollable row */}
+      {/* Scrollable row of capsule pills */}
       <div
         ref={scrollRef}
-        className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide px-2 md:px-10 py-2"
+        className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto scrollbar-hide px-2 md:px-12 py-3"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {CATEGORY_CIRCLES.map(cat => {
@@ -86,16 +92,17 @@ export function CategoriesCircle({ active, onSelect, className = '' }: Props) {
             <button
               key={cat.key}
               onClick={() => onSelect(cat.key)}
-              className="flex flex-col items-center gap-1 shrink-0 group w-[58px] sm:w-[64px]"
+              className={`group shrink-0 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 sm:px-4 sm:py-2.5 transition-all duration-200 ${
+                isActive
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                  : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-400 hover:bg-slate-50'
+              }`}
             >
-              <div
-                className={`w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br ${cat.gradient} grid place-items-center transition-all group-hover:scale-110 group-active:scale-95 group-hover:shadow-lg ${isActive ? 'ring-2 ring-offset-2 ring-[#C9A96A] scale-105' : ''}`}
-              >
-                <Icon size={18} className="sm:hidden text-white" />
-                <Icon size={22} className="hidden sm:block md:hidden text-white" />
-                <Icon size={22} className="hidden md:block text-white" />
-              </div>
-              <span className={`text-[9px] sm:text-[10px] md:text-xs font-medium text-center leading-tight ${isActive ? 'text-[#1A1A1E] font-bold' : 'text-[#4B5563]'}`}>
+              <Icon
+                size={15}
+                className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-700 group-hover:text-slate-900'}`}
+              />
+              <span className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${isActive ? 'text-white' : 'text-slate-700 group-hover:text-slate-900'}`}>
                 {cat.labelAr}
               </span>
             </button>

@@ -24,7 +24,10 @@ interface CartCtx {
   addToCart: (p: Product, qty?: number, variantId?: string) => void
   updateQty: (id: string, qty: number, variantId?: string) => void
   removeItem: (id:string, variantId?: string)=>void
+  /** Empty the cart. `clear` is the canonical name; `clearCart` is an alias
+   *  kept for backwards-compat with code that calls the older name. */
   clear: ()=>void
+  clearCart: ()=>void
   totalQty: number
   subtotal: number
   discount: number
@@ -143,6 +146,8 @@ export function CartProvider({children}:{children:React.ReactNode}){
     setItems(prev=>prev.filter(i=> (i.product._id + '::' + (i.variantId||''))!==key))
   }
   const clear=()=> setItems([])
+  // Alias so callers using `clearCart()` (the older name) keep working.
+  const clearCart = clear
 
   // calc with variant priceAdjustment
   let subtotal=0
@@ -157,6 +162,6 @@ export function CartProvider({children}:{children:React.ReactNode}){
   })
   if(items.length===0){ total=0; discount=0; subtotal=0 }
 
-  return <Ctx.Provider value={{items, addToCart, updateQty, removeItem, clear, totalQty: items.reduce((a,b)=>a+b.qty,0), subtotal, discount, total}}>{children}</Ctx.Provider>
+  return <Ctx.Provider value={{items, addToCart, updateQty, removeItem, clear, clearCart, totalQty: items.reduce((a,b)=>a+b.qty,0), subtotal, discount, total}}>{children}</Ctx.Provider>
 }
 export const useCart=()=> useContext(Ctx)

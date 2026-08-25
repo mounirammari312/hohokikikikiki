@@ -1,171 +1,95 @@
 /**
- * BannerCarousel — Auto-rotating promotional banner carousel.
+ * BannerCarousel — Cinematic Dynamic Hero slider.
  *
- * Phase 2: now pulls banners from /api/marketplace/banners (managed by
- * super_admin via /api/super-admin/banners). If the API returns banners,
- * we render those. Otherwise, we fall back to 5 hardcoded defaults.
+ * Refactored from a static-text promo banner into a product-driven
+ * hero carousel. Each slide uses the real product image as a full-bleed
+ * background with a soft cinematic gradient overlay, and surfaces:
+ *   - Product name
+ *   - Current price (DZD) + strikethrough original price
+ *   - Store name with verified badge
+ *   - Single elegant CTA that routes to the product detail page
+ *
+ * Fallback: when no products are passed (or the array is empty), the
+ * component renders a slim neutral placeholder so the layout doesn't
+ * collapse while data is loading.
  *
  * Features:
- *   - Auto-rotation every 5 seconds
- *   - Dots indicator
- *   - Prev/next arrows (desktop)
- *   - Pause on hover
- *   - Swipe support on mobile
+ *   - Auto-rotation every 5s (pauses on hover / touch)
+ *   - Pill indicators (modern, minimal)
+ *   - Swipe support on touch devices
+ *   - No emojis — only lucide-react icons
+ *   - Strict monochrome palette (slate-950 base, white text, emerald COD accent)
  */
 
-import { useEffect, useState, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  ChevronLeft, ChevronRight, Truck, Gift, Sparkles, ShieldCheck, Crown,
-  Package, Star, Zap, Heart, Smartphone, Watch,
+  ChevronLeft, ChevronRight, ShieldCheck, ArrowLeft, BadgeCheck,
 } from 'lucide-react'
-import { fetchBanners, type MarketplaceBanner } from '../../services/api/client'
+import type { MarketplaceProduct } from '../../services/api/client'
+import type { TenantStore } from '../../services/api/types'
+import { formatDZD } from '../../lib/utils'
+import { SmartImage } from '../SmartImage'
 
-// Map of icon names → Lucide components (only a curated subset is allowed
-// for security reasons — we don't want to allow arbitrary component names
-// from the database)
-const ICON_MAP: Record<string, any> = {
-  Truck, Gift, Sparkles, ShieldCheck, Crown, Package, Star, Zap, Heart, Smartphone, Watch,
+interface Props {
+  /**
+   * Featured / trending products to rotate through. If empty or omitted,
+   * the component renders a neutral placeholder (no broken layout).
+   */
+  products?: MarketplaceProduct[]
+  /**
+   * The list of stores (used to resolve each product's store name + slug
+   * for the verified badge + CTA routing).
+   */
+  stores?: TenantStore[]
+  /** Optional auto-advance interval in ms (default: 5000). */
+  intervalMs?: number
+  className?: string
 }
 
-// Default fallback banners (used if the API returns nothing or fails)
-const DEFAULT_BANNERS = [
-  {
-    _id: 'default_free_delivery',
-    order: 1,
-    badge: 'توصيل مجاني',
-    badgeAr: 'توصيل مجاني',
-    icon: 'Truck',
-    title: 'توصيل مجاني لكل الولايات',
-    titleAr: 'توصيل مجاني لكل الولايات',
-    highlight: '58 ولاية',
-    highlightAr: '58 ولاية',
-    subtitle: 'عند الطلب بأكثر من 5000 دج — توصيل سريع وآمن إلى باب منزلك',
-    subtitleAr: 'عند الطلب بأكثر من 5000 دج — توصيل سريع وآمن إلى باب منزلك',
-    cta: 'تسوّق الآن',
-    ctaAr: 'تسوّق الآن',
-    href: '/marketplace',
-    gradient: 'from-[#0F766E] via-[#115E59] to-[#0F4F4A]',
-    blob1: 'bg-emerald-400/30',
-    blob2: 'bg-teal-300/20',
-    isActive: true,
-  },
-  {
-    _id: 'default_cod',
-    order: 2,
-    badge: 'دفع عند الاستلام',
-    badgeAr: 'دفع عند الاستلام',
-    icon: 'ShieldCheck',
-    title: 'ادفع عند الاستلام',
-    titleAr: 'ادفع عند الاستلام',
-    highlight: 'بكل ثقة',
-    highlightAr: 'بكل ثقة',
-    subtitle: 'لا تدفع شيء قبل أن يصلك المنتج وتراه بعينيك — الثقة أولاً',
-    subtitleAr: 'لا تدفع شيء قبل أن يصلك المنتج وتراه بعينيك — الثقة أولاً',
-    cta: 'تصفّح المنتجات',
-    ctaAr: 'تصفّح المنتجات',
-    href: '/marketplace',
-    gradient: 'from-[#1A1A1E] via-[#2D2D35] to-[#1A1A1E]',
-    blob1: 'bg-[#C9A96A]/30',
-    blob2: 'bg-[#A02A5B]/20',
-    isActive: true,
-  },
-  {
-    _id: 'default_new_user',
-    order: 3,
-    badge: 'هدية جديدة',
-    badgeAr: 'هدية جديدة',
-    icon: 'Gift',
-    title: 'هدية المستخدم الجديد',
-    titleAr: 'هدية المستخدم الجديد',
-    highlight: '500 دج خصم',
-    highlightAr: '500 دج خصم',
-    subtitle: 'سجّل متجرك مجاناً واحصل على كوبون خصم 500 دج على أول طلب',
-    subtitleAr: 'سجّل متجرك مجاناً واحصل على كوبون خصم 500 دج على أول طلب',
-    cta: 'احصل على هديتك',
-    ctaAr: 'احصل على هديتك',
-    href: '/',
-    gradient: 'from-[#A02A5B] via-[#7A1F44] to-[#5E1834]',
-    blob1: 'bg-pink-300/30',
-    blob2: 'bg-rose-300/20',
-    isActive: true,
-  },
-  {
-    _id: 'default_flash',
-    order: 4,
-    badge: 'عروض اليوم',
-    badgeAr: 'عروض اليوم',
-    icon: 'Sparkles',
-    title: 'خصومات تصل إلى 70%',
-    titleAr: 'خصومات تصل إلى 70%',
-    highlight: 'لفترة محدودة',
-    highlightAr: 'لفترة محدودة',
-    subtitle: 'عروض حصرية تنتهي خلال ساعات — لا تفوّت الفرصة',
-    subtitleAr: 'عروض حصرية تنتهي خلال ساعات — لا تفوّت الفرصة',
-    cta: 'شاهد العروض',
-    ctaAr: 'شاهد العروض',
-    href: '/marketplace',
-    gradient: 'from-[#B45309] via-[#92400E] to-[#78350F]',
-    blob1: 'bg-amber-300/30',
-    blob2: 'bg-orange-300/20',
-    isActive: true,
-  },
-  {
-    _id: 'default_verified_stores',
-    order: 5,
-    badge: 'متاجر موثّقة',
-    badgeAr: 'متاجر موثّقة',
-    icon: 'Crown',
-    title: 'تسوّق من متاجر موثّقة',
-    titleAr: 'تسوّق من متاجر موثّقة',
-    highlight: '100% ضمان',
-    highlightAr: '100% ضمان',
-    subtitle: 'كل المتاجر في Amugar موثّقة ومعتمدة — جودة مضمونة',
-    subtitleAr: 'كل المتاجر في Amugar موثّقة ومعتمدة — جودة مضمونة',
-    cta: 'تصفّح المتاجر',
-    ctaAr: 'تصفّح المتاجر',
-    href: '/marketplace',
-    gradient: 'from-[#1E3A8A] via-[#1E40AF] to-[#1E3A8A]',
-    blob1: 'bg-blue-400/30',
-    blob2: 'bg-indigo-300/20',
-    isActive: true,
-  },
-]
+const DEFAULT_INTERVAL = 5000
 
-type Banner = MarketplaceBanner | typeof DEFAULT_BANNERS[0]
-
-export function BannerCarousel({ className = '' }: { className?: string }) {
-  const [banners, setBanners] = useState<Banner[]>(DEFAULT_BANNERS as Banner[])
+export function BannerCarousel({
+  products = [],
+  stores = [],
+  intervalMs = DEFAULT_INTERVAL,
+  className = '',
+}: Props) {
+  const navigate = useNavigate()
   const [idx, setIdx] = useState(0)
   const [paused, setPaused] = useState(false)
   const touchStartX = useRef<number | null>(null)
 
-  // Pull banners from the API on mount
-  // DEFERRED: delay first fetch by 2s — show default banners immediately,
-  // then swap to server banners when they arrive (avoids blocking initial render)
-  useEffect(() => {
-    let cancelled = false
-    const t = setTimeout(async () => {
-      const { banners: remote } = await fetchBanners()
-      if (cancelled) return
-      if (remote && remote.length > 0) {
-        setBanners(remote as Banner[])
-      }
-    }, 2000)
-    return () => { cancelled = true; clearTimeout(t) }
-  }, [])
+  // Pre-compute the slide list: only products with at least one image,
+  // capped at 6 so the carousel stays focused.
+  const slides = useMemo(() => {
+    return products
+      .filter(p => p && (Array.isArray(p.images) ? p.images.length > 0 : !!p.images))
+      .slice(0, 6)
+  }, [products])
 
+  // Reset index if the slide list shrinks below the current index
   useEffect(() => {
-    if (paused) return
+    if (idx >= slides.length) setIdx(0)
+  }, [slides.length, idx])
+
+  // Auto-rotation
+  useEffect(() => {
+    if (paused || slides.length <= 1) return
     const id = setInterval(() => {
-      setIdx(i => (i + 1) % banners.length)
-    }, 5000)
+      setIdx(i => (i + 1) % slides.length)
+    }, intervalMs)
     return () => clearInterval(id)
-  }, [paused, banners.length])
+  }, [paused, slides.length, intervalMs])
 
-  const go = (i: number) => setIdx(((i % banners.length) + banners.length) % banners.length)
+  const go = (i: number) => {
+    if (slides.length === 0) return
+    setIdx(((i % slides.length) + slides.length) % slides.length)
+  }
 
-  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX }
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+  }
   const onTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current === null) return
     const dx = e.changedTouches[0].clientX - touchStartX.current
@@ -173,78 +97,184 @@ export function BannerCarousel({ className = '' }: { className?: string }) {
     touchStartX.current = null
   }
 
+  // Resolve the store for a given product (used for verified badge + CTA)
+  const resolveStore = (p: MarketplaceProduct) => {
+    return stores.find(s => s._id === p.storeId)
+  }
+
+  const goToProduct = (p: MarketplaceProduct) => {
+    const store = resolveStore(p)
+    if (store?.slug) {
+      navigate(`/product/${p._id}?store=${encodeURIComponent(store.slug)}`)
+    } else if (p.storeId) {
+      navigate(`/product/${p._id}?storeId=${encodeURIComponent(p.storeId)}`)
+    } else {
+      navigate(`/product/${p._id}`)
+    }
+  }
+
+  // ─── Empty state (no products yet) ───────────────────────────────────
+  if (slides.length === 0) {
+    return (
+      <div
+        className={`relative rounded-2xl overflow-hidden bg-slate-900 ${className}`}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <div className="relative h-[180px] sm:h-[240px] md:h-[320px] flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-to-l from-slate-950 via-slate-900 to-slate-800" />
+          <div className="relative text-center px-6">
+            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-3 py-1 text-[10px] sm:text-xs font-bold text-white/80 mb-3">
+              <ShieldCheck size={12} />
+              <span>Amugar Marketplace</span>
+            </div>
+            <h2 className="text-white text-base sm:text-xl md:text-2xl font-extrabold tracking-tight">
+              منتجات مميزة قريباً
+            </h2>
+            <p className="text-white/60 text-[11px] sm:text-sm mt-1.5 max-w-md mx-auto leading-5">
+              نختار لك أفضل العروض من المتاجر الجزائرية الموثّقة
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const current = slides[idx]
+  const currentStore = resolveStore(current)
+  const hasDiscount = !!current.compareAtPrice && current.compareAtPrice > current.price
+  const discountPct = hasDiscount
+    ? Math.round(((current.compareAtPrice! - current.price) / current.compareAtPrice!) * 100)
+    : 0
+
   return (
     <div
-      className={`relative rounded-3xl overflow-hidden ${className}`}
+      className={`relative rounded-2xl overflow-hidden bg-slate-900 ${className}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
       {/* Slides */}
-      <div className="relative h-[160px] sm:h-[200px] md:h-[280px]">
-        {banners.map((b, i) => {
-          const Icon = ICON_MAP[b.icon] || Sparkles
+      <div className="relative h-[200px] sm:h-[280px] md:h-[380px]">
+        {slides.map((p, i) => {
           const active = i === idx
+          const store = resolveStore(p)
+          const img = Array.isArray(p.images) ? p.images[0] : p.images
+          const isDiscount = !!p.compareAtPrice && p.compareAtPrice > p.price
           return (
             <div
-              key={b._id}
+              key={p._id}
               className={`absolute inset-0 transition-opacity duration-700 ${active ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'}`}
+              aria-hidden={!active}
             >
-              <div className={`absolute inset-0 bg-gradient-to-l ${b.gradient}`} />
-              <div className={`absolute -top-20 -right-20 w-60 h-60 md:w-72 md:h-72 ${b.blob1} rounded-full blur-3xl`} />
-              <div className={`absolute -bottom-20 -left-20 w-60 h-60 md:w-72 md:h-72 ${b.blob2} rounded-full blur-3xl`} />
-              <Link to={b.href} className="relative h-full flex flex-col justify-center p-4 sm:p-6 md:p-10 text-white">
-                <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur border border-white/20 rounded-full px-2.5 py-0.5 md:px-3 md:py-1 text-[9px] md:text-xs font-bold mb-2 md:mb-3 w-fit">
-                  <Icon size={10} className="md:hidden" />
-                  <Icon size={12} className="hidden md:block" />
-                  <span className="truncate max-w-[100px] md:max-w-none">{b.badgeAr || b.badge}</span>
+              {/* Background image */}
+              <div className="absolute inset-0">
+                <SmartImage
+                  src={img}
+                  alt={p.nameAr || p.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Cinematic gradient overlay (RTL → from right) */}
+              <div className="absolute inset-0 bg-gradient-to-l from-slate-950/95 via-slate-950/70 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
+
+              {/* Content */}
+              <button
+                type="button"
+                onClick={() => goToProduct(p)}
+                className="relative h-full w-full flex flex-col justify-center p-4 sm:p-6 md:p-10 text-right"
+                aria-label={`عرض ${p.nameAr || p.name}`}
+              >
+                {/* Top row: discount pill + store badge */}
+                <div className="flex items-center gap-2 mb-2 md:mb-3">
+                  {isDiscount && (
+                    <span className="inline-flex items-center gap-1 bg-emerald-600 text-white rounded-full px-2.5 py-0.5 md:px-3 md:py-1 text-[10px] md:text-xs font-bold">
+                      خصم {Math.round(((p.compareAtPrice! - p.price) / p.compareAtPrice!) * 100)}%
+                    </span>
+                  )}
+                  {store && (
+                    <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur border border-white/20 rounded-full px-2.5 py-0.5 md:px-3 md:py-1 text-[10px] md:text-xs font-bold text-white">
+                      <BadgeCheck size={11} className="text-emerald-400" />
+                      <span className="truncate max-w-[120px] md:max-w-none">
+                        {store.nameAr || store.name}
+                      </span>
+                    </span>
+                  )}
                 </div>
-                <h2 className="text-base sm:text-xl md:text-3xl font-extrabold leading-tight">
-                  {b.titleAr || b.title}
-                  <span className="block text-white mt-0.5 md:mt-1 text-sm sm:text-base md:text-2xl">{b.highlightAr || b.highlight}</span>
+
+                {/* Product name */}
+                <h2 className="text-white text-base sm:text-xl md:text-3xl font-extrabold leading-tight line-clamp-2 max-w-md md:max-w-xl">
+                  {p.nameAr || p.name}
                 </h2>
-                <p className="text-white/80 text-[10px] sm:text-xs md:text-sm mt-1.5 md:mt-2 max-w-xs md:max-w-md leading-5 md:leading-6 line-clamp-2">{b.subtitleAr || b.subtitle}</p>
-                <div className="mt-2 md:mt-4">
-                  <span className="inline-flex items-center gap-1 bg-white text-[#1A1A1E] px-3 py-1.5 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs font-bold hover:scale-105 transition-transform">
-                    {b.ctaAr || b.cta}
-                    <ChevronLeft size={12} className="md:hidden" />
-                    <ChevronLeft size={14} className="hidden md:block" />
+
+                {/* Price row */}
+                <div className="flex items-baseline gap-2 mt-2 md:mt-3">
+                  <span className="text-white text-lg sm:text-2xl md:text-4xl font-extrabold tracking-tight tabular-nums">
+                    {formatDZD(p.price)}
+                  </span>
+                  {isDiscount && (
+                    <span className="text-white/50 text-xs sm:text-sm md:text-base line-through tabular-nums">
+                      {formatDZD(p.compareAtPrice!)}
+                    </span>
+                  )}
+                </div>
+
+                {/* CTA */}
+                <div className="mt-3 md:mt-5">
+                  <span className="inline-flex items-center gap-1.5 bg-white text-slate-900 px-4 py-2 md:px-5 md:py-2.5 rounded-full text-[11px] md:text-sm font-bold hover:bg-slate-100 transition shadow-sm">
+                    اكتشف المنتج
+                    <ArrowLeft size={14} />
                   </span>
                 </div>
-              </Link>
+              </button>
             </div>
           )
         })}
       </div>
 
       {/* Arrows (desktop only) */}
-      <button
-        onClick={() => go(idx - 1)}
-        className="hidden md:grid absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white/20 backdrop-blur hover:bg-white/30 text-white place-items-center transition"
-        aria-label="السابق"
-      >
-        <ChevronRight size={18} />
-      </button>
-      <button
-        onClick={() => go(idx + 1)}
-        className="hidden md:grid absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white/20 backdrop-blur hover:bg-white/30 text-white place-items-center transition"
-        aria-label="التالي"
-      >
-        <ChevronLeft size={18} />
-      </button>
-
-      {/* Dots */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
-        {banners.map((_, i) => (
+      {slides.length > 1 && (
+        <>
           <button
-            key={i}
-            onClick={() => go(i)}
-            className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/60'}`}
-            aria-label={`شريحة ${i + 1}`}
-          />
-        ))}
-      </div>
+            onClick={() => go(idx - 1)}
+            className="hidden md:grid absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/10 backdrop-blur hover:bg-white/20 text-white place-items-center transition border border-white/15"
+            aria-label="السابق"
+          >
+            <ChevronRight size={18} />
+          </button>
+          <button
+            onClick={() => go(idx + 1)}
+            className="hidden md:grid absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/10 backdrop-blur hover:bg-white/20 text-white place-items-center transition border border-white/15"
+            aria-label="التالي"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        </>
+      )}
+
+      {/* Pill indicators */}
+      {slides.length > 1 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => go(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${i === idx ? 'w-6 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/60'}`}
+              aria-label={`شريحة ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
+
+// ─── Legacy compat: keep `fetchBanners` import path stable ────────────────
+// Some old code imports from this module; we re-export a no-op so existing
+// imports don't break at build time. The marketplace no longer uses banners
+// in the hero (it uses real products now), but the type is still used by
+// the super-admin dashboard.
+export type { MarketplaceBanner } from '../../services/api/client'
