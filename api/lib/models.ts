@@ -233,7 +233,7 @@ const SettingsSchema = new mongoose.Schema({
   metaPixelId: { type: String, default: '' },
   tiktokPixelId: { type: String, default: '' },
   storeName: { type: String, default: 'Amugar' },
-  storeNameAr: { type: String, default: 'أموغار' },
+  storeNameAr: { type: String, default: 'Amugar' },
   currency: { type: String, default: 'د.ج' },
   enableCod: { type: Boolean, default: true },
   phone: { type: String, default: '' },

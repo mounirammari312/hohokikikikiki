@@ -108,7 +108,7 @@ async function doPlatformSeed(): Promise<void> {
         slug: DEFAULT_STORE_SLUG,
         ownerId: 'su_admin',
         name: 'Amugar Demo',
-        nameAr: 'أموغار تجريبي',
+        nameAr: 'Amugar Demo',
         status: 'active',
         plan: 'vip',
         planExpiresAt: null,
@@ -336,8 +336,8 @@ async function doPlatformSeed(): Promise<void> {
         titleAr: 'تسوّق من متاجر موثّقة',
         highlight: '100% ضمان',
         highlightAr: '100% ضمان',
-        subtitle: 'كل المتاجر في أموگار موثّقة ومعتمدة — جودة مضمونة',
-        subtitleAr: 'كل المتاجر في أموگار موثّقة ومعتمدة — جودة مضمونة',
+        subtitle: 'كل المتاجر في Amugar موثّقة ومعتمدة — جودة مضمونة',
+        subtitleAr: 'كل المتاجر في Amugar موثّقة ومعتمدة — جودة مضمونة',
         cta: 'تصفّح المتاجر',
         ctaAr: 'تصفّح المتاجر',
         href: '/marketplace',
@@ -368,8 +368,20 @@ async function doPlatformSeed(): Promise<void> {
  * store (`store_default`) — but only when the demo store is first
  * created (which already happened in any existing deployment, so this
  * is a no-op for production).
+ *
+ * STORE NAME SYNC: when `storeName` / `storeNameAr` are provided (from
+ * the merchant's registration form), they are written into the Settings
+ * document so the storefront shows the merchant's chosen name instead
+ * of the default "Amugar". For existing stores that still have the
+ * legacy default ("Amugar" / "أموغار"), we sync from the TenantStore's
+ * `name` / `nameAr` fields.
  */
-export async function seedStoreData(storeId: string, domainId?: string): Promise<void> {
+export async function seedStoreData(
+  storeId: string,
+  domainId?: string,
+  storeName?: string,
+  storeNameAr?: string,
+): Promise<void> {
   // ─── Empty store (no demo products) ──────────────────────────────────
   // Previously we seeded 3 sample products ("منتج تجريبي 1/2/3") with
   // Unsplash photos. This caused major merchant confusion: they'd open
@@ -410,6 +422,15 @@ export async function seedStoreData(storeId: string, domainId?: string): Promise
   }
   console.log(`[seed] synced ${presetDomains.length} preset domains for store ${storeId}`)
 
+  // ─── Fetch the TenantStore so we can sync its name → Settings ──────
+  // This is the canonical fix for "merchant sees Amugar instead of their
+  // chosen store name". The TenantStore.name/nameAr are the source of
+  // truth (set during registration); Settings.storeName/storeNameAr are
+  // what the storefront actually displays.
+  const tenant = await TenantStoreModel.findById(storeId).lean().catch(() => null)
+  const finalStoreName = storeName || (tenant as any)?.name || ''
+  const finalStoreNameAr = storeNameAr || (tenant as any)?.nameAr || (tenant as any)?.name || ''
+
   // ─── Settings ──────────────────────────────────────────────────────
   const settings = await SettingsModel.findById(settingsDocId(storeId)).lean()
   if (!settings) {
@@ -434,15 +455,20 @@ export async function seedStoreData(storeId: string, domainId?: string): Promise
       activeDomainId: chosenDomainId,
       // Override the default settings' texts with the chosen domain's texts
       // (heroBadge, heroTitleAr, heroSubtitleAr, footerDescriptionAr).
-      // We do NOT override storeName / storeNameAr — those come from the
-      // merchant's registration form (e.g. "متجر محمد للإلكترونيات").
+      //
+      // STORE NAME: if the merchant provided a storeName during registration,
+      // use it. Otherwise fall back to defaultSettings.storeName ("Amugar").
+      // This is what makes the storefront show "متجر محمد للإلكترونيات"
+      // instead of the platform default "Amugar".
+      storeName: finalStoreName || defaultSettings.storeName,
+      storeNameAr: finalStoreNameAr || defaultSettings.storeNameAr,
       heroBadge: chosenPreset?.heroBadge || defaultSettings.heroBadge,
       heroTitleAr: chosenPreset?.heroTitleAr || defaultSettings.heroTitleAr,
       heroSubtitleAr: chosenPreset?.heroSubtitleAr || defaultSettings.heroSubtitleAr,
       footerDescriptionAr: chosenPreset?.footerDescriptionAr || defaultSettings.footerDescriptionAr,
       deliveryProviders: defaultDeliveryProviders(),
     })
-    console.log(`[seed] inserted default settings for store ${storeId} (domain: ${chosenDomainId}, texts from: ${chosenPreset?.nameAr || 'default'})`)
+    console.log(`[seed] inserted default settings for store ${storeId} (domain: ${chosenDomainId}, storeName: ${finalStoreName || '(default)'}, texts from: ${chosenPreset?.nameAr || 'default'})`)
   } else {
     // Merge any new default fields that didn't exist in the DB yet
     const update: Partial<StoreSettings> = {}
@@ -459,9 +485,31 @@ export async function seedStoreData(storeId: string, domainId?: string): Promise
       (update as any).deliveryProviders = asDoc.deliveryProviders
     }
 
+    // ─── Store-name sync (legacy migration) ─────────────────────────────
+    // If the existing Settings.storeNameAr is empty OR equals one of the
+    // legacy platform defaults ("Amugar" / "أموغار" / "متجر أموغار"),
+    // overwrite it with the merchant's actual store name from the
+    // TenantStore document. This is the fix for "merchant sees Amugar
+    // instead of their own store name".
+    //
+    // We do NOT overwrite if the merchant has explicitly set a custom
+    // value (anything that doesn't match the defaults) — that means
+    // they intentionally chose a different display name from the dashboard.
+    const LEGACY_DEFAULTS = new Set([
+      'Amugar', 'أموغار', 'متجر أموغار', 'amugar', '',
+    ])
+    const currentNameAr = String((settings as any).storeNameAr ?? '')
+    const currentName = String((settings as any).storeName ?? '')
+    if (finalStoreNameAr && LEGACY_DEFAULTS.has(currentNameAr)) {
+      (update as any).storeNameAr = finalStoreNameAr
+    }
+    if (finalStoreName && LEGACY_DEFAULTS.has(currentName)) {
+      (update as any).storeName = finalStoreName
+    }
+
     if (Object.keys(update).length) {
       await SettingsModel.updateOne({ _id: settingsDocId(storeId) }, { $set: update })
-      console.log(`[seed] synced ${Object.keys(update).length} settings fields for store ${storeId} (delivery providers: ${touched.length ? touched.join(',') : 'none'})`)
+      console.log(`[seed] synced ${Object.keys(update).length} settings fields for store ${storeId} (delivery providers: ${touched.length ? touched.join(',') : 'none'}, storeName synced: ${(update as any).storeName ? 'yes' : 'no'})`)
     }
   }
 }

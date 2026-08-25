@@ -68,10 +68,10 @@ export function AppDownloadBanner({ className = '' }: { className?: string }) {
         <div className="flex-1 text-white">
           <div className="inline-flex items-center gap-1 bg-white/10 backdrop-blur border border-white/20 rounded-full px-2.5 py-0.5 text-[10px] font-bold mb-2">
             <Smartphone size={11} className="text-[#C9A96A]" />
-            تطبيق أموگار
+            تطبيق Amugar
           </div>
           <h3 className="text-lg md:text-2xl font-extrabold leading-tight">
-            حمّل تطبيق أموگار
+            حمّل تطبيق Amugar
             <span className="block text-[#C9A96A] text-sm md:text-base mt-0.5">وتسوّق بسهولة من هاتفك</span>
           </h3>
           <div className="flex items-center gap-3 mt-3 text-[10px] md:text-xs">

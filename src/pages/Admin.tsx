@@ -2484,7 +2484,7 @@ export default function Admin() {
             <div className="overflow-auto p-5 space-y-4 flex-1">
               <div className="grid md:grid-cols-2 gap-3">
                 <div><label className="text-xs font-bold">اسم المجال FR *</label><input value={domainForm.name} onChange={e=> setDomainForm({...domainForm, name:e.target.value})} placeholder="Amugar MODE" className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white outline-none" dir="ltr"/></div>
-                <div><label className="text-xs font-bold">اسم المجال عربي *</label><input value={domainForm.nameAr} onChange={e=> setDomainForm({...domainForm, nameAr:e.target.value})} placeholder="أموغار موضة" className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white"/></div>
+                <div><label className="text-xs font-bold">اسم المجال عربي *</label><input value={domainForm.nameAr} onChange={e=> setDomainForm({...domainForm, nameAr:e.target.value})} placeholder="Amugar MODE" className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white"/></div>
               </div>
               <div><label className="text-xs font-bold">وصف المجال (يظهر في الرئيسية)</label><textarea value={domainForm.descriptionAr} onChange={e=> setDomainForm({...domainForm, descriptionAr:e.target.value})} rows={2} className="mt-1 w-full border border-[#EDE6D8] rounded-xl px-3 py-2.5 text-sm bg-white"/></div>
               <div className="grid md:grid-cols-2 gap-3">

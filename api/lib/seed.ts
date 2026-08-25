@@ -27,7 +27,7 @@ export const presetDomains: StoreDomain[] = [
   {
     id: 'domain_jewelry',
     name: 'Amugar',
-    nameAr: 'أموغار',
+    nameAr: 'Amugar',
     descriptionAr: 'مجوهرات فاخرة مطلية بذهب 18ق — لؤلؤ طبيعي وزركون AAA. بريق باريسي بروح جزائرية.',
     heroBadge: 'COLLECTION 2026 • ÉDITION LIMITÉE',
     heroTitleAr: 'منتجات تُبرز أناقتك',
@@ -57,7 +57,7 @@ export const presetDomains: StoreDomain[] = [
   {
     id: 'domain_fashion',
     name: 'Amugar MODE',
-    nameAr: 'أموغار موضة',
+    nameAr: 'Amugar MODE',
     descriptionAr: 'أزياء نسائية راقية — عباءات، فساتين، حجابات وحقائب بلمسة باريسية وخياطة جزائرية متقنة.',
     heroBadge: 'MODE 2026 • NOUVELLE COLLECTION',
     heroTitleAr: 'أزياء تُبرز أناقتك',
@@ -90,7 +90,7 @@ export const presetDomains: StoreDomain[] = [
   {
     id: 'domain_beauty',
     name: 'Amugar BEAUTÉ',
-    nameAr: 'أموغار بيوتي',
+    nameAr: 'Amugar BEAUTÉ',
     descriptionAr: 'عالم الجمال والعطور — عطور نيش، مكياج ثابت، عناية بالبشرة والشعر بجودة صالونات باريس.',
     heroBadge: 'BEAUTÉ 2026 • ÉDITION ROSE',
     heroTitleAr: 'جمال يُضيء ملامحك',
@@ -121,7 +121,7 @@ export const presetDomains: StoreDomain[] = [
   {
     id: 'domain_electronics',
     name: 'Amugar Electronics',
-    nameAr: 'أموغار إلكترونيات',
+    nameAr: 'Amugar Electronics',
     descriptionAr: 'متجر إلكترونيات — هواتف، لواحق، سماعات، شواحن، إكسسوارات تقنية.',
     heroBadge: 'TECH 2026 • جديد',
     heroTitleAr: 'أحدث الإلكترونيات بين يديك',
@@ -161,7 +161,7 @@ export const presetDomains: StoreDomain[] = [
   {
     id: 'domain_home_appliances',
     name: 'Amugar Home',
-    nameAr: 'أموغار أجهزة منزلية',
+    nameAr: 'Amugar Home',
     descriptionAr: 'متجر أجهزة منزلية — ثلاجات، غسالات، أفران، مكيفات، تلفزيونات.',
     heroBadge: 'HOME 2026 • توصيل مجاني',
     heroTitleAr: 'كل ما يحتاجه منزلك',
@@ -195,7 +195,7 @@ export const presetDomains: StoreDomain[] = [
   {
     id: 'domain_digital',
     name: 'Amugar Digital',
-    nameAr: 'أموغار رقميات',
+    nameAr: 'Amugar Digital',
     descriptionAr: 'متجر منتجات رقمية — IPTV، اشتراكات Netflix، اشتراكات AI، حسابات Canva، كروت شحن.',
     heroBadge: 'DIGITAL 2026 • فوري',
     heroTitleAr: 'منتجات رقمية بتفعيل فوري',
@@ -232,7 +232,7 @@ export const presetDomains: StoreDomain[] = [
   {
     id: 'domain_general',
     name: 'Amugar Store',
-    nameAr: 'متجر أموغار',
+    nameAr: 'Amugar Store',
     descriptionAr: 'متجر عام — أضف منتجاتك وابدأ البيع. يمكنك تخصيص النمط من لوحة التحكم.',
     heroBadge: 'متجرك • 2026',
     heroTitleAr: 'مرحباً بك في متجرك',
@@ -583,7 +583,7 @@ export const defaultSettings: StoreSettings = {
   metaPixelId: "123456789012345",
   tiktokPixelId: "C1234567890ABCDEF",
   storeName: "Amugar",
-  storeNameAr: "أموغار",
+  storeNameAr: "Amugar",
   currency: "د.ج",
   enableCod: true,
   phone: "0550 12 34 56",

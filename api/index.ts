@@ -890,7 +890,9 @@ async function authRoute(segments: string[], method: string, req: any): Promise<
       updatedAt: now,
     })
     // Seed the new store's catalog (empty by default) + apply the chosen domain
-    await seedStoreData(storeId, chosenDomain)
+    // Pass storeName/storeNameAr so Settings.storeName/storeNameAr are populated
+    // with the merchant's chosen name (not the platform default "Amugar").
+    await seedStoreData(storeId, chosenDomain, storeName, storeNameAr || storeName)
 
     return [{
       user: sanitizeUser(user.toObject ? user.toObject() : user),
@@ -1451,7 +1453,9 @@ async function storesRoute(segments: string[], method: string, req: any, query: 
     // Validate + apply domainType if provided
     const validDomainIds = new Set((presetDomains || []).map(d => d.id))
     const chosenDomain = domainType && validDomainIds.has(domainType) ? domainType : 'domain_general'
-    await seedStoreData(storeId, chosenDomain)
+    // Pass the merchant's chosen store name so Settings.storeName/storeNameAr
+    // are populated correctly (instead of the platform default "Amugar").
+    await seedStoreData(storeId, chosenDomain, name, nameAr || name)
     return [{ storeId, slug: finalSlug, domainType: chosenDomain }, 201]
   }
 
@@ -1487,6 +1491,36 @@ async function storesRoute(segments: string[], method: string, req: any, query: 
     }
     const next = await TenantStoreModel.findByIdAndUpdate(id, { $set: patch }, { new: true }).lean()
     if (!next) return [{ error: 'NOT_FOUND' }, 404]
+
+    // ─── Sync store name → Settings ────────────────────────────────────
+    // When the merchant renames their store from the dashboard, propagate
+    // the change to the Settings document so the storefront reflects the
+    // new name immediately. Without this, the storefront would still show
+    // the old name (because it reads from Settings, not TenantStore).
+    const settingsPatch: any = {}
+    if (typeof body.name === 'string' && body.name.trim()) {
+      settingsPatch.storeName = body.name.trim()
+      // If the Arabic name still equals the legacy default OR equals the
+      // previous Latin storeName (i.e. the merchant never set a separate
+      // Arabic name), keep them in sync by copying the new Latin name.
+      const currentSettings = await SettingsModel.findById(settingsDocId(id)).lean().catch(() => null)
+      const currentAr = String((currentSettings as any)?.storeNameAr ?? '')
+      const LEGACY_DEFAULTS = new Set(['Amugar', 'أموغار', 'متجر أموغار', 'amugar', ''])
+      if (LEGACY_DEFAULTS.has(currentAr) || currentAr === (currentSettings as any)?.storeName) {
+        settingsPatch.storeNameAr = body.name.trim()
+      }
+    }
+    if (typeof body.nameAr === 'string' && body.nameAr.trim()) {
+      settingsPatch.storeNameAr = body.nameAr.trim()
+    }
+    if (Object.keys(settingsPatch).length) {
+      settingsPatch.updatedAt = new Date().toISOString()
+      await SettingsModel.updateOne(
+        { _id: settingsDocId(id) },
+        { $set: settingsPatch }
+      ).catch(() => {})
+    }
+
     return [{ store: next }, 200]
   }
 
@@ -2340,6 +2374,21 @@ async function putSettings(ctx: RouteCtx) {
         }))
     }
   }
+
+  // ─── Sync store name → TenantStore ────────────────────────────────
+  // Mirror the same logic as patchSettings: if the merchant updates
+  // storeName / storeNameAr via PUT /api/settings, propagate to TenantStore.
+  const tenantPatch: any = { updatedAt: new Date().toISOString() }
+  if (typeof data.storeName === 'string' && data.storeName.trim()) {
+    tenantPatch.name = data.storeName.trim()
+  }
+  if (typeof data.storeNameAr === 'string' && data.storeNameAr.trim()) {
+    tenantPatch.nameAr = data.storeNameAr.trim()
+  }
+  if (Object.keys(tenantPatch).length > 1) {
+    await TenantStoreModel.updateOne({ _id: ctx.storeId }, { $set: tenantPatch }).catch(() => {})
+  }
+
   const next = await SettingsModel.findByIdAndUpdate(
     settingsDocId(ctx.storeId),
     { $set: { ...data, _id: settingsDocId(ctx.storeId), storeId: ctx.storeId } },
@@ -2368,6 +2417,23 @@ async function patchSettings(ctx: RouteCtx) {
         }))
     }
   }
+
+  // ─── Sync store name → TenantStore ────────────────────────────────
+  // If the merchant updates storeName / storeNameAr from the dashboard's
+  // settings form, propagate the change to the TenantStore document too.
+  // This keeps the two in sync (the registration flow goes
+  // TenantStore → Settings; this is the reverse direction).
+  const tenantPatch: any = { updatedAt: new Date().toISOString() }
+  if (typeof patch.storeName === 'string' && patch.storeName.trim()) {
+    tenantPatch.name = patch.storeName.trim()
+  }
+  if (typeof patch.storeNameAr === 'string' && patch.storeNameAr.trim()) {
+    tenantPatch.nameAr = patch.storeNameAr.trim()
+  }
+  if (Object.keys(tenantPatch).length > 1) {
+    await TenantStoreModel.updateOne({ _id: ctx.storeId }, { $set: tenantPatch }).catch(() => {})
+  }
+
   const next = await SettingsModel.findByIdAndUpdate(
     settingsDocId(ctx.storeId),
     { $set: patch },
