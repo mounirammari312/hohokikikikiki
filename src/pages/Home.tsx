@@ -98,9 +98,14 @@ export default function Home() {
             eager
             className="absolute inset-0 w-full h-full object-cover"
           />
-          {/* Soft cinematic gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-l from-slate-950/85 via-slate-950/50 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
+          {/* Soft cinematic gradient overlay — LIGHT so the product image
+              stays visible. Only the bottom ~40% gets a scrim for the text;
+              the top stays bright. The previous from-slate-950/85 was too
+              dark and made the image appear black on the right half. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+          {/* Right-side scrim (RTL) so the white text is legible without
+              darkening the whole image. Kept narrow + light. */}
+          <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-slate-950/60 to-transparent" />
 
           {/* Floating trust badge (desktop) */}
           <div className="absolute top-4 right-4 z-20 hidden md:flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 rounded-full px-3 py-1.5 text-xs font-bold text-white">
@@ -219,6 +224,7 @@ export default function Home() {
                   loading="lazy"
                   className="absolute top-2 left-2 z-10 w-8 h-8 object-contain drop-shadow-md pointer-events-none select-none"
                   draggable={false}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
                 />
                 {/* Product count badge (top-right) */}
                 <span className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur text-slate-900 text-[10px] font-bold px-2 py-1 rounded-full">

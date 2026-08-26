@@ -191,6 +191,7 @@ export default function Shop() {
               loading="lazy"
               className="w-4 h-4 object-contain shrink-0 pointer-events-none select-none"
               draggable={false}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
             />
             <span>الكل</span>
             <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
@@ -216,6 +217,7 @@ export default function Shop() {
                 loading="lazy"
                 className="w-4 h-4 object-contain shrink-0 pointer-events-none select-none"
                 draggable={false}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
               />
               <span>{c.labelAr}</span>
               <span className="text-[10px] opacity-60 hidden md:inline">• {c.label}</span>

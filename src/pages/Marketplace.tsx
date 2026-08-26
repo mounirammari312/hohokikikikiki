@@ -342,6 +342,7 @@ export default function Marketplace() {
                       loading="lazy"
                       className={`w-4 h-4 object-contain shrink-0 pointer-events-none select-none ${active ? '' : 'opacity-90'}`}
                       draggable={false}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
                     />
                     <span className="flex-1 text-right font-medium">{cat.labelAr}</span>
                   </button>

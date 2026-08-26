@@ -27,11 +27,18 @@ export interface CategoryItem {
 }
 
 // ─── 3D icon source ──────────────────────────────────────────────────────
-// emoji.aranja.com serves transparent 3D-rendered PNGs of every emoji.
-// The `?size=` param controls the raster size — 64 gives crisp rendering
-// at 16-20px display size on retina screens without bloating the bundle.
-const ICON_3D = (emoji: string) =>
-  `https://emoji.aranja.com/static/emoji/img/img-emoji-${emoji}.png`
+// emoji.aranja.com hosts every emoji as a transparent PNG, organized by
+// vendor set: /emojis/{set}/{code}.png
+//
+// Available sets: apple (flat), google (semi-3D), facebook (3D with depth),
+// twitter (flat outline). We use "facebook" because it's the most 3D-rendered
+// set — the icons have real shading + highlights, so they pop at the tiny
+// 16×20px display size used inside the pills.
+//
+// The {code} is the emoji's Unicode codepoint in lowercase hex without the
+// U+ prefix (e.g. 📱 = U+1F4F1 → "1f4f1").
+const ICON_3D = (code: string) =>
+  `https://emoji.aranja.com/emojis/facebook/${code}.png`
 
 // ─── Category → 3D icon mapping ──────────────────────────────────────────
 // Maps a category key (from presetDomains or merchant's custom domain) to
@@ -178,6 +185,11 @@ export function CategoriesCircle({ active, onSelect, className = '' }: Props) {
                 loading="lazy"
                 className="w-4 h-4 object-contain shrink-0 pointer-events-none select-none"
                 draggable={false}
+                onError={(e) => {
+                  // If the 3D icon fails to load (network/CDN issue),
+                  // hide the broken-img icon so the pill still looks clean.
+                  (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'
+                }}
               />
               <span className={`text-xs font-bold whitespace-nowrap ${isActive ? 'text-white' : 'text-slate-800'}`}>
                 {cat.labelAr}
