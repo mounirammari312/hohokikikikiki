@@ -102,7 +102,7 @@ export default function Header(){
             {totalQty>0 && <span className="badge-pulse absolute -top-1 -right-1 bg-[var(--color-primary)] text-white text-[11px] font-bold w-5 h-5 rounded-full grid place-items-center border-2 border-white">{totalQty}</span>}
           </Link>
           <div className="hidden md:flex items-center gap-2 text-xs text-[#7A6F5A] border-s border-[#EDE6D8] ms-2 ps-3">
-            <span className="w-6 h-6 rounded-full bg-[#EDE6D8] grid place-items-center">🇩🇿</span>
+            <span className="w-6 h-6 rounded-full bg-[#EDE6D8] grid place-items-center text-[10px] font-extrabold text-[#1A1A1E]">DZ</span>
             <span className="font-bold text-[#1A1A1E]">AR</span>
           </div>
         </div>

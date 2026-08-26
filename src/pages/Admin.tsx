@@ -250,7 +250,7 @@ export default function Admin() {
         phone: profileForm.phone.trim(),
       })
       await refreshUser()
-      showToast('تم حفظ بياناتك الشخصية ✓')
+      showToast('تم حفظ بياناتك الشخصية')
     } catch (err: any) {
       showToast(describeSaveError(err))
     } finally {
@@ -279,7 +279,7 @@ export default function Admin() {
       try { localStorage.setItem('amugar_token', res.token) } catch {}
       setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
       await refreshUser()
-      showToast('تم تغيير كلمة المرور ✓ — استخدمها في المرة القادمة')
+      showToast('تم تغيير كلمة المرور — استخدمها في المرة القادمة')
     } catch (err: any) {
       showToast(describeSaveError(err))
     } finally {
@@ -385,7 +385,7 @@ export default function Admin() {
       const d = await setActiveDomain(id)
       if(d){
         refreshAll()
-        showToast(`تم التحويل إلى مجال ${d.nameAr} — المتجر تحدّث فوراً ✨`)
+        showToast(`تم التحويل إلى مجال ${d.nameAr} — المتجر تحدّث فوراً`)
       } else {
         showToast('لم يتم العثور على المجال')
       }
@@ -585,7 +585,7 @@ export default function Admin() {
     setProdErrors(e)
     const isValid = Object.keys(e).length === 0
     if (!isValid) {
-      showToast('⚠️ يرجى ملء الخانات الإجبارية المحددة باللون الأحمر')
+      showToast('يرجى ملء الخانات الإجبارية المحددة باللون الأحمر')
     }
     return isValid
   }
@@ -607,7 +607,7 @@ export default function Admin() {
       if (editingProd) {
         const updated = await updateProduct(editingProd._id, payload)
         setProducts([...updated])
-        showToast('تم تحديث المنتج بنجاح ✨')
+        showToast('تم تحديث المنتج بنجاح')
       } else {
         await addProduct(payload as any)
         // Force a fresh sync from the API so the storefront cache updates
@@ -615,7 +615,7 @@ export default function Admin() {
         void syncProducts().then(() => {
           setProducts([...getProducts()])
         })
-        showToast('تم نشر المنتج في المتجر بنجاح ✨')
+        showToast('تم نشر المنتج في المتجر بنجاح')
       }
       setShowProdModal(false)
     } catch (err: any) {
@@ -623,7 +623,7 @@ export default function Admin() {
       if (err.message === 'IMAGES_REQUIRED') {
         setProdErrors({ images: 'أضف رابط صورة صحيح' })
       }
-      showToast('❌ حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى')
+      showToast('حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى')
     } finally {
       setIsSubmitting(false)
     }
@@ -992,7 +992,7 @@ export default function Admin() {
                       readOnly
                       value={`${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${currentSlug}`}
                       className="bg-transparent text-xs text-white font-mono outline-none w-full min-w-[200px]"
-                      onClick={(e) => { (e.target as HTMLInputElement).select(); try { navigator.clipboard.writeText((e.target as HTMLInputElement).value); showToast('تم نسخ رابط الإحالة ✓') } catch {} }}
+                      onClick={(e) => { (e.target as HTMLInputElement).select(); try { navigator.clipboard.writeText((e.target as HTMLInputElement).value); showToast('تم نسخ رابط الإحالة') } catch {} }}
                     />
                   </div>
                 </div>
@@ -1125,7 +1125,7 @@ export default function Admin() {
                       try {
                         await updateStoreApi(sid, { customDomain: domain } as any)
                         setSettings(prev => ({ ...prev, storeName: prev.storeName }))
-                        showToast(`تم ربط النطاق ${domain} ✓ — قد يستغرق تفعيل DNS من 5 دقائق إلى 24 ساعة`)
+                        showToast(`تم ربط النطاق ${domain} — قد يستغرق تفعيل DNS من 5 دقائق إلى 24 ساعة`)
                       } catch (err: any) {
                         showToast('فشل ربط النطاق: ' + (err?.message || 'خطأ'))
                       }
@@ -1322,7 +1322,7 @@ export default function Admin() {
                       <button
                         onClick={async () => {
                           const link = `${window.location.origin}/product/${p._id}?store=${currentSlug}`
-                          try { await navigator.clipboard.writeText(link); showToast('تم نسخ رابط المنتج ✓') } catch { showToast(link) }
+                          try { await navigator.clipboard.writeText(link); showToast('تم نسخ رابط المنتج') } catch { showToast(link) }
                         }}
                         className="bg-[#FFFBF0] border border-[#F0D9A8] text-[#8D6E3A] rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#FFF3E0] transition"
                         title="نسخ رابط المنتج للمشاركة"
@@ -1331,8 +1331,8 @@ export default function Admin() {
                       </button>
                     </div>
                     <div className="flex gap-1.5 mt-2">
-                      <button onClick={async () => { const u = await toggleProductFlag(p._id, 'isFeatured'); setProducts([...u]); showToast(p.isFeatured ? 'أزيلت من المميزة' : 'أضيفت للمميزة ⭐') }} className={`flex-1 rounded-full py-1.5 text-[11px] font-bold border flex items-center justify-center gap-1 ${p.isFeatured ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFCF8]'}`}><Crown size={11} /> {p.isFeatured ? 'مميز ✓' : 'تمييز'}</button>
-                      <button onClick={async () => { const u = await toggleProductFlag(p._id, 'isNew'); setProducts([...u]); showToast(p.isNew ? 'أزيلت شارة جديد' : 'أضيفت شارة جديد') }} className={`flex-1 rounded-full py-1.5 text-[11px] font-bold border ${p.isNew ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8]'}`}><Sparkles size={11} className="inline -mt-0.5" /> {p.isNew ? 'جديد ✓' : 'جديد'}</button>
+                      <button onClick={async () => { const u = await toggleProductFlag(p._id, 'isFeatured'); setProducts([...u]); showToast(p.isFeatured ? 'أزيلت من المميزة' : 'أضيفت للمميزة') }} className={`flex-1 rounded-full py-1.5 text-[11px] font-bold border flex items-center justify-center gap-1 ${p.isFeatured ? 'bg-[#1A1A1E] text-white border-[#1A1A1E]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8] hover:bg-[#FFFCF8]'}`}><Crown size={11} /> {p.isFeatured ? 'مميز' : 'تمييز'}</button>
+                      <button onClick={async () => { const u = await toggleProductFlag(p._id, 'isNew'); setProducts([...u]); showToast(p.isNew ? 'أزيلت شارة جديد' : 'أضيفت شارة جديد') }} className={`flex-1 rounded-full py-1.5 text-[11px] font-bold border ${p.isNew ? 'bg-[#A02A5B] text-white border-[#A02A5B]' : 'bg-white text-[#1A1A1E] border-[#EDE6D8]'}`}><Sparkles size={11} className="inline -mt-0.5" /> {p.isNew ? 'جديد' : 'جديد'}</button>
                     </div>
                   </div>
                 </div>
@@ -1343,7 +1343,7 @@ export default function Admin() {
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#C9A96A] to-[#A02A5B] grid place-items-center mx-auto text-white shadow-lg">
                   <Plus size={28} />
                 </div>
-                <div className="font-extrabold text-xl mt-4 text-[#1A1A1E]">أهلاً بك في متجرك الجديد! 🎉</div>
+                <div className="font-extrabold text-xl mt-4 text-[#1A1A1E]">أهلاً بك في متجرك الجديد!</div>
                 <p className="text-sm text-[#7A6F5A] mt-2 max-w-md mx-auto leading-6">
                   متجرك جاهز لكنه فارغ. ابدأ بإضافة منتجك الأول ليظهر في واجهة متجرك.
                   لا تقلق — كل ما تضيفه هنا سيكون منتجاتك أنت، بدون أي بيانات تجريبية.
@@ -1666,7 +1666,7 @@ export default function Admin() {
                     try {
                       await saveSettings(storeForm as any)
                       setSettings({ ...storeForm } as any)
-                      showToast('تم حفظ إعدادات المتجر — ستظهر فوراً في الواجهة ✓')
+                      showToast('تم حفظ إعدادات المتجر — ستظهر فوراً في الواجهة')
                     } catch (err: any) {
                       showToast(describeSaveError(err))
                     }
@@ -1710,7 +1710,7 @@ export default function Admin() {
                 <button onClick={async () => {
                   try {
                     await saveSettings(settings)
-                    showToast('تم حفظ إعدادات التتبع ✓')
+                    showToast('تم حفظ إعدادات التتبع')
                   } catch (err: any) {
                     showToast(describeSaveError(err))
                   }
@@ -1878,7 +1878,7 @@ export default function Admin() {
                     try {
                       const toSave = ensureDeliveryProviders(settings)
                       await saveSettings(toSave)
-                      showToast(`تم حفظ إعدادات شركات التوصيل ✓ (${enabledCount} مُفعّلة)`)
+                      showToast(`تم حفظ إعدادات شركات التوصيل (${enabledCount} مُفعّلة)`)
                     } catch (err: any) {
                       showToast(describeSaveError(err))
                     }
@@ -1981,7 +1981,7 @@ export default function Admin() {
                               }
                             }
                           }
-                          showToast('تم نشر كل المنتجات في السوق العام ✓')
+                          showToast('تم نشر كل المنتجات في السوق العام')
                         }}
                         className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-1.5"
                       >
@@ -2052,7 +2052,7 @@ export default function Admin() {
                               try {
                                 const updated = await toggleMarketplacePublishApi(p._id)
                                 setProducts([...updated])
-                                showToast(published ? 'تم إخفاء المنتج من السوق' : 'تم نشر المنتج في السوق العام ✓')
+                                showToast(published ? 'تم إخفاء المنتج من السوق' : 'تم نشر المنتج في السوق العام')
                               } catch (err: any) {
                                 showToast(describeSaveError(err))
                               }
@@ -2876,7 +2876,7 @@ export default function Admin() {
             try {
               await saveSettings(storeForm as any)
               setSettings({ ...storeForm } as any)
-              showToast('تم إعداد متجرك بنجاح! 🎉')
+              showToast('تم إعداد متجرك بنجاح!')
             } catch (err: any) {
               // Show the specific failure reason so the merchant knows
               // whether to log in again, check their network, etc.
@@ -2999,7 +2999,7 @@ function OnboardingWizard({
               </div>
               <div className="flex gap-2 mt-4">
                 <button onClick={() => setStep(1)} className="px-4 py-3 border border-[#EDE6D8] rounded-xl font-bold text-sm hover:bg-[#FFFCF8] transition">← السابق</button>
-                <button onClick={onComplete} className="flex-1 bg-[#A02A5B] text-white py-3 rounded-xl font-bold hover:bg-[#7A1F44] transition">حفظ وبدء البيع 🚀</button>
+                <button onClick={onComplete} className="flex-1 bg-[#A02A5B] text-white py-3 rounded-xl font-bold hover:bg-[#7A1F44] transition">حفظ وبدء البيع</button>
               </div>
             </div>
           )}
@@ -3278,16 +3278,18 @@ function AnalyticsStatCard({ icon, label, value, sub, color }: {
 
 function SourceIcon({ source }: { source: string }) {
   const s = source.toLowerCase()
-  if (s.includes('facebook') || s.includes('fb')) return <span className="text-[10px]">📘</span>
-  if (s.includes('instagram')) return <span className="text-[10px]">📸</span>
-  if (s.includes('tiktok')) return <span className="text-[10px]">🎵</span>
-  if (s.includes('youtube')) return <span className="text-[10px]">▶️</span>
-  if (s.includes('whatsapp') || s.includes('wa.me')) return <span className="text-[10px]">💬</span>
-  if (s.includes('telegram') || s.includes('t.me')) return <span className="text-[10px]">✈️</span>
-  if (s.includes('google')) return <span className="text-[10px]">🔍</span>
-  if (s.includes('pinterest')) return <span className="text-[10px]">📌</span>
-  if (s.includes('twitter') || s.includes('x.com')) return <span className="text-[10px]">🐦</span>
-  if (s === 'direct') return <span className="text-[10px]">🔗</span>
+  // Use lucide-react icons (no emojis). When the platform doesn't have
+  // a matching brand icon, we fall back to a generic Globe / Link2.
+  if (s.includes('facebook') || s.includes('fb')) return <Globe size={10} className="text-[#1877F2]" />
+  if (s.includes('instagram')) return <Instagram size={10} className="text-[#A02A5B]" />
+  if (s.includes('tiktok')) return <Globe size={10} className="text-slate-900" />
+  if (s.includes('youtube')) return <Globe size={10} className="text-[#FF0000]" />
+  if (s.includes('whatsapp') || s.includes('wa.me')) return <Globe size={10} className="text-[#25D366]" />
+  if (s.includes('telegram') || s.includes('t.me')) return <Globe size={10} className="text-[#0088CC]" />
+  if (s.includes('google')) return <Search size={10} className="text-[#4285F4]" />
+  if (s.includes('pinterest')) return <Globe size={10} className="text-[#E60023]" />
+  if (s.includes('twitter') || s.includes('x.com')) return <Globe size={10} className="text-slate-900" />
+  if (s === 'direct') return <Link2 size={10} className="text-[#9A8A6B]" />
   return <Globe size={10} className="text-[#9A8A6B]" />
 }
 
@@ -3346,10 +3348,10 @@ function TrustBadge({ phone }: { phone: string }) {
   if (!rep) return null
 
   const config = {
-    new: { label: 'جديد', bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400', icon: '⚪' },
-    trusted: { label: 'موثوق', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', icon: '🟢' },
-    warning: { label: 'حذر', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500', icon: '🟡' },
-    danger: { label: 'خطر', bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500', icon: '🔴' },
+    new: { label: 'جديد', bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' },
+    trusted: { label: 'موثوق', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+    warning: { label: 'حذر', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+    danger: { label: 'خطر', bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
   }
 
   const c = config[rep.trustLevel] || config.new

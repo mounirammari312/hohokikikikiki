@@ -129,10 +129,10 @@ export default function Home(){
 
             {/* Floating trust badge */}
             <div className="absolute top-5 right-5 z-20 hidden md:flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold shadow-md border border-white/40" style={{ color: textColor }}>
-              <span className="text-base leading-none">🇩🇿</span>
+              <span className="text-[10px] font-extrabold leading-none tracking-tight">DZ</span>
               <span>صنع في الجزائر</span>
               <span className="w-1 h-1 rounded-full" style={{ background: 'color-mix(in srgb, var(--color-text) 40%, transparent)' }}/>
-              <span style={{ color: primary }}>COD ✓</span>
+              <span style={{ color: primary }}>COD</span>
             </div>
 
             <div className="relative z-10 p-6 md:p-10 flex flex-col justify-center max-w-[560px]">

@@ -349,7 +349,7 @@ export default function ProductDetail(){
     if(e){ e.preventDefault(); e.stopPropagation() }
     if(!product) return
     const added = toggleWish(product as any)
-    showToast(added ? 'تمت الإضافة للرغبات ♥' : 'تمت الإزالة من الرغبات')
+    showToast(added ? 'تمت الإضافة للرغبات' : 'تمت الإزالة من الرغبات')
   }
 
   const handleShare = async (e?:React.MouseEvent)=>{
@@ -367,7 +367,7 @@ export default function ProductDetail(){
       if(navigator.share && window.innerWidth < 768){
         await navigator.share({ title: product.nameAr, text: product.descriptionAr.slice(0,90), url })
         try{ await navigator.clipboard.writeText(url)}catch{}
-        showToast('تمت المشاركة ✓')
+        showToast('تمت المشاركة')
         return
       }
     }catch{}
@@ -385,7 +385,7 @@ export default function ProductDetail(){
   }, [showLightbox, showShare, showOrderModal])
 
   const copyShare = async ()=>{
-    try{ await navigator.clipboard.writeText(shareUrl); setCopied(true); showToast('تم نسخ رابط الطلب المباشر ✓'); setTimeout(()=> setCopied(false),2000)}catch{ showToast('انسخي الرابط يدوياً')}
+    try{ await navigator.clipboard.writeText(shareUrl); setCopied(true); showToast('تم نسخ رابط الطلب المباشر'); setTimeout(()=> setCopied(false),2000)}catch{ showToast('انسخي الرابط يدوياً')}
   }
 
   const openOrderModal = (e?:React.MouseEvent)=>{
@@ -452,7 +452,7 @@ export default function ProductDetail(){
     if(e){ e.preventDefault(); e.stopPropagation() }
     if(!validate()){ if(errors.variant) showToast('اختر اللون والمقاس أولاً') ; return }
     addToCart(product, qty, selectedVariant?.id)
-    showToast(`تمت الإضافة للسلة ${variantLabel ? `• ${variantLabel}`:''} ✓`)
+    showToast(`تمت الإضافة للسلة ${variantLabel ? `• ${variantLabel}`:''}`)
   }
 
   const handleDirectOrder = async (e:any)=>{

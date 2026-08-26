@@ -290,7 +290,7 @@ export default function PlatformLanding() {
                   <div className="text-[10px] text-white/50 mb-1">جاهز للإطلاق</div>
                   <div className="text-sm font-bold">أنشئ متجرك في أقل من دقيقة</div>
                   <div className="text-[11px] text-[#C9A96A] mt-1 flex items-center gap-1">
-                    <Check size={12} /> لوحة تحكم احترافية + شحن 58 ولاية ✓
+                    <Check size={12} /> لوحة تحكم احترافية + شحن 58 ولاية
                   </div>
                 </div>
               </div>

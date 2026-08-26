@@ -384,11 +384,12 @@ export default function Marketplace() {
               </div>
             </div>
 
-            {/* 3. Sort dropdown (far left cluster) */}
+            {/* 3. Sort dropdown (far left cluster) — compact so the search
+                bar gets the maximum horizontal space. */}
             <select
               value={sort}
               onChange={e => setSort(e.target.value as any)}
-              className="bg-white border border-slate-200 rounded-xl px-2.5 md:px-3 py-2.5 text-xs font-bold text-slate-700 outline-none cursor-pointer hover:bg-slate-50 transition shrink-0"
+              className="w-auto max-w-[90px] sm:max-w-none text-[11px] sm:text-xs px-2 py-2 sm:px-2.5 sm:py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-200 transition shrink-0 truncate"
               aria-label="ترتيب"
             >
               {SORT_OPTIONS.map(opt => (
@@ -630,7 +631,12 @@ export default function Marketplace() {
       </div>
 
       {/* ═══ Floating UI (overlay) ═════════════════════════════════════════ */}
-      <FloatingButtons />
+      {/* FloatingButtons: desktop only. On mobile the BottomMobileNav
+          already provides a cart icon + badge, so the floating button
+          was redundant AND it covered product cards during scroll. */}
+      <div className="hidden lg:block">
+        <FloatingButtons />
+      </div>
       <BottomMobileNav />
       {/* Toast notifications removed — was visual noise on mobile, hurt conversion.
           Live order toasts can be re-enabled later behind a user setting. */}

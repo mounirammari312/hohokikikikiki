@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Trash2, Minus, Plus, ArrowLeft, ShoppingBag, Home as HomeIcon, Building2, ShieldCheck, Phone, MapPin, User, Package, Check, Sparkles, Clock, Lock } from 'lucide-react'
+import { Trash2, Minus, Plus, ArrowLeft, ShoppingBag, Home as HomeIcon, Building2, ShieldCheck, Phone, MapPin, User, Package, Check, Sparkles, Clock, Lock, Truck } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useCart } from '../context/CartContext'
 import { formatDZD, calcItemTotal, normalizeDZPhone, validateDZPhone } from '../lib/utils'
@@ -240,17 +240,17 @@ export default function Cart() {
           {/* Reassurance Trust Pills */}
           <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4 grid grid-cols-3 gap-2 text-center shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
             <div className="flex flex-col items-center gap-1">
-              <div className="w-9 h-9 rounded-full grid place-items-center bg-emerald-50 text-emerald-700 font-bold text-sm">✓</div>
+              <div className="w-9 h-9 rounded-full grid place-items-center bg-emerald-50 text-emerald-700"><Check size={16} strokeWidth={3} /></div>
               <span className="text-xs font-bold text-slate-800">الدفع بعد المعاينة</span>
               <span className="text-[10px] text-slate-500">افحص طلبك ثم ادفع</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <div className="w-9 h-9 rounded-full grid place-items-center bg-blue-50 text-blue-700 font-bold text-sm">🚚</div>
+              <div className="w-9 h-9 rounded-full grid place-items-center bg-blue-50 text-blue-700"><Truck size={16} /></div>
               <span className="text-xs font-bold text-slate-800">توصيل سريع</span>
               <span className="text-[10px] text-slate-500">لكافة ولايات الجزائر</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <div className="w-9 h-9 rounded-full grid place-items-center bg-amber-50 text-amber-700 font-bold text-sm">🛡️</div>
+              <div className="w-9 h-9 rounded-full grid place-items-center bg-amber-50 text-amber-700"><ShieldCheck size={16} /></div>
               <span className="text-xs font-bold text-slate-800">ضمان الجودة</span>
               <span className="text-[10px] text-slate-500">خدمة عملاء مستمرة</span>
             </div>

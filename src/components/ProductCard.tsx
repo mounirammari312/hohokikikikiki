@@ -62,7 +62,7 @@ export default function ProductCard({ p, index = 0 }: Props){
       return
     }
     addToCart(p, 1)
-    setToast('تمت الإضافة للسلة ✓')
+    setToast('تمت الإضافة للسلة')
     setTimeout(() => setToast(null), 1800)
   }
 

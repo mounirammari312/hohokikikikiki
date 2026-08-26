@@ -33,7 +33,7 @@ export default function ThankYou(){
             <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#A02A5B]/15 rounded-full blur-2xl"/>
             <div className="relative">
               <div className="w-16 h-16 rounded-full bg-[#C9A96A] grid place-items-center mx-auto shadow-lg"><CheckCircle size={32} className="text-white"/></div>
-              <h1 className="text-[26px] font-extrabold mt-4">شكراً لكِ! تم تأكيد طلبك ✨</h1>
+              <h1 className="text-[26px] font-extrabold mt-4">شكراً لكِ! تم تأكيد طلبك</h1>
               <p className="text-white/70 text-sm mt-2">رقم الطلب <span className="bg-white text-[#1A1A1E] px-2 py-0.5 rounded-full font-bold tracking-widest">{order.orderNumber}</span> <span className="inline-flex ms-2 w-1.5 h-1.5 rounded-full bg-[#A02A5B] shadow-[0_0_8px_rgba(160,42,91,0.7)] align-middle"></span></p>
               <p className="text-xs text-white/60 mt-1">سيتصل بك فريق التأكيد خلال 2-4 ساعات</p>
             </div>
