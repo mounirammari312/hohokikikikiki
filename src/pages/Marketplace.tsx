@@ -20,7 +20,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Search, X, Package, Truck, ShieldCheck, Store as StoreIcon,
   ChevronLeft, ChevronRight, Menu, SlidersHorizontal, Eye,
-  ShoppingBag, CheckCircle2,
+  ShoppingBag, CheckCircle2, Zap, Flame, Tag, BadgeCheck, ArrowLeft,
 } from 'lucide-react'
 import { fetchMarketplaceProducts, fetchMarketplaceStores, trackMarketplaceView } from '../services/api/client'
 import type { MarketplaceProduct } from '../services/api/client'
@@ -194,6 +194,45 @@ export default function Marketplace() {
       .slice(0, 6)
   }, [products, isMainPage])
 
+  // ─── Bento Deals Grid — derived product lists ────────────────────────
+  // Each list feeds one of the 3 bento boxes shown under the hero.
+
+  // Super Deals: products with the highest discount % (max 4 for the box)
+  const superDeals = useMemo(() => {
+    if (!isMainPage) return []
+    return products
+      .filter(p => p.compareAtPrice && p.compareAtPrice > p.price)
+      .sort((a, b) => {
+        const da = a.compareAtPrice ? (a.compareAtPrice - a.price) / a.compareAtPrice : 0
+        const db = b.compareAtPrice ? (b.compareAtPrice - b.price) / b.compareAtPrice : 0
+        return db - da
+      })
+      .slice(0, 4)
+  }, [products, isMainPage])
+
+  // Most sold in Algeria: products sorted by "sold total" (deterministic
+  // hash → stable per product ID). Top 4.
+  const mostSoldInAlgeria = useMemo(() => {
+    if (!isMainPage) return []
+    const hashStr = (s: string) => {
+      let h = 0
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
+      return Math.abs(h)
+    }
+    return [...products]
+      .sort((a, b) => (hashStr(b._id) % 300) - (hashStr(a._id) % 300))
+      .slice(0, 4)
+  }, [products, isMainPage])
+
+  // Under 2000 DZD: cheapest products (price < 2000), max 4
+  const under2000 = useMemo(() => {
+    if (!isMainPage) return []
+    return products
+      .filter(p => p.price < 2000)
+      .sort((a, b) => a.price - b.price)
+      .slice(0, 4)
+  }, [products, isMainPage])
+
   const hasActiveFilters = q || category !== 'all' || minPrice || maxPrice || storeId
 
   const clearAllFilters = () => {
@@ -350,70 +389,91 @@ export default function Marketplace() {
 
       {/* ═══ MAIN CONTENT ═══════════════════════════════════════════════ */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* ─── Sticky minimalist header (RTL-optimized) ──────────────────
-            Order in DOM (RTL → first child appears on the RIGHT):
-              1. Logo              → far right
-              2. Search (flex-1)   → center, takes most space
-              3. Sort dropdown     → far left cluster
-              4. Filter trigger    → far left (next to sort)
-            This matches the standard Arabic e-commerce header pattern. */}
+        {/* ─── Sticky capsule header (RTL-optimized) ─────────────────────
+            Two-row layout:
+              Row 1 (delivery tag + logo + sort + filter):
+                - Delivery tag (top-right, faint gray)
+                - Logo
+                - Sort + Filter (far left cluster)
+              Row 2 (capsule search):
+                - Wide rounded-full search input with an embedded
+                  search button on the left edge (capsule style).
+            The capsule search is the dominant element → easy to tap
+            and type on mobile. */}
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
-          <div className="px-3 md:px-6 py-3 flex items-center gap-2 sm:gap-2.5">
-            {/* 1. Logo (far right) — clean, no dark box, visible on all screens */}
-            <Logo to="/marketplace" showText={false} imgClassName="h-9 sm:h-10 w-auto" className="shrink-0" />
-
-            {/* 2. Search — wide, takes the center */}
-            <div className="flex-1 min-w-0">
-              <div className="relative">
-                <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                <input
-                  value={q}
-                  onChange={e => setQ(e.target.value)}
-                  placeholder="ابحث عن منتج أو متجر..."
-                  className="w-full bg-slate-100 border border-slate-200 rounded-xl py-2.5 pr-9 pl-9 text-sm outline-none focus:border-slate-400 focus:bg-white transition placeholder:text-slate-400"
-                />
-                {q && (
-                  <button
-                    onClick={() => setQ('')}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition"
-                    aria-label="مسح البحث"
-                  >
-                    <X size={15} />
-                  </button>
-                )}
+          <div className="px-3 md:px-6 pt-2.5 pb-3">
+            {/* Row 1: delivery tag + logo + sort + filter */}
+            <div className="flex items-center gap-2 sm:gap-2.5 mb-2">
+              {/* Delivery tag — small, faint, top-right (RTL) */}
+              <div className="flex flex-col leading-none shrink-0">
+                <Logo to="/marketplace" showText={false} imgClassName="h-9 sm:h-10 w-auto" />
+                <span className="text-[9px] text-slate-400 font-medium mt-1 hidden sm:block">
+                  التوصيل إلى الجزائر · Amugar
+                </span>
               </div>
+
+              {/* Spacer to push sort + filter to the far left */}
+              <div className="flex-1" />
+
+              {/* Sort dropdown (compact) */}
+              <select
+                value={sort}
+                onChange={e => setSort(e.target.value as any)}
+                className="w-auto max-w-[90px] sm:max-w-none text-[11px] sm:text-xs px-2 py-2 sm:px-2.5 sm:py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-200 transition shrink-0 truncate"
+                aria-label="ترتيب"
+              >
+                {SORT_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.labelAr}</option>
+                ))}
+              </select>
+
+              {/* Filter trigger — mobile: icon only, desktop: pill with label */}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden w-10 h-10 rounded-xl bg-slate-100 grid place-items-center shrink-0 active:scale-95 hover:bg-slate-200 transition"
+                aria-label="الفلاتر"
+              >
+                <SlidersHorizontal size={18} className="text-slate-700" />
+              </button>
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="hidden lg:flex items-center gap-1.5 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 transition px-3 text-xs font-bold text-slate-700 shrink-0"
+                aria-label="الفلاتر"
+              >
+                <SlidersHorizontal size={16} />
+                <span>فلاتر</span>
+              </button>
             </div>
 
-            {/* 3. Sort dropdown (far left cluster) — compact so the search
-                bar gets the maximum horizontal space. */}
-            <select
-              value={sort}
-              onChange={e => setSort(e.target.value as any)}
-              className="w-auto max-w-[90px] sm:max-w-none text-[11px] sm:text-xs px-2 py-2 sm:px-2.5 sm:py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-200 transition shrink-0 truncate"
-              aria-label="ترتيب"
-            >
-              {SORT_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.labelAr}</option>
-              ))}
-            </select>
-
-            {/* 4. Filter trigger (far left, next to sort) — mobile: opens drawer,
-                desktop: also visible as a compact button */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden w-10 h-10 rounded-xl bg-slate-100 grid place-items-center shrink-0 active:scale-95 hover:bg-slate-200 transition"
-              aria-label="الفلاتر"
-            >
-              <SlidersHorizontal size={18} className="text-slate-700" />
-            </button>
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="hidden lg:flex items-center gap-1.5 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 transition px-3 text-xs font-bold text-slate-700 shrink-0"
-              aria-label="الفلاتر"
-            >
-              <SlidersHorizontal size={16} />
-              <span>فلاتر</span>
-            </button>
+            {/* Row 2: capsule search — wide, rounded-full, embedded button */}
+            <div className="relative">
+              <input
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') void fetchProducts() }}
+                placeholder="ابحث عن منتج أو متجر..."
+                className="w-full bg-slate-100 border border-slate-200 rounded-full py-2.5 sm:py-3 pr-4 pl-24 sm:pl-28 text-sm outline-none focus:border-slate-400 focus:bg-white transition placeholder:text-slate-400"
+              />
+              {/* Embedded search button (left edge of the capsule) */}
+              <button
+                onClick={() => void fetchProducts()}
+                className="absolute left-1 top-1 bottom-1 px-4 sm:px-5 rounded-full bg-slate-900 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 hover:bg-slate-800 active:scale-95 transition"
+                aria-label="بحث"
+              >
+                <Search size={14} />
+                <span className="hidden sm:inline">بحث</span>
+              </button>
+              {/* Clear button (only when there's text) */}
+              {q && (
+                <button
+                  onClick={() => setQ('')}
+                  className="absolute left-24 sm:left-28 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition"
+                  aria-label="مسح البحث"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
           </div>
         </header>
 
@@ -457,6 +517,56 @@ export default function Marketplace() {
 
               {/* Slim neutral trust strip */}
               <TrustBadges className="mb-4" />
+
+              {/* ═══ Bento Deals Grid ═══════════════════════════════════════
+                  Three side-by-side deal boxes (AliExpress/Temu style):
+                    1. Super Deals (red) — highest-discount products
+                    2. Most sold in Algeria (slate-900) — top sellers
+                    3. Under 2000 DZD (emerald) — budget picks
+                  Each box shows 2-4 mini product rows with image + price +
+                  CTA. Hidden on small screens (mobile → stacked). */}
+              {(superDeals.length > 0 || mostSoldInAlgeria.length > 0 || under2000.length > 0) && (
+                <div className="grid md:grid-cols-3 gap-3 mb-4">
+                  {/* Box 1: Super Deals (red) */}
+                  {superDeals.length > 0 && (
+                    <BentoBox
+                      title="عروض السوبر"
+                      subtitle="خصومات حتى 60%"
+                      icon={<Zap size={16} className="text-white" />}
+                      headerClass="bg-gradient-to-l from-red-600 to-rose-700"
+                      products={superDeals}
+                      stores={stores}
+                      onClick={handleProductClick}
+                    />
+                  )}
+
+                  {/* Box 2: Most sold in Algeria (slate-900) */}
+                  {mostSoldInAlgeria.length > 0 && (
+                    <BentoBox
+                      title="الأكثر طلباً في الجزائر"
+                      subtitle="منتجات يثق بها الجزائريون"
+                      icon={<Flame size={16} className="text-white" />}
+                      headerClass="bg-slate-900"
+                      products={mostSoldInAlgeria}
+                      stores={stores}
+                      onClick={handleProductClick}
+                    />
+                  )}
+
+                  {/* Box 3: Under 2000 DZD (emerald) */}
+                  {under2000.length > 0 && (
+                    <BentoBox
+                      title="أقل من 2000 د.ج"
+                      subtitle="أسعار في متناول الجميع"
+                      icon={<Tag size={16} className="text-white" />}
+                      headerClass="bg-gradient-to-l from-emerald-600 to-emerald-700"
+                      products={under2000}
+                      stores={stores}
+                      onClick={handleProductClick}
+                    />
+                  )}
+                </div>
+              )}
             </>
           )}
 
@@ -640,6 +750,106 @@ export default function Marketplace() {
       <BottomMobileNav />
       {/* Toast notifications removed — was visual noise on mobile, hurt conversion.
           Live order toasts can be re-enabled later behind a user setting. */}
+    </div>
+  )
+}
+
+// ─── BentoBox — single deal box for the Bento Deals Grid ──────────────────
+// Renders a colored header (title + subtitle + icon) + a list of mini
+// product rows (image + name + price + CTA arrow). Used for the Super
+// Deals / Most Sold / Under 2000 DZD boxes on the marketplace main page.
+function BentoBox({
+  title,
+  subtitle,
+  icon,
+  headerClass,
+  products,
+  stores,
+  onClick,
+}: {
+  title: string
+  subtitle: string
+  icon: React.ReactNode
+  headerClass: string
+  products: MarketplaceProduct[]
+  stores: TenantStore[]
+  onClick: (p: MarketplaceProduct) => void
+}) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col">
+      {/* Colored header */}
+      <div className={`${headerClass} text-white px-3 py-2.5 flex items-center gap-2`}>
+        <div className="w-7 h-7 rounded-lg bg-white/20 backdrop-blur grid place-items-center shrink-0">
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-extrabold text-sm leading-tight truncate">{title}</div>
+          <div className="text-[10px] text-white/70 truncate">{subtitle}</div>
+        </div>
+      </div>
+
+      {/* Mini product rows */}
+      <div className="p-1.5 flex-1">
+        {products.slice(0, 4).map(p => {
+          const store = stores.find(s => s._id === p.storeId)
+          const img = Array.isArray(p.images) ? p.images[0] : p.images
+          const isDiscount = !!p.compareAtPrice && p.compareAtPrice > p.price
+          const discountPct = isDiscount
+            ? Math.round(((p.compareAtPrice! - p.price) / p.compareAtPrice!) * 100)
+            : 0
+          return (
+            <button
+              key={p._id}
+              onClick={() => onClick(p)}
+              className="w-full flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-50 transition text-right group"
+            >
+              {/* Image */}
+              <div className="relative w-12 h-12 rounded-lg bg-slate-100 overflow-hidden shrink-0">
+                {img ? (
+                  <img src={img} alt={p.nameAr || p.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full grid place-items-center">
+                    <Package size={14} className="text-slate-300" />
+                  </div>
+                )}
+                {isDiscount && (
+                  <div className="absolute top-0 left-0 bg-red-600 text-white text-[8px] font-black px-1 leading-tight">
+                    -{discountPct}%
+                  </div>
+                )}
+              </div>
+
+              {/* Name + price */}
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-bold text-slate-900 line-clamp-1 leading-tight">
+                  {p.nameAr || p.name}
+                </div>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-red-600 font-black text-xs tabular-nums">
+                    {formatDZD(p.price)}
+                  </span>
+                  {isDiscount && (
+                    <span className="line-through text-slate-400 text-[9px] tabular-nums">
+                      {formatDZD(p.compareAtPrice!)}
+                    </span>
+                  )}
+                </div>
+                {store && (
+                  <div className="flex items-center gap-0.5 mt-0.5 text-[9px] text-slate-500">
+                    <BadgeCheck size={8} className="text-emerald-600 shrink-0" />
+                    <span className="truncate">{store.nameAr || store.name}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* CTA arrow */}
+              <div className="w-6 h-6 rounded-full bg-slate-900 text-white grid place-items-center shrink-0 group-hover:bg-slate-800 transition">
+                <ArrowLeft size={11} />
+              </div>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

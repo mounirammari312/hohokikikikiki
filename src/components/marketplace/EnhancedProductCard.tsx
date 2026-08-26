@@ -1,24 +1,25 @@
 /**
- * EnhancedMarketplaceProductCard — Premium, clean product card.
+ * EnhancedMarketplaceProductCard — AliExpress-style high-conversion card.
  *
- * Refactored from a Temu-style noisy card into a calm, conversion-
- * focused card that keeps the product image fully visible:
+ * Layout (top → bottom):
+ *   1. Square image
+ *      - discount / new badge (top-left)
+ *      - wishlist heart (top-right, soft white pill)
+ *   2. Price row — current price (red, bold), strikethrough old price,
+ *      discount percent pill ("خصم 30%")
+ *   3. Trust badges — COD (red) + "متجر موثق" (gold/black)
+ *   4. Social proof — rating star + "باع 150+ قطعة"
+ *   5. Product name (2 lines) + store name with verified icon
+ *   6. Delivery badge — "متوفر التوصيل لـ 58 ولاية" (emerald)
+ *   7. Quick order button — full width, slate-900
  *
- *   - Image area: only the discount ribbon + wishlist heart overlay
- *     (no floating cart button covering the image)
- *   - Content area: store name, product name, price (bold slate-900),
- *     and a full-width "طلب سريع" (Quick Order) button at the bottom
- *   - Badges (COD, free delivery) kept compact + neutral
- *   - All colors unified to slate + emerald COD accent
- *
- * The whole card is clickable → product detail page. The "Quick Order"
- * button stops propagation so it adds to cart without navigating.
+ * No emojis — only lucide-react icons.
  */
 
 import { useState, useMemo } from 'react'
 import {
-  Star, Eye, ShieldCheck, Store as StoreIcon, CheckCircle2,
-  Truck, Heart, ShoppingCart, Flame, BadgeCheck,
+  Star, ShieldCheck, Store as StoreIcon, CheckCircle2, BadgeCheck,
+  Truck, Heart, ShoppingCart, Flame, Zap,
 } from 'lucide-react'
 import type { MarketplaceProduct } from '../../services/api/client'
 import type { TenantStore } from '../../services/api/types'
@@ -53,11 +54,11 @@ export function EnhancedMarketplaceProductCard({ p, stores, onClick, flash = fal
   const store = stores.find(s => s._id === p.storeId)
   const views = (p as any).marketplaceViews || 0
 
-  // Deterministic "sold today" — based on product ID + day
-  const soldToday = useMemo(() => {
-    const day = new Date().getDate()
-    const h = hashStr(p._id + day)
-    return 3 + (h % 80) // 3-83
+  // Deterministic "sold total" — based on product ID (stable across renders).
+  // Higher range (50-300) to feel like a real marketplace.
+  const soldTotal = useMemo(() => {
+    const h = hashStr(p._id)
+    return 50 + (h % 250) // 50-300
   }, [p._id])
 
   // "Verified" badge — stable based on store ID
@@ -87,7 +88,7 @@ export function EnhancedMarketplaceProductCard({ p, stores, onClick, flash = fal
       onClick={onClick}
       className="group relative bg-white border border-slate-200 rounded-xl sm:rounded-2xl overflow-hidden hover:shadow-lg hover:border-slate-300 transition-all cursor-pointer text-right h-full flex flex-col"
     >
-      {/* ─── IMAGE (clean — no floating cart button) ─── */}
+      {/* ─── IMAGE (square) ─── */}
       <div className="relative aspect-square bg-slate-50 overflow-hidden">
         <SmartImage
           src={p.images?.[0] || ''}
@@ -96,51 +97,95 @@ export function EnhancedMarketplaceProductCard({ p, stores, onClick, flash = fal
           className="w-full h-full group-hover:scale-105 transition-transform duration-500"
         />
 
-        {/* Discount ribbon (top-left) */}
-        {discount > 0 && (
-          <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-slate-900 text-white text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow-sm">
+        {/* Discount badge OR New badge (top-left) */}
+        {discount > 0 ? (
+          <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-red-600 text-white text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-sm">
             -{discount}%
           </div>
-        )}
-
-        {/* New badge (top-right) */}
-        {p.isNew && (
-          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-emerald-600 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow-sm">
+        ) : p.isNew ? (
+          <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-emerald-700 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-sm">
             جديد
+          </div>
+        ) : null}
+
+        {/* Flash ribbon (bottom-left) — only in flash deals sections */}
+        {flash && (
+          <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 bg-amber-500 text-white text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-sm flex items-center gap-0.5">
+            <Zap size={9} />
+            <span>عاجل</span>
           </div>
         )}
 
-        {/* Wishlist heart (top-right corner, below new badge) */}
+        {/* Wishlist heart (top-right, soft white pill) */}
         <button
           onClick={handleWishlist}
-          className={`absolute w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center transition-all ${
-            p.isNew ? 'top-8 sm:top-10' : 'top-1.5 sm:top-2'
-          } right-1.5 sm:right-2 ${
+          className={`absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center backdrop-blur transition-all ${
             wished
-              ? 'bg-rose-600 text-white'
-              : 'bg-white/90 backdrop-blur text-slate-600 hover:bg-white hover:text-rose-600'
+              ? 'bg-red-600 text-white'
+              : 'bg-white/80 text-slate-600 hover:bg-white hover:text-red-600'
           }`}
           aria-label="إضافة للمفضلة"
         >
           <Heart size={13} className="sm:hidden" />
           <Heart size={14} className="hidden sm:block" />
         </button>
-
-        {/* Flash ribbon (bottom-left) — only in flash deals sections */}
-        {flash && (
-          <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 bg-amber-500 text-white text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow-sm flex items-center gap-0.5">
-            <Flame size={9} />
-            <span>عاجل</span>
-          </div>
-        )}
       </div>
 
       {/* ─── CONTENT ─── */}
       <div className="p-2 sm:p-2.5 flex-1 flex flex-col">
-        {/* Store name with verified badge */}
+        {/* Price row — red current price + strikethrough old + discount pill */}
+        <div className="flex items-baseline gap-1.5 flex-wrap">
+          <span className="text-red-600 font-black text-base md:text-lg tabular-nums leading-none">
+            {formatDZD(p.price)}
+          </span>
+          {p.compareAtPrice && p.compareAtPrice > p.price && (
+            <span className="line-through text-slate-400 text-[10px] sm:text-xs tabular-nums">
+              {formatDZD(p.compareAtPrice)}
+            </span>
+          )}
+        </div>
+        {discount > 0 && (
+          <div className="text-red-600 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
+            <Zap size={9} className="fill-red-600" />
+            <span>خصم {discount}% الآن</span>
+          </div>
+        )}
+
+        {/* Trust badges row — COD (red) + Verified store (gold/black) */}
+        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+          <div className="flex items-center gap-0.5 bg-red-50 text-red-700 border border-red-200 text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded font-bold">
+            <ShieldCheck size={9} />
+            <span>الدفع عند الاستلام</span>
+          </div>
+          {isVerified && (
+            <div className="flex items-center gap-0.5 bg-amber-400 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded">
+              <BadgeCheck size={9} />
+              <span>متجر موثق</span>
+            </div>
+          )}
+        </div>
+
+        {/* Social proof — rating + sold count, single line */}
+        <div className="flex items-center gap-1.5 mt-1.5 text-[10px] sm:text-[11px] text-slate-500 font-medium">
+          {p.rating > 0 && (
+            <div className="flex items-center gap-0.5">
+              <Star size={11} className="fill-amber-400 text-amber-400 shrink-0" />
+              <span className="font-bold text-slate-700">{p.rating.toFixed(1)}</span>
+            </div>
+          )}
+          <span className="text-slate-300">|</span>
+          <span>باع {soldTotal}+ قطعة</span>
+        </div>
+
+        {/* Product name (2 lines) */}
+        <div className="text-xs md:text-sm font-bold text-slate-900 line-clamp-2 leading-4 sm:leading-5 mt-1 min-h-[32px] sm:min-h-[40px]">
+          {p.nameAr}
+        </div>
+
+        {/* Store name with verified icon */}
         {store && (
-          <div className="text-[9px] sm:text-[10px] text-slate-500 mb-0.5 sm:mb-1 flex items-center gap-1 truncate">
-            <StoreIcon size={10} className="shrink-0" />
+          <div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 flex items-center gap-1 truncate">
+            <StoreIcon size={10} className="shrink-0 text-slate-400" />
             <span className="truncate">{store.nameAr || store.name}</span>
             {isVerified && (
               <BadgeCheck size={11} className="shrink-0 text-emerald-600" />
@@ -148,89 +193,29 @@ export function EnhancedMarketplaceProductCard({ p, stores, onClick, flash = fal
           </div>
         )}
 
-        {/* Product name */}
-        <div className="text-[11px] sm:text-xs font-medium text-slate-900 line-clamp-2 leading-4 sm:leading-5 min-h-[32px] sm:min-h-[40px]">
-          {p.nameAr}
+        {/* Delivery badge — emerald, bottom */}
+        <div className="text-emerald-700 text-[10px] font-semibold mt-1.5 flex items-center gap-1">
+          <Truck size={11} className="shrink-0" />
+          <span>متوفر التوصيل لـ 58 ولاية</span>
         </div>
 
-        {/* Rating + reviews */}
-        <div className="flex items-center gap-1.5 mt-1 sm:mt-1.5 text-[9px] sm:text-[10px] text-slate-500">
-          {p.rating > 0 && (
-            <div className="flex items-center gap-0.5">
-              <Star size={10} className="fill-amber-400 text-amber-400" />
-              <span className="font-bold text-slate-900">{p.rating.toFixed(1)}</span>
-              <span className="hidden sm:inline">({p.reviewsCount || 0})</span>
-            </div>
-          )}
-          {views > 0 && (
-            <div className="flex items-center gap-0.5">
-              <Eye size={10} />
-              <span>{views}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Price — bold slate-900, clear typography */}
-        <div className="flex items-baseline gap-1.5 mt-1 sm:mt-1.5">
-          <span className="font-extrabold text-slate-900 text-sm sm:text-base tabular-nums">
-            {formatDZD(p.price)}
-          </span>
-          {p.compareAtPrice && (
-            <span className="text-[9px] sm:text-[10px] text-slate-400 line-through tabular-nums">
-              {formatDZD(p.compareAtPrice)}
-            </span>
-          )}
-        </div>
-
-        {/* Sold today — quiet */}
-        <div className="flex items-center gap-1 mt-0.5 text-[9px] sm:text-[10px] text-slate-500">
-          <Flame size={9} />
-          <span>باع {soldToday} اليوم</span>
-        </div>
-
-        {/* Badges row — compact */}
-        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-          <div className="flex items-center gap-0.5 bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold text-[8px] sm:text-[9px]">
-            <ShieldCheck size={9} />
-            <span>COD</span>
-          </div>
-          {hasFreeDelivery && (
-            <div className="flex items-center gap-0.5 bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-full font-bold text-[8px] sm:text-[9px]">
-              <Truck size={9} />
-              <span className="hidden sm:inline">توصيل مجاني</span>
-              <span className="sm:hidden">مجاني</span>
-            </div>
-          )}
-        </div>
-
-        {/* Low stock indicator (pulsing) */}
-        {p.stock <= 5 && p.stock > 0 && (
-          <div className="text-[9px] sm:text-[10px] text-amber-600 font-bold mt-1 flex items-center gap-1">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
-            </span>
-            باقي {p.stock} فقط
-          </div>
-        )}
-
-        {/* Quick order button — full width, below image, clean */}
+        {/* Quick order button — full width, slate-900 */}
         <button
           onClick={handleAddToCart}
-          className={`mt-2 sm:mt-2.5 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all ${
+          className={`mt-2 sm:mt-2.5 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-[0.98] ${
             added
               ? 'bg-emerald-600 text-white'
-              : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.98]'
+              : 'bg-slate-900 text-white hover:bg-slate-800'
           }`}
         >
           {added ? (
             <>
-              <CheckCircle2 size={13} />
+              <CheckCircle2 size={14} />
               <span>أُضيف للسلة</span>
             </>
           ) : (
             <>
-              <ShoppingCart size={13} />
+              <ShoppingCart size={14} />
               <span>طلب سريع</span>
             </>
           )}
