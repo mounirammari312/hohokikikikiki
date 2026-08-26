@@ -68,7 +68,7 @@ export const ALGERIAN_DELIVERY_PROVIDERS: DeliveryProviderMeta[] = [
   //  - API endpoint base: https://api.yalidine.app/v1/
   //  - Laravel API wrapper (sebbahali/Yalidine-Dz-Laravel-Api) confirms
   //    the API_ID / API_TOKEN env var names
-  //  - Coverage is 55 wilayas per the official corporate site (not 58)
+  //  - Coverage is 55 wilayas per the official corporate site (not 69)
   {
     id: 'yalidine',
     name: 'Yalidine Express',
@@ -110,7 +110,7 @@ export const ALGERIAN_DELIVERY_PROVIDERS: DeliveryProviderMeta[] = [
     portal: 'https://maystro-delivery.com/',
     accent: '#7C3AED',
     description: 'منصة لوجستية متكاملة للتجارة الإلكترونية — 75% من الطلبات تُسلّم في أقل من 24 ساعة.',
-    coverage: '58 ولاية',
+    coverage: '69 ولاية',
     credentialFields: [
       { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'may_live_...', hint: 'مفتاح API من لوحة تحكم مايسترو' },
     ],
@@ -127,7 +127,7 @@ export const ALGERIAN_DELIVERY_PROVIDERS: DeliveryProviderMeta[] = [
     portal: 'https://www.ecotrack.dz/',
     accent: '#16A34A',
     description: 'منصة سحابية لإدارة التوصيل — تشغّل عدة شركات نقل جزائرية مع API موحد.',
-    coverage: '58 ولاية',
+    coverage: '69 ولاية',
     credentialFields: [
       { id: 'apiToken', label: 'API Token', labelAr: 'API Token', type: 'password', placeholder: '••••••••••••••••', hint: 'مفتاح API من حساب ECOTRACK' },
     ],
@@ -191,7 +191,7 @@ export const ALGERIAN_DELIVERY_PROVIDERS: DeliveryProviderMeta[] = [
     portal: 'https://gs-ecommerce.com/',
     accent: '#0891B2',
     description: 'خدمة ramassage وتخزين وشحن مع الدفع عند الاستلام للتجار الإلكترونيين في كل الجزائر.',
-    coverage: '58 ولاية',
+    coverage: '69 ولاية',
     credentialFields: [
       { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'gs_...', hint: 'مفتاح API من حساب GS E-commerce' },
     ],
@@ -208,7 +208,7 @@ export const ALGERIAN_DELIVERY_PROVIDERS: DeliveryProviderMeta[] = [
     portal: 'https://anderson-ecommerce.com/',
     accent: '#CA8A04',
     description: 'لوجستيك للتجارة الإلكترونية — توصيل express وramassage وتغليف وrecouvrement.',
-    coverage: '58 ولاية',
+    coverage: '69 ولاية',
     credentialFields: [
       { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'anderson_...', hint: 'مفتاح API من حساب Anderson' },
     ],
@@ -223,8 +223,8 @@ export const ALGERIAN_DELIVERY_PROVIDERS: DeliveryProviderMeta[] = [
     website: 'https://colivraison.express/',
     portal: 'https://www.colivraison.express/',
     accent: '#9333EA',
-    description: 'شريك لوجستي للتجارة الإلكترونية — تأكيد الطلبات وتوصيل للمنزل في 58 ولاية.',
-    coverage: '58 ولاية',
+    description: 'شريك لوجستي للتجارة الإلكترونية — تأكيد الطلبات وتوصيل للمنزل في 69 ولاية.',
+    coverage: '69 ولاية',
     credentialFields: [
       { id: 'apiKey', label: 'API Key', labelAr: 'مفتاح API', type: 'text', placeholder: 'colivraison_...', hint: 'مفتاح API من حساب Colivraison Express' },
     ],

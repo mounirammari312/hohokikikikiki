@@ -10,7 +10,7 @@
  *   - COD badge (red) + discount %
  *   - Social proof (rating star + "باع X+ قطعة")
  *   - Product name (2 lines, bold slate-800)
- *   - Delivery badge ("توصيل 58 ولاية", emerald)
+ *   - Delivery badge ("توصيل 69 ولاية", emerald)
  *
  * The whole card is clickable → routes to the product detail page.
  * No floating "Quick Order" button (keeps the image clean).
@@ -217,7 +217,7 @@ export default function ProductCard({ p, index = 0 }: Props) {
         {/* Delivery badge — emerald, bottom */}
         <div className="text-emerald-700 text-[10px] font-semibold mt-1 flex items-center gap-1">
           <Truck size={11} className="shrink-0" />
-          <span>توصيل 58 ولاية</span>
+          <span>توصيل 69 ولاية</span>
         </div>
       </div>
     </div>

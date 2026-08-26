@@ -12,7 +12,7 @@
  *   3. Trust badges — COD (red) + discount %
  *   4. Social proof — rating star + "باع 70+ قطعة"
  *   5. Product name (2 lines, bold slate-800)
- *   6. Delivery badge — "توصيل 58 ولاية" (emerald)
+ *   6. Delivery badge — "توصيل 69 ولاية" (emerald)
  *
  * No emojis — only lucide-react icons.
  */
@@ -173,7 +173,7 @@ export function EnhancedMarketplaceProductCard({ p, stores, onClick, flash = fal
         {/* Delivery badge — emerald, bottom */}
         <div className="text-emerald-700 text-[10px] font-semibold mt-1 flex items-center gap-1">
           <Truck size={11} className="shrink-0" />
-          <span>توصيل 58 ولاية</span>
+          <span>توصيل 69 ولاية</span>
         </div>
       </div>
     </div>

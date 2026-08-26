@@ -160,7 +160,7 @@ ProductSchema.index(
   { partialFilterExpression: { isPublishedInMarketplace: true, deletedAt: null } }
 )
 
-// ─── Wilaya (per-store override of the 58 Algerian wilayas) ─────────────────
+// ─── Wilaya (per-store override of the 69 Algerian wilayas) ─────────────────
 const WilayaSchema = new mongoose.Schema({
   _id: STRING_ID,
   storeId: { type: String, required: true, index: true },

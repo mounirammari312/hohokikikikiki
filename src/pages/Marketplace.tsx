@@ -7,7 +7,7 @@
  *   - Sticky minimalist header (search + filter drawer trigger)
  *   - Cinematic dynamic hero (rotates real featured products)
  *   - Monochrome category pills (slate/white, single emerald COD accent)
- *   - Slim neutral trust strip (COD / 58 wilayas / verified / inspection)
+ *   - Slim neutral trust strip (COD / 69 wilayas / verified / inspection)
  *   - Responsive product grid: 2 cols mobile → 5 cols large desktop
  *   - Reduced visual noise on mobile (no live ticker / no toasts)
  *

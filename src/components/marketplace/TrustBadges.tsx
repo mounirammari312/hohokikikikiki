@@ -9,7 +9,7 @@
  *
  * Badges shown:
  *   1. COD (Cash on Delivery) — emerald accent
- *   2. Delivery to 58 wilayas
+ *   2. Delivery to 69 wilayas
  *   3. Verified Algerian stores
  *   4. Inspection on delivery
  */
@@ -25,7 +25,7 @@ const BADGES = [
   },
   {
     icon: Truck,
-    label: 'توصيل لـ 58 ولاية',
+    label: 'توصيل لـ 69 ولاية',
     sub: 'كل الولايات',
     accent: false,
   },

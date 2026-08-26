@@ -246,8 +246,8 @@ async function doPlatformSeed(): Promise<void> {
         icon: 'Truck',
         title: 'توصيل مجاني لكل الولايات',
         titleAr: 'توصيل مجاني لكل الولايات',
-        highlight: '58 ولاية',
-        highlightAr: '58 ولاية',
+        highlight: '69 ولاية',
+        highlightAr: '69 ولاية',
         subtitle: 'عند الطلب بأكثر من 5000 دج — توصيل سريع وآمن إلى باب منزلك',
         subtitleAr: 'عند الطلب بأكثر من 5000 دج — توصيل سريع وآمن إلى باب منزلك',
         cta: 'تسوّق الآن',
@@ -392,7 +392,7 @@ export async function seedStoreData(
   // "أضف منتجك الأول" empty state (handled in the Admin UI). The
   // merchant adds their OWN products from the start — no cleanup needed.
   //
-  // Wilayas (58 shipping rates) + domains (jewelry/fashion/beauty
+  // Wilayas (69 shipping rates) + domains (jewelry/fashion/beauty
   // presets) + settings ARE still seeded because those are infrastructure
   // the merchant needs immediately, not content they need to replace.
 

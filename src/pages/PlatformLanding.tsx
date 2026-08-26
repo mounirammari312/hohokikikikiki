@@ -50,7 +50,7 @@ const STORE_TYPES: { id: string; labelAr: string; descAr: string; icon: any }[] 
 
 const features = [
   { icon: Package, t: 'إدارة المنتجات', d: 'أضف منتجات بصور متعددة، متغيرات (ألوان/مقاسات)، أسعار بالجملة، وحقول مخصصة حسب تخصص متجرك.', c: '#C9A96A' },
-  { icon: Truck, t: 'شحن 58 ولاية', d: 'حاسبة شحن مدمجة لكل ولايات الجزائر مع أسعار قابلة للتخصيص، توصيل للمنزل أو مكتب التوصيل.', c: '#A02A5B' },
+  { icon: Truck, t: 'شحن 69 ولاية', d: 'حاسبة شحن مدمجة لكل ولايات الجزائر مع أسعار قابلة للتخصيص، توصيل للمنزل أو مكتب التوصيل.', c: '#A02A5B' },
   { icon: ShieldCheck, t: 'الدفع عند الاستلام', d: 'نظام COD كامل مع كشف الطلبات المكررة تلقائياً، تأكيد هاتفي، وحماية من الإرسال المزدوج.', c: '#8D6E3A' },
   { icon: Globe, t: 'نطاق مخصص', d: 'كل متجر يحصل على نطاق فرعي أو نطاقك الخاص mystore.dz مع شهادة SSL مجانية وتلقائية.', c: '#1A1A1E' },
   { icon: Zap, t: 'تتبع الإعلانات', d: 'Meta Pixel + TikTok Pixel مدمجان تلقائياً مع أحداث ViewContent، AddToCart، InitiateCheckout، Purchase.', c: '#C9A96A' },
@@ -58,7 +58,7 @@ const features = [
 ]
 
 const integrations = [
-  { name: 'Yalidine', desc: 'توصيل 58 ولاية', icon: Truck, color: '#C9A96A' },
+  { name: 'Yalidine', desc: 'توصيل 69 ولاية', icon: Truck, color: '#C9A96A' },
   { name: 'ZR Express', desc: 'توصيل سريع', icon: Truck, color: '#A02A5B' },
   { name: 'Meta Pixel', desc: 'تتبع إعلانات فيسبوك', icon: TrendingUp, color: '#1A1A1E' },
   { name: 'TikTok Pixel', desc: 'تتبع إعلانات تيك توك', icon: Zap, color: '#8D6E3A' },
@@ -69,7 +69,7 @@ const faqs = [
   { q: 'هل أحتاج خبرة تقنية لإنشاء متجر؟', a: 'لا، المنصة لا تتطلب أي كود. تملأ نموذج التسجيل، ويُنشأ متجرك تلقائياً مع لوحة تحكم كاملة. كل ما تحتاجه هو بريد إلكتروني وكلمة مرور.' },
   { q: 'كم تكلفة المنصة؟', a: 'مجانية 100% — للأبد. بدون اشتراك، بدون عمولة، بدون بطاقة بنكية. كل المزايا متاحة للجميع: متاجر غير محدودة، منتجات غير محدودة، طلبات غير محدودة، ماركت بليس، شركات توصيل، تتبع الإعلانات.' },
   { q: 'هل يدعم الدفع عند الاستلام (COD)؟', a: 'نعم، نظام COD كامل مدمج في كل المتاجر. كل طلب يأتيك في لوحة التحكم مع كشف الطلبات المكررة تلقائياً وحماية من الإرسال المزدوج.' },
-  { q: 'كيف يعمل الشحن للولايات؟', a: 'حاسبة شحن مدمجة لكل 58 ولاية جزائرية مع أسعار قابلة للتخصيص. يمكنك أيضاً ربط متجرك بـ 10 شركات توصيل جزائرية لإنشاء بوالص الشحن تلقائياً.' },
+  { q: 'كيف يعمل الشحن للولايات؟', a: 'حاسبة شحن مدمجة لكل 69 ولاية جزائرية مع أسعار قابلة للتخصيص. يمكنك أيضاً ربط متجرك بـ 10 شركات توصيل جزائرية لإنشاء بوالص الشحن تلقائياً.' },
   { q: 'ما هو السوق العام (Marketplace)؟', a: 'كل منتج تضيفه يظهر تلقائياً في السوق العام على amugar.saas/marketplace — مجاناً. آلاف الزبائن يتصفحون المنتجات يومياً، مما يزيد مبيعاتك بدون أي جهد إضافي. يمكنك إخفاء أي منتج من السوق بنقرة واحدة.' },
   { q: 'هل المنصة تدعم Meta Pixel و TikTok Pixel؟', a: 'نعم، مدمجان تلقائياً مع أحداث ViewContent، AddToCart، InitiateCheckout، Purchase. تُسجل المفاتيح من لوحة التحكم في تبويب "التتبع".' },
 ]
@@ -235,7 +235,7 @@ export default function PlatformLanding() {
                 <span className="bg-gradient-to-l from-[#C9A96A] via-[#A02A5B] to-[#7A1F44] bg-clip-text text-transparent">مجاني 100% — للأبد</span>
               </h1>
               <p className="text-[#5A5340] text-lg leading-8 mt-6 max-w-[560px]">
-                منصة جزائرية متكاملة لإنشاء متاجر الدفع عند الاستلام. متجر باسمك الخاص، لوحة تحكم احترافية، حاسبة شحن لـ 58 ولاية، 10 شركات توصيل، ومنتجاتك تظهر تلقائياً في السوق العام — كل هذا مجاناً، بدون اشتراك وبدون عمولة.
+                منصة جزائرية متكاملة لإنشاء متاجر الدفع عند الاستلام. متجر باسمك الخاص، لوحة تحكم احترافية، حاسبة شحن لـ 69 ولاية، 10 شركات توصيل، ومنتجاتك تظهر تلقائياً في السوق العام — كل هذا مجاناً، بدون اشتراك وبدون عمولة.
               </p>
               <div className="flex flex-wrap gap-3 mt-8">
                 <button onClick={() => setShowRegister(true)} className="bg-gradient-to-l from-[#1A1A1E] to-[#2D2D35] text-white px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition shadow-xl shadow-[#1A1A1E]/15">
@@ -290,7 +290,7 @@ export default function PlatformLanding() {
                   <div className="text-[10px] text-white/50 mb-1">جاهز للإطلاق</div>
                   <div className="text-sm font-bold">أنشئ متجرك في أقل من دقيقة</div>
                   <div className="text-[11px] text-[#C9A96A] mt-1 flex items-center gap-1">
-                    <Check size={12} /> لوحة تحكم احترافية + شحن 58 ولاية
+                    <Check size={12} /> لوحة تحكم احترافية + شحن 69 ولاية
                   </div>
                 </div>
               </div>
@@ -302,7 +302,7 @@ export default function PlatformLanding() {
             {[
               { v: '+500', l: 'متجر نشط' },
               { v: '+15K', l: 'طلب مكتمل' },
-              { v: '58', l: 'ولاية مغطاة' },
+              { v: '69', l: 'ولاية مغطاة' },
               { v: '99.9%', l: 'وقت تشغيل' },
             ].map(s => (
               <div key={s.l} className="text-center bg-white border border-[#EDE6D8] rounded-2xl py-5">
@@ -403,7 +403,7 @@ export default function PlatformLanding() {
                   'منتجات غير محدودة',
                   'طلبات غير محدودة',
                   'الدفع عند الاستلام (COD)',
-                  'شحن 58 ولاية',
+                  'شحن 69 ولاية',
                   '10 شركات توصيل',
                   'السوق العام (Marketplace)',
                   'تتبع Meta + TikTok Pixel',
@@ -475,7 +475,7 @@ export default function PlatformLanding() {
         <div className="max-w-[1280px] mx-auto px-4 md:px-6 grid md:grid-cols-3 gap-8">
           <div>
             <Logo to={null} imgClassName="h-8 w-auto" textClassName="text-white" />
-            <p className="text-xs mt-3 leading-6">منصة المتاجر الجزائرية — أنشئ متجرك الإلكتروني في دقيقة مع الدفع عند الاستلام لـ 58 ولاية.</p>
+            <p className="text-xs mt-3 leading-6">منصة المتاجر الجزائرية — أنشئ متجرك الإلكتروني في دقيقة مع الدفع عند الاستلام لـ 69 ولاية.</p>
           </div>
           <div>
             <div className="font-bold text-white text-sm mb-3">روابط</div>

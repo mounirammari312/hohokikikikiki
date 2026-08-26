@@ -495,7 +495,7 @@ export default async function handler(req: any, res: any) {
       if (segments[1] === 'register' && method === 'POST') {
         // CRITICAL: Rate-limit store creation to 3/hour/IP — otherwise
         // an attacker can DoS the DB by creating thousands of stores,
-        // each seeding 58 wilayas + 3 domains + 3 products = ~200 DB
+        // each seeding 69 wilayas + 3 domains + 3 products = ~200 DB
         // writes per request.
         if (!rateLimit(getClientIP(req) + ':register', 3, 60 * 60 * 1000)) {
           return reply(res, {

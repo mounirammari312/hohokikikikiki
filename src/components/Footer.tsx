@@ -44,7 +44,7 @@ export default function Footer(){
               <li className="flex gap-2"><Truck size={16} className="text-[#C9A96A]"/> توصيل 24-96 ساعة حسب الولاية {store.freeShippingThreshold>0 && `• مجاني فوق ${store.freeShippingThreshold.toLocaleString()} د.ج`}</li>
               <li className="flex gap-2"><ShieldCheck size={16} className={store.enableCod ? 'text-[#C9A96A]' : 'text-white/30'}/> {store.enableCod ? 'الدفع عند الاستلام فقط (COD)' : 'الدفع عند الاستلام — متوقف حالياً'}</li>
               <li className="flex gap-2"><Award size={16} className="text-[#C9A96A]"/> ضمان جودة + استرجاع 14 يوم</li>
-              <li className="flex gap-2"><MapPin size={16} className="text-[#C9A96A]"/> {store.phone} • 58 ولاية</li>
+              <li className="flex gap-2"><MapPin size={16} className="text-[#C9A96A]"/> {store.phone} • 69 ولاية</li>
             </ul>
           </div>
           <div className="bg-white/[0.05] rounded-2xl p-4 border border-white/10 relative overflow-hidden">

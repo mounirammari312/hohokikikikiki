@@ -406,7 +406,7 @@ export default function Admin() {
   const openDomainCreate = ()=>{
     setEditingDomain(null)
     setDomainForm({
-      name: '', nameAr: '', descriptionAr: '', heroBadge: 'NEW COLLECTION 2026', heroTitleAr: 'عنوان جذاب لمجالك الجديد', heroSubtitleAr: 'وصف قصير يبرز قيمة منتجاتك مع الدفع عند الاستلام في 58 ولاية.', heroImage: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1200&q=80', footerDescriptionAr: 'وصف الفوتر لمجالك الجديد.',
+      name: '', nameAr: '', descriptionAr: '', heroBadge: 'NEW COLLECTION 2026', heroTitleAr: 'عنوان جذاب لمجالك الجديد', heroSubtitleAr: 'وصف قصير يبرز قيمة منتجاتك مع الدفع عند الاستلام في 69 ولاية.', heroImage: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1200&q=80', footerDescriptionAr: 'وصف الفوتر لمجالك الجديد.',
       categories: [{key:'cat1', label:'Category 1', labelAr:'فئة 1'}],
       attributeSchema: [
         { key:'custom1', label:'Custom Field', labelAr:'حقل مخصص', type:'text', placeholder:'مثال: قيمة', required:false },
@@ -1463,9 +1463,9 @@ export default function Admin() {
             </div>
 
             <div className="bg-[#FDF2F6] border border-[#F6C0D4] rounded-2xl p-4">
-              <h4 className="font-bold text-[#7A1F44] flex items-center gap-2"><Plus size={16} className="text-[#A02A5B]" /> إضافة ولاية جديدة (58 ولاية)</h4>
+              <h4 className="font-bold text-[#7A1F44] flex items-center gap-2"><Plus size={16} className="text-[#A02A5B]" /> إضافة ولاية جديدة (69 ولاية)</h4>
               <div className="grid md:grid-cols-6 gap-2 mt-3">
-                <input placeholder="الكود 58" value={newWilaya.code || ''} onChange={e => setNewWilaya({ ...newWilaya, code: e.target.value })} className="border border-[#F6C0D4] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[#A02A5B]" />
+                <input placeholder="الكود 69" value={newWilaya.code || ''} onChange={e => setNewWilaya({ ...newWilaya, code: e.target.value })} className="border border-[#F6C0D4] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[#A02A5B]" />
                 <input placeholder="الاسم عربي" value={newWilaya.nameAr || ''} onChange={e => setNewWilaya({ ...newWilaya, nameAr: e.target.value })} className="border border-[#F6C0D4] rounded-xl px-3 py-2 text-sm bg-white outline-none" />
                 <input placeholder="Name FR" value={newWilaya.name || ''} onChange={e => setNewWilaya({ ...newWilaya, name: e.target.value })} className="border border-[#EDE6D8] rounded-xl px-3 py-2 text-sm bg-white outline-none" />
                 <input type="number" placeholder="منزل" value={newWilaya.deliveryHome || 600} onChange={e => setNewWilaya({ ...newWilaya, deliveryHome: parseInt(e.target.value) })} className="border border-[#EDE6D8] rounded-xl px-3 py-2 text-sm bg-white" />
@@ -2322,7 +2322,7 @@ export default function Admin() {
                       'منتجات غير محدودة',
                       'طلبات غير محدودة',
                       'الدفع عند الاستلام (COD)',
-                      'شحن 58 ولاية',
+                      'شحن 69 ولاية',
                       '10 شركات توصيل',
                       'السوق العام (Marketplace)',
                       'تتبع Meta + TikTok Pixel',

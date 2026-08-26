@@ -122,7 +122,7 @@ export default function Shop() {
               <span className="mx-1.5 text-slate-300">•</span>
               {countInDomain} في مجال {domain.nameAr}
               <span className="mx-1.5 text-slate-300">•</span>
-              الدفع عند الاستلام • توصيل 58 ولاية
+              الدفع عند الاستلام • توصيل 69 ولاية
             </p>
           </div>
 
