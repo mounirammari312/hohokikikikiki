@@ -25,13 +25,13 @@ const BADGES = [
   },
   {
     icon: Truck,
-    label: 'توصيل لكل الولايات',
-    sub: '58 ولاية',
+    label: 'توصيل لـ 58 ولاية',
+    sub: 'كل الولايات',
     accent: false,
   },
   {
     icon: Store,
-    label: 'متاجر جزائرية موثوقة',
+    label: 'متاجر موثوقة',
     sub: '100% معتمدة',
     accent: false,
   },
@@ -52,19 +52,20 @@ export function TrustBadges({ className = '' }: { className?: string }) {
           return (
             <div
               key={i}
-              className="bg-white border border-slate-200/80 rounded-xl px-3 py-2.5 sm:px-3.5 sm:py-3 flex items-center gap-2.5 hover:border-slate-300 transition shrink-0 w-[160px] sm:w-auto lg:w-auto"
+              className="bg-white border border-slate-200/80 rounded-xl px-2 py-2 sm:px-3 sm:py-2.5 flex items-center gap-2 hover:border-slate-300 transition shrink-0 w-[150px] sm:w-auto lg:w-auto"
             >
               <div
-                className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg grid place-items-center shrink-0 ${
                   b.accent
                     ? 'bg-emerald-50 text-emerald-600'
                     : 'bg-slate-100 text-slate-700'
                 }`}
               >
-                <Icon size={16} />
+                <Icon size={14} className="sm:hidden" />
+                <Icon size={16} className="hidden sm:block" />
               </div>
               <div className="min-w-0">
-                <div className="text-[11px] sm:text-xs font-bold text-slate-900 truncate leading-tight">
+                <div className="text-[10px] sm:text-[11px] font-bold text-slate-900 truncate leading-tight">
                   {b.label}
                 </div>
                 <div className="text-[9px] sm:text-[10px] text-slate-500 truncate mt-0.5">

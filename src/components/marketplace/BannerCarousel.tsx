@@ -60,12 +60,14 @@ export function BannerCarousel({
   const [paused, setPaused] = useState(false)
   const touchStartX = useRef<number | null>(null)
 
-  // Pre-compute the slide list: only products with at least one image,
-  // capped at 6 so the carousel stays focused.
+  // Pre-compute the slide list: take the first 6 products. We do NOT
+  // filter out products without images — instead, each slide handles a
+  // missing image gracefully with a neutral slate background + the
+  // product name still shown. This prevents the "coming soon" empty
+  // state from appearing when the store has products but the images
+  // array happens to be empty (e.g. during upload / network delay).
   const slides = useMemo(() => {
-    return products
-      .filter(p => p && (Array.isArray(p.images) ? p.images.length > 0 : !!p.images))
-      .slice(0, 6)
+    return products.slice(0, 6)
   }, [products])
 
   // Reset index if the slide list shrinks below the current index
@@ -114,6 +116,10 @@ export function BannerCarousel({
   }
 
   // ─── Empty state (no products yet) ───────────────────────────────────
+  // Shown only when the marketplace truly has zero products. The copy
+  // is brand-neutral (no "coming soon" — that reads as broken/empty).
+  // Instead we surface the platform's value proposition so the hero
+  // still looks intentional even before products exist.
   if (slides.length === 0) {
     return (
       <div
@@ -121,18 +127,18 @@ export function BannerCarousel({
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
-        <div className="relative h-[180px] sm:h-[240px] md:h-[320px] flex items-center justify-center">
+        <div className="relative h-[200px] sm:h-[280px] md:h-[380px] flex items-center">
           <div className="absolute inset-0 bg-gradient-to-l from-slate-950 via-slate-900 to-slate-800" />
-          <div className="relative text-center px-6">
+          <div className="relative px-6 sm:px-10 md:px-14 text-right">
             <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-3 py-1 text-[10px] sm:text-xs font-bold text-white/80 mb-3">
-              <ShieldCheck size={12} />
-              <span>Amugar Marketplace</span>
+              <ShieldCheck size={12} className="text-emerald-400" />
+              <span>متاجر جزائرية موثّقة</span>
             </div>
-            <h2 className="text-white text-base sm:text-xl md:text-2xl font-extrabold tracking-tight">
-              منتجات مميزة قريباً
+            <h2 className="text-white text-lg sm:text-2xl md:text-4xl font-extrabold tracking-tight leading-tight">
+              تسوّق من أفضل المتاجر الجزائرية
             </h2>
-            <p className="text-white/60 text-[11px] sm:text-sm mt-1.5 max-w-md mx-auto leading-5">
-              نختار لك أفضل العروض من المتاجر الجزائرية الموثّقة
+            <p className="text-white/70 text-[11px] sm:text-sm md:text-base mt-2 max-w-md leading-5 md:leading-6">
+              الدفع عند الاستلام، توصيل لكل الولايات، ومنتجات أصلية معتمدة
             </p>
           </div>
         </div>
@@ -168,18 +174,27 @@ export function BannerCarousel({
               className={`absolute inset-0 transition-opacity duration-700 ${active ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'}`}
               aria-hidden={!active}
             >
-              {/* Background image */}
-              <div className="absolute inset-0">
-                <SmartImage
-                  src={img}
-                  alt={p.nameAr || p.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+              {/* Background image — only render if a real image URL exists.
+                  When the product has no image, we skip the <SmartImage>
+                  and the slate-900 base bg shows through (clean, no broken img). */}
+              {img && (
+                <div className="absolute inset-0">
+                  <SmartImage
+                    src={img}
+                    alt={p.nameAr || p.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
 
-              {/* Cinematic gradient overlay (RTL → from right) */}
-              <div className="absolute inset-0 bg-gradient-to-l from-slate-950/95 via-slate-950/70 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
+              {/* Soft cinematic gradient overlay (RTL → from right).
+                  Lightened significantly so the product image stays visible
+                  across the full width. Only the right ~45% gets a readable
+                  scrim for the text; the left half stays bright. */}
+              <div className="absolute inset-0 bg-gradient-to-l from-slate-950/85 via-slate-950/40 to-transparent" />
+              {/* Subtle bottom-up scrim so the pill indicators + CTA stay legible
+                  without darkening the whole image. */}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 via-transparent to-transparent" />
 
               {/* Content */}
               <button

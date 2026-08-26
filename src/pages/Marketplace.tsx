@@ -357,26 +357,23 @@ export default function Marketplace() {
 
       {/* ═══ MAIN CONTENT ═══════════════════════════════════════════════ */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* ─── Sticky minimalist header ───────────────────────────────── */}
+        {/* ─── Sticky minimalist header (RTL-optimized) ──────────────────
+            Order in DOM (RTL → first child appears on the RIGHT):
+              1. Logo              → far right
+              2. Search (flex-1)   → center, takes most space
+              3. Sort dropdown     → far left cluster
+              4. Filter trigger    → far left (next to sort)
+            This matches the standard Arabic e-commerce header pattern. */}
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
-          <div className="px-3 md:px-6 py-3 flex items-center gap-2.5">
-            {/* Mobile filter drawer trigger */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden w-10 h-10 rounded-xl bg-slate-100 grid place-items-center shrink-0 active:scale-95 hover:bg-slate-200 transition"
-              aria-label="الفلاتر"
-            >
-              <SlidersHorizontal size={18} className="text-slate-700" />
-            </button>
-
-            {/* Mobile: compact logo */}
-            <Link to="/marketplace" className="lg:hidden flex items-center gap-1.5 shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-slate-900 grid place-items-center">
-                <img src="/logo.webp" alt="Amugar" className="w-6 h-6 object-contain" />
+          <div className="px-3 md:px-6 py-3 flex items-center gap-2 sm:gap-2.5">
+            {/* 1. Logo (far right) — visible on all screen sizes */}
+            <Link to="/marketplace" className="flex items-center gap-1.5 shrink-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-900 grid place-items-center">
+                <img src="/logo.webp" alt="Amugar" className="w-7 h-7 sm:w-7.5 sm:h-7.5 object-contain" />
               </div>
             </Link>
 
-            {/* Search — wide and clean */}
+            {/* 2. Search — wide, takes the center */}
             <div className="flex-1 min-w-0">
               <div className="relative">
                 <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -398,7 +395,7 @@ export default function Marketplace() {
               </div>
             </div>
 
-            {/* Sort */}
+            {/* 3. Sort dropdown (far left cluster) */}
             <select
               value={sort}
               onChange={e => setSort(e.target.value as any)}
@@ -410,19 +407,23 @@ export default function Marketplace() {
               ))}
             </select>
 
-            {/* Desktop: quick stats */}
-            <div className="hidden lg:flex items-center gap-2 shrink-0">
-              <div className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 rounded-lg px-3 py-1.5 text-[11px] font-bold">
-                <Package size={12} />
-                <span className="tabular-nums">{total}</span>
-                <span>منتج</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 rounded-lg px-3 py-1.5 text-[11px] font-bold">
-                <StoreIcon size={12} />
-                <span className="tabular-nums">{stores.length}</span>
-                <span>متجر</span>
-              </div>
-            </div>
+            {/* 4. Filter trigger (far left, next to sort) — mobile: opens drawer,
+                desktop: also visible as a compact button */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden w-10 h-10 rounded-xl bg-slate-100 grid place-items-center shrink-0 active:scale-95 hover:bg-slate-200 transition"
+              aria-label="الفلاتر"
+            >
+              <SlidersHorizontal size={18} className="text-slate-700" />
+            </button>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="hidden lg:flex items-center gap-1.5 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 transition px-3 text-xs font-bold text-slate-700 shrink-0"
+              aria-label="الفلاتر"
+            >
+              <SlidersHorizontal size={16} />
+              <span>فلاتر</span>
+            </button>
           </div>
         </header>
 

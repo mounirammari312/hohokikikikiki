@@ -1,9 +1,11 @@
 export function formatDZD(n: number) {
-  return new Intl.NumberFormat('ar-DZ').format(n) + ' د.ج'
+  // Use 'en-US' locale → produces comma-separated thousands (1,250)
+  // instead of 'ar-DZ' which uses dots (1.250) that look like decimals.
+  return new Intl.NumberFormat('en-US').format(Math.round(n)) + ' د.ج'
 }
 
 export function formatDZDCompact(n: number) {
-  return n.toLocaleString('fr-DZ') + ' د.ج'
+  return new Intl.NumberFormat('en-US').format(Math.round(n)) + ' د.ج'
 }
 
 export function getTierDiscount(qty: number, tiers: { minQty: number; discountPercent: number }[]) {

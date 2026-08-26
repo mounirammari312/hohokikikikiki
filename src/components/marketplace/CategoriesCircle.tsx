@@ -62,10 +62,17 @@ export function CategoriesCircle({ active, onSelect, className = '' }: Props) {
 
   return (
     <div className={`relative ${className}`}>
+      {/* Fade masks — subtle gradient hints that there are more pills
+          to scroll. Left edge fades from white → transparent (RTL:
+          content scrolls in from the left), right edge mirrors it.
+          Mobile only — on desktop the arrow buttons already signal this. */}
+      <div className="md:hidden absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+      <div className="md:hidden absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
+
       {/* Right arrow (desktop) */}
       <button
         onClick={() => scroll('right')}
-        className="hidden md:grid absolute right-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white shadow-sm border border-slate-200 place-items-center hover:bg-slate-50 hover:border-slate-300 transition"
+        className="hidden md:grid absolute right-0 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white shadow-sm border border-slate-200 place-items-center hover:bg-slate-50 hover:border-slate-300 transition"
         aria-label="السابق"
       >
         <ChevronRight size={16} className="text-slate-700" />
@@ -73,7 +80,7 @@ export function CategoriesCircle({ active, onSelect, className = '' }: Props) {
       {/* Left arrow (desktop) */}
       <button
         onClick={() => scroll('left')}
-        className="hidden md:grid absolute left-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white shadow-sm border border-slate-200 place-items-center hover:bg-slate-50 hover:border-slate-300 transition"
+        className="hidden md:grid absolute left-0 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white shadow-sm border border-slate-200 place-items-center hover:bg-slate-50 hover:border-slate-300 transition"
         aria-label="التالي"
       >
         <ChevronLeft size={16} className="text-slate-700" />
