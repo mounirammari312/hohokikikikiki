@@ -45,60 +45,67 @@ const ICON_3D = (code: string) =>
 // a transparent 3D micro-render. Used by both the marketplace CategoriesCircle
 // and the merchant storefront (Shop.tsx, Home.tsx) so every category pill
 // across the platform has a consistent 3D icon.
+//
+// IMPORTANT: avoid document/file icons (📂 📄 📋) — they read as a file-
+// browser UI, not e-commerce. Use product/shopping icons instead.
 const CATEGORY_ICON_MAP: Record<string, string> = {
   // ─── Main marketplace categories ──────────────────────────────────────
-  all:         ICON_3D('1f4cb'), // clipboard
-  electronics: ICON_3D('1f4f1'), // mobile phone
-  fashion:     ICON_3D('1f455'), // shirt
-  beauty:      ICON_3D('1f484'), // lipstick / makeup
-  jewelry:     ICON_3D('1f48d'), // ring
-  watches:     ICON_3D('231a'),  // watch
-  home:        ICON_3D('1f373'), // cooking / frying pan
-  perfume:     ICON_3D('1f33f'), // herb / fragrance
-  sports:      ICON_3D('26bd'),  // soccer ball
-  baby:        ICON_3D('1f476'), // baby
-  toys:        ICON_3D('1f381'), // wrapped gift
-  books:       ICON_3D('1f4da'), // books
-  tools:       ICON_3D('1f527'), // wrench
-  art:         ICON_3D('1f3a8'), // palette
-  wholesale:   ICON_3D('1f4e6'), // package box
-  general:     ICON_3D('1f4c2'), // folder
+  all:         ICON_3D('1f6d2'), // shopping cart 🛒 — e-commerce feel
+  electronics: ICON_3D('1f4f1'), // mobile phone 📱
+  fashion:     ICON_3D('1f455'), // shirt 👕
+  beauty:      ICON_3D('1f484'), // lipstick 💄
+  jewelry:     ICON_3D('1f48d'), // ring 💍
+  watches:     ICON_3D('231a'),  // watch ⌚
+  home:        ICON_3D('1f373'), // cooking / frying pan 🍳
+  perfume:     ICON_3D('1f33f'), // herb / fragrance 🌿
+  sports:      ICON_3D('26bd'),  // soccer ball ⚽
+  baby:        ICON_3D('1f476'), // baby 👶
+  toys:        ICON_3D('1f381'), // wrapped gift 🎁
+  books:       ICON_3D('1f4da'), // books 📚
+  tools:       ICON_3D('1f527'), // wrench 🔧
+  art:         ICON_3D('1f3a8'), // palette 🎨
+  wholesale:   ICON_3D('1f4e6'), // package box 📦
+  // ─── "general" + fallback — use a gift box, NOT a folder (folder reads
+  //     as a file-browser icon, not e-commerce). The gift box is friendly
+  //     + clearly a product, not a document. ────────────────────────────
+  general:     ICON_3D('1f381'), // gift box 🎁
   // ─── Sub-categories (from presetDomains — jewelry/fashion/beauty/etc.) ─
-  necklace:  ICON_3D('1f48e'), // gem stone
-  ring:      ICON_3D('1f48d'), // ring
-  earring:   ICON_3D('1f48e'), // gem stone
-  bracelet:  ICON_3D('1f48e'), // gem stone
-  dress:     ICON_3D('1f457'), // dress
-  abaya:     ICON_3D('1f455'), // shirt (clothing)
-  hijab:     ICON_3D('1f9e5'), // coat (clothing)
-  bag:       ICON_3D('1f45c'), // handbag
-  shoes:     ICON_3D('1f45f'), // running shoe
-  makeup:    ICON_3D('1f484'), // lipstick
-  skincare:  ICON_3D('1f9f4'), // lotion bottle
-  hair:      ICON_3D('1f487'), // haircut / hair
+  necklace:  ICON_3D('1f48e'), // gem stone 💎
+  ring:      ICON_3D('1f48d'), // ring 💍
+  earring:   ICON_3D('1f48e'), // gem stone 💎
+  bracelet:  ICON_3D('1f48e'), // gem stone 💎
+  dress:     ICON_3D('1f457'), // dress 👗
+  abaya:     ICON_3D('1f455'), // shirt (clothing) 👕
+  hijab:     ICON_3D('1f9e5'), // coat (clothing) 🧥
+  bag:       ICON_3D('1f45c'), // handbag 👜
+  shoes:     ICON_3D('1f45f'), // running shoe 👟
+  makeup:    ICON_3D('1f484'), // lipstick 💄
+  skincare:  ICON_3D('1f9f4'), // lotion bottle 🧴
+  hair:      ICON_3D('1f487'), // haircut / hair 💇
   // ─── Electronics sub-categories ────────────────────────────────────────
-  phone:       ICON_3D('1f4f1'), // mobile phone
-  accessory:   ICON_3D('1f50c'), // electric plug
-  headphones:  ICON_3D('1f3a7'), // headphone
-  charger:     ICON_3D('1f50b'), // battery
-  case:        ICON_3D('1f4f1'), // mobile phone (with case)
-  cable:       ICON_3D('1f50c'), // electric plug
+  phone:       ICON_3D('1f4f1'), // mobile phone 📱
+  accessory:   ICON_3D('1f50c'), // electric plug 🔌
+  headphones:  ICON_3D('1f3a7'), // headphone 🎧
+  charger:     ICON_3D('1f50b'), // battery 🔋
+  case:        ICON_3D('1f4f1'), // mobile phone (with case) 📱
+  cable:       ICON_3D('1f50c'), // electric plug 🔌
   // ─── Home appliances ───────────────────────────────────────────────────
   refrigerator:    ICON_3D('1f9c8'), // butter (cold) — closest
   washer:          ICON_3D('1f9fb'), // roll of paper (laundry)
-  oven:            ICON_3D('1f373'), // cooking
-  ac:              ICON_3D('2744'),  // snowflake
-  tv:              ICON_3D('1f4fa'), // television
-  small_appliance: ICON_3D('1f373'), // cooking
+  oven:            ICON_3D('1f373'), // cooking 🍳
+  ac:              ICON_3D('2744'),  // snowflake ❄️
+  tv:              ICON_3D('1f4fa'), // television 📺
+  small_appliance: ICON_3D('1f373'), // cooking 🍳
   // ─── Digital products ──────────────────────────────────────────────────
-  subscription: ICON_3D('1f4fa'), // television
-  account:      ICON_3D('1f511'), // key
-  giftcard:     ICON_3D('1f381'), // wrapped gift
-  code:         ICON_3D('1f4bb'), // laptop
+  subscription: ICON_3D('1f4fa'), // television 📺
+  account:      ICON_3D('1f511'), // key 🔑
+  giftcard:     ICON_3D('1f381'), // wrapped gift 🎁
+  code:         ICON_3D('1f4bb'), // laptop 💻
 }
 
 /** Resolve a 3D icon URL for ANY category key (main or sub-category).
- *  Falls back to the "general" folder icon when no mapping exists. */
+ *  Falls back to the gift-box icon (NOT a folder — folders read as a
+ *  file-browser UI, not e-commerce). */
 export function getCategoryIcon3d(key: string): string {
   const k = (key || '').toLowerCase().trim()
   return CATEGORY_ICON_MAP[k] || CATEGORY_ICON_MAP['general']
