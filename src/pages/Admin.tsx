@@ -16,6 +16,7 @@ import { useTenant } from '../context/TenantContext'
 import { getDomains, getActiveDomain, setActiveDomain, createCustomDomain, updateDomain, deleteDomain, duplicateDomain } from '../services/api/domains'
 import { ALGERIAN_DELIVERY_PROVIDERS, defaultDeliveryProviders } from '../services/api/deliveryProviders'
 import { SmartImage } from '../components/SmartImage'
+import { Logo } from '../components/Logo'
 import type { Order, OrderStatus, WilayaRate, Product, StoreDomain, DomainCategory, AttributeDef, Variant, DeliveryProviderConfig, TenantStore } from '../services/api/types'
 import { formatDZD } from '../lib/utils'
 import {
@@ -762,13 +763,7 @@ export default function Admin() {
       >
         {/* Brand + close (mobile) */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.webp" alt="Amugar" className="w-9 h-9 rounded-xl object-cover shadow-md" />
-            <div>
-              <div className="font-extrabold text-sm leading-tight">Amugar</div>
-              <div className="text-[10px] text-white/50">لوحة تحكم التاجر</div>
-            </div>
-          </div>
+          <Logo to={null} imgClassName="h-9 w-auto" textClassName="text-white" tagline="لوحة تحكم التاجر" />
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden w-8 h-8 rounded-full bg-white/5 grid place-items-center hover:bg-white/10">
             <X size={16} />
           </button>

@@ -20,6 +20,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTenant } from '../context/TenantContext'
 import { authRegister } from '../services/api/client'
+import { Logo } from '../components/Logo'
 import {
   ArrowLeft, Check, Store, Crown, Rocket, ShoppingBag, Truck, ShieldCheck,
   Sparkles, Globe, Star, TrendingUp, Zap, X, ChevronDown, Palette,
@@ -192,13 +193,7 @@ export default function PlatformLanding() {
       {/* ═══ Header ═══════════════════════════════════════════════════ */}
       <header className="sticky top-0 z-50 bg-[#FFFCF8]/80 backdrop-blur-xl border-b border-[#EDE6D8]">
         <div className="max-w-[1280px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src="/logo.webp" alt="Amugar" className="w-9 h-9 rounded-xl object-cover" />
-            <div className="leading-none">
-              <div className="font-extrabold text-[#1A1A1E] text-lg">Amugar</div>
-              <div className="text-[10px] tracking-widest text-[#9A8A6B]">منصة المتاجر الجزائرية</div>
-            </div>
-          </div>
+          <Logo to="/" imgClassName="h-9 w-auto" />
           <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-[#1A1A1E]">
             <a href="#features" className="hover:text-[#C9A96A] transition">المزايا</a>
             <a href="#integrations" className="hover:text-[#C9A96A] transition">التكاملات</a>
@@ -264,7 +259,7 @@ export default function PlatformLanding() {
               <div className="relative bg-white rounded-[28px] border border-[#EDE6D8] shadow-2xl p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
-                    <img src="/logo.webp" alt="Amugar" className="w-10 h-10 rounded-xl object-cover" />
+                    <Logo to={null} showText={false} imgClassName="h-10 w-auto" />
                     <div>
                       <div className="font-bold text-sm text-[#1A1A1E]">لوحة تحكم المتجر</div>
                       <div className="text-[10px] text-[#9A8A6B]">{typeof window !== 'undefined' ? window.location.hostname.replace(/^www\./, '') : 'amugar.saas'}/?store=demo</div>
@@ -479,10 +474,7 @@ export default function PlatformLanding() {
       <footer className="bg-[#0D0D0F] text-white/40 py-10">
         <div className="max-w-[1280px] mx-auto px-4 md:px-6 grid md:grid-cols-3 gap-8">
           <div>
-            <div className="font-extrabold text-white text-lg flex items-center gap-2">
-              <img src="/logo.webp" alt="Amugar" className="w-8 h-8 rounded-lg object-cover" />
-              Amugar
-            </div>
+            <Logo to={null} imgClassName="h-8 w-auto" textClassName="text-white" />
             <p className="text-xs mt-3 leading-6">منصة المتاجر الجزائرية — أنشئ متجرك الإلكتروني في دقيقة مع الدفع عند الاستلام لـ 58 ولاية.</p>
           </div>
           <div>

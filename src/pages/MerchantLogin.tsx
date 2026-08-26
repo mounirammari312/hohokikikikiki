@@ -12,6 +12,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTenant } from '../context/TenantContext'
 import { Store, LogIn } from 'lucide-react'
+import { Logo } from '../components/Logo'
 
 export default function MerchantLogin() {
   const { login } = useTenant()
@@ -54,7 +55,7 @@ export default function MerchantLogin() {
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <img src="/logo.webp" alt="Amugar" className="w-14 h-14 rounded-2xl object-cover mx-auto shadow-md" />
+          <Logo to={null} showText={false} imgClassName="h-14 w-auto mx-auto" />
           <h1 className="text-2xl font-extrabold text-[#1A1A1E] mt-3">دخول التاجر</h1>
           <p className="text-sm text-[#7A6F5A] mt-1">سجّل الدخول للوصول إلى لوحة تحكم متجرك</p>
         </div>

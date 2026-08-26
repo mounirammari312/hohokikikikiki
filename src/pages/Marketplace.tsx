@@ -34,6 +34,7 @@ import { useWishlist } from '../context/WishlistContext'
 import { BannerCarousel } from '../components/marketplace/BannerCarousel'
 import { CategoriesCircle, CATEGORY_CIRCLES } from '../components/marketplace/CategoriesCircle'
 import { TrustBadges } from '../components/marketplace/TrustBadges'
+import { Logo } from '../components/Logo'
 import { EnhancedMarketplaceProductCard } from '../components/marketplace/EnhancedProductCard'
 import { TopStores } from '../components/marketplace/TopStores'
 import { FloatingButtons } from '../components/marketplace/FloatingButtons'
@@ -219,15 +220,7 @@ export default function Marketplace() {
       >
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-slate-900 grid place-items-center">
-              <img src="/logo.webp" alt="Amugar" className="w-7 h-7 object-contain" />
-            </div>
-            <div>
-              <div className="font-extrabold text-sm leading-tight text-slate-900">Amugar</div>
-              <div className="text-[10px] tracking-widest text-slate-500">MARKETPLACE</div>
-            </div>
-          </div>
+          <Logo to="/marketplace" imgClassName="h-9 w-auto" tagline="MARKETPLACE" />
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden w-8 h-8 rounded-full bg-slate-100 grid place-items-center hover:bg-slate-200 transition"
@@ -366,12 +359,8 @@ export default function Marketplace() {
             This matches the standard Arabic e-commerce header pattern. */}
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
           <div className="px-3 md:px-6 py-3 flex items-center gap-2 sm:gap-2.5">
-            {/* 1. Logo (far right) — visible on all screen sizes */}
-            <Link to="/marketplace" className="flex items-center gap-1.5 shrink-0">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-900 grid place-items-center">
-                <img src="/logo.webp" alt="Amugar" className="w-7 h-7 sm:w-7.5 sm:h-7.5 object-contain" />
-              </div>
-            </Link>
+            {/* 1. Logo (far right) — clean, no dark box, visible on all screens */}
+            <Logo to="/marketplace" showText={false} imgClassName="h-9 sm:h-10 w-auto" className="shrink-0" />
 
             {/* 2. Search — wide, takes the center */}
             <div className="flex-1 min-w-0">
@@ -628,9 +617,7 @@ export default function Marketplace() {
         <footer className="bg-slate-900 text-white/40 py-6 px-4 md:px-6 mt-8 pb-24 lg:pb-6">
           <div className="max-w-[1200px] mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-white/10 grid place-items-center">
-                <img src="/logo.webp" alt="Amugar" className="w-5 h-5 object-contain" />
-              </div>
+              <Logo to="/marketplace" showText={false} imgClassName="h-7 w-auto" className="shrink-0" />
               <span className="text-white/60 font-bold">Amugar Marketplace</span>
             </div>
             <div className="flex gap-4">
