@@ -19,7 +19,7 @@
  */
 
 import { useEffect, useState, useRef, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, ShieldCheck, ArrowLeft, BadgeCheck,
 } from 'lucide-react'
@@ -57,33 +57,37 @@ export function BannerCarousel({
   const [paused, setPaused] = useState(false)
   const touchStartX = useRef<number | null>(null)
 
-  // Pre-compute the slide list: take the first 6 products. We do NOT
-  // filter out products without images — instead, each slide handles a
-  // missing image gracefully with a neutral slate background + the
-  // product name still shown. This prevents the "coming soon" empty
-  // state from appearing when the store has products but the images
-  // array happens to be empty (e.g. during upload / network delay).
+  // Pre-compute the slide list: the promotional GIF is always the FIRST
+  // slide, followed by up to 6 product slides. The GIF drives traffic to
+  // the marketplace homepage itself; the product slides showcase real
+  // products from stores.
+  const PROMO_GIF_SLIDE = '/marketplace-hero-banner.gif'
+
   const slides = useMemo(() => {
     return products.slice(0, 6)
   }, [products])
 
+  // Total slide count = 1 (GIF) + product slides. When there are no
+  // products, we still show the GIF alone (no empty state needed).
+  const totalSlides = slides.length + 1
+
   // Reset index if the slide list shrinks below the current index
   useEffect(() => {
-    if (idx >= slides.length) setIdx(0)
-  }, [slides.length, idx])
+    if (idx >= totalSlides) setIdx(0)
+  }, [totalSlides, idx])
 
   // Auto-rotation
   useEffect(() => {
-    if (paused || slides.length <= 1) return
+    if (paused || totalSlides <= 1) return
     const id = setInterval(() => {
-      setIdx(i => (i + 1) % slides.length)
+      setIdx(i => (i + 1) % totalSlides)
     }, intervalMs)
     return () => clearInterval(id)
-  }, [paused, slides.length, intervalMs])
+  }, [paused, totalSlides, intervalMs])
 
   const go = (i: number) => {
-    if (slides.length === 0) return
-    setIdx(((i % slides.length) + slides.length) % slides.length)
+    if (totalSlides === 0) return
+    setIdx(((i % totalSlides) + totalSlides) % totalSlides)
   }
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -112,43 +116,8 @@ export function BannerCarousel({
     }
   }
 
-  // ─── Empty state (no products yet) ───────────────────────────────────
-  // Shown only when the marketplace truly has zero products. The copy
-  // is brand-neutral (no "coming soon" — that reads as broken/empty).
-  // Instead we surface the platform's value proposition so the hero
-  // still looks intentional even before products exist.
-  if (slides.length === 0) {
-    return (
-      <div
-        className={`relative rounded-2xl overflow-hidden bg-slate-900 ${className}`}
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-      >
-        <div className="relative h-[200px] sm:h-[280px] md:h-[380px] flex items-center">
-          <div className="absolute inset-0 bg-gradient-to-l from-slate-950 via-slate-900 to-slate-800" />
-          <div className="relative px-6 sm:px-10 md:px-14 text-right">
-            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-3 py-1 text-[10px] sm:text-xs font-bold text-white/80 mb-3">
-              <ShieldCheck size={12} className="text-emerald-400" />
-              <span>متاجر جزائرية موثّقة</span>
-            </div>
-            <h2 className="text-white text-lg sm:text-2xl md:text-4xl font-extrabold tracking-tight leading-tight">
-              تسوّق من أفضل المتاجر الجزائرية
-            </h2>
-            <p className="text-white/70 text-[11px] sm:text-sm md:text-base mt-2 max-w-md leading-5 md:leading-6">
-              الدفع عند الاستلام، توصيل لكل الولايات، ومنتجات أصلية معتمدة
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const current = slides[idx]
-  const currentStore = resolveStore(current)
-  const hasDiscount = !!current.compareAtPrice && current.compareAtPrice > current.price
-  const discountPct = hasDiscount
-    ? Math.round(((current.compareAtPrice! - current.price) / current.compareAtPrice!) * 100)
-    : 0
+  // ─── No empty state needed — the promotional GIF always shows as the
+  // first slide, even when there are zero products. ────────────────────
 
   return (
     <div
@@ -160,8 +129,39 @@ export function BannerCarousel({
     >
       {/* Slides */}
       <div className="relative h-[200px] sm:h-[280px] md:h-[380px]">
+        {/* ─── Slide 0: Promotional GIF (always first) ─── */}
+        <div
+          className={`absolute inset-0 transition-opacity duration-700 ${idx === 0 ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'}`}
+          aria-hidden={idx !== 0}
+        >
+          {/* GIF background — fills the entire slide */}
+          <div className="absolute inset-0">
+            <img
+              src={PROMO_GIF_SLIDE}
+              alt="عروض Amugar Marketplace"
+              className="w-full h-full object-cover"
+              draggable={false}
+            />
+          </div>
+          {/* Subtle gradient overlay so text is legible (very light —
+              the GIF is the star, we just need the CTA readable). */}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 via-transparent to-transparent" />
+
+          {/* CTA — links to /marketplace (stays on the same page, just
+              scrolls to top + signals "explore the marketplace"). */}
+          <Link
+            to="/marketplace"
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 bg-white text-slate-900 px-4 py-2 rounded-full text-[11px] md:text-sm font-bold hover:bg-slate-100 transition shadow-sm"
+          >
+            تسوّق الآن
+            <ArrowLeft size={14} />
+          </Link>
+        </div>
+
+        {/* ─── Slides 1+: Product slides ─── */}
         {slides.map((p, i) => {
-          const active = i === idx
+          const slideIdx = i + 1 // offset by 1 (GIF is slide 0)
+          const active = slideIdx === idx
           const store = resolveStore(p)
           const img = Array.isArray(p.images) ? p.images[0] : p.images
           const isDiscount = !!p.compareAtPrice && p.compareAtPrice > p.price
@@ -171,9 +171,7 @@ export function BannerCarousel({
               className={`absolute inset-0 transition-opacity duration-700 ${active ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'}`}
               aria-hidden={!active}
             >
-              {/* Background image — only render if a real image URL exists.
-                  When the product has no image, we skip the <SmartImage>
-                  and the slate-900 base bg shows through (clean, no broken img). */}
+              {/* Background image — only render if a real image URL exists. */}
               {img && (
                 <div className="absolute inset-0">
                   <SmartImage
@@ -184,13 +182,8 @@ export function BannerCarousel({
                 </div>
               )}
 
-              {/* Soft cinematic gradient overlay (RTL → from right).
-                  Lightened significantly so the product image stays visible
-                  across the full width. Only the right ~45% gets a readable
-                  scrim for the text; the left half stays bright. */}
+              {/* Soft cinematic gradient overlay (RTL → from right). */}
               <div className="absolute inset-0 bg-gradient-to-l from-slate-950/85 via-slate-950/40 to-transparent" />
-              {/* Subtle bottom-up scrim so the pill indicators + CTA stay legible
-                  without darkening the whole image. */}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 via-transparent to-transparent" />
 
               {/* Content */}
@@ -248,7 +241,7 @@ export function BannerCarousel({
       </div>
 
       {/* Arrows (desktop only) */}
-      {slides.length > 1 && (
+      {totalSlides > 1 && (
         <>
           <button
             onClick={() => go(idx - 1)}
@@ -267,10 +260,10 @@ export function BannerCarousel({
         </>
       )}
 
-      {/* Pill indicators */}
-      {slides.length > 1 && (
+      {/* Pill indicators — one per slide (GIF + products) */}
+      {totalSlides > 1 && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
-          {slides.map((_, i) => (
+          {Array.from({ length: totalSlides }).map((_, i) => (
             <button
               key={i}
               onClick={() => go(i)}

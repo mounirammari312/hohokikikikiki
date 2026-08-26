@@ -48,7 +48,7 @@ export function MarketplacePromoBadge() {
   if (dismissed) return null
 
   return (
-    <div className="fixed bottom-40 left-4 z-40 flex flex-col items-center">
+    <div className="fixed bottom-40 md:bottom-40 left-4 z-50 flex flex-col items-center">
       {/* ─── Capsule container (GIF + white bar with X) ─── */}
       <div className="relative w-16 h-20 rounded-2xl bg-white shadow-xl overflow-hidden flex flex-col">
         {/* Animated GIF — fills the top portion, clickable → /marketplace */}
