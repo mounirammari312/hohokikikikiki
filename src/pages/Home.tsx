@@ -3,6 +3,7 @@ import { useTenant } from '../context/TenantContext'
 import { ArrowLeft, Truck, ShieldCheck, BadgeCheck, Sparkles, Star, Package } from 'lucide-react'
 import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
+import { StoreHeroSlider } from '../components/StoreHeroSlider'
 import { SmartImage } from '../components/SmartImage'
 import { getProducts, syncProducts } from '../services/api/products'
 import { getSettings, subscribeSettings, syncSettings } from '../services/api/settings'
@@ -87,65 +88,15 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* ═══ HERO ═══════════════════════════════════════════════════ */}
+      {/* ═══ HERO — auto-rotating product slider ══════════════════════ */}
       <section className="max-w-[1280px] mx-auto px-3 md:px-6 pt-4 md:pt-6">
-        <motion.div {...fadeUp(0)} className="relative rounded-2xl overflow-hidden min-h-[280px] md:min-h-[400px] flex">
-          {/* Hero background — real product image or domain hero image */}
-          <SmartImage
-            src={products[0]?.images?.[0] || domain.heroImage}
-            alt={domain.heroTitleAr}
-            size="hero"
-            eager
-            className="absolute inset-0 w-full h-full object-cover"
+        <motion.div {...fadeUp(0)}>
+          <StoreHeroSlider
+            products={products}
+            domain={domain}
+            store={store}
+            storeQuery={storeQuery}
           />
-          {/* Soft cinematic gradient overlay — LIGHT so the product image
-              stays visible. Only the bottom ~40% gets a scrim for the text;
-              the top stays bright. The previous from-slate-950/85 was too
-              dark and made the image appear black on the right half. */}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
-          {/* Right-side scrim (RTL) so the white text is legible without
-              darkening the whole image. Kept narrow + light. */}
-          <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-slate-950/60 to-transparent" />
-
-          {/* Floating trust badge (desktop) */}
-          <div className="absolute top-4 right-4 z-20 hidden md:flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 rounded-full px-3 py-1.5 text-xs font-bold text-white">
-            <span className="text-[10px] font-extrabold leading-none tracking-tight">DZ</span>
-            <span>صنع في الجزائر</span>
-            <span className="w-1 h-1 rounded-full bg-white/40" />
-            <span className="text-emerald-400">COD</span>
-          </div>
-
-          <div className="relative z-10 p-5 md:p-10 flex flex-col justify-center max-w-[560px]">
-            <span className="inline-flex w-fit items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-white rounded-full px-3 py-1 text-xs tracking-widest">
-              {domain.heroBadge}
-            </span>
-            <h1 className="text-2xl md:text-4xl font-extrabold leading-tight text-white mt-3" style={{ whiteSpace: 'pre-line' }}>
-              {domain.heroTitleAr}
-            </h1>
-            <p className="text-white/80 mt-3 leading-6 text-sm md:text-base line-clamp-2">{domain.heroSubtitleAr}</p>
-            <div className="flex flex-wrap gap-2 mt-4">
-              <Link
-                to={`/shop${storeQuery}`}
-                className="bg-white text-slate-900 px-5 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 shadow-sm hover:bg-slate-100 transition"
-              >
-                تسوّق الآن <ArrowLeft size={14} />
-              </Link>
-              <a
-                href="#collection"
-                className="bg-white/10 backdrop-blur border border-white/20 text-white px-5 py-2.5 rounded-full font-bold text-sm hover:bg-white/20 transition"
-              >
-                اكتشف الكولكشن
-              </a>
-            </div>
-            <div className="flex items-center gap-4 mt-4 text-white/80 text-xs">
-              <span className="flex items-center gap-1.5">
-                <BadgeCheck size={14} className="text-emerald-400" /> 4.9/5 (1.2k تقييم)
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Truck size={14} className="text-emerald-400" /> توصيل 58 ولاية • مجاني فوق {formatDZD(store.freeShippingThreshold)}
-              </span>
-            </div>
-          </div>
         </motion.div>
 
         {/* ═══ TRUST BAR — slim, neutral ═══════════════════════════ */}
