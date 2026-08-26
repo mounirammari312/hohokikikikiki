@@ -54,10 +54,10 @@ export default function Cart() {
             استكشف تشكيلة المنتجات المميزة واستفد من الدفع عند الاستلام مع سرعة التوصيل لكافة الولايات.
           </p>
           <Link
-            to={`/shop${storeQuery}`}
+            to={storeParam ? `/shop${storeQuery}` : '/marketplace'}
             className="inline-flex items-center gap-2 mt-6 text-white px-8 py-3.5 rounded-full font-extrabold shadow-lg transition-transform hover:scale-105 bg-slate-900 hover:bg-slate-800"
           >
-            <ArrowLeft size={16} /> تصفح المتجر الآن
+            <ArrowLeft size={16} /> تصفح المنتجات الآن
           </Link>
         </motion.div>
       </div>

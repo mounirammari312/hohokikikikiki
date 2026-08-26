@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useTenant } from '../context/TenantContext'
-import { ArrowLeft, Truck, ShieldCheck, Sparkles, BadgeCheck, Star, Quote, Package } from 'lucide-react'
+import { ArrowLeft, Truck, ShieldCheck, BadgeCheck, Sparkles, Star, Package } from 'lucide-react'
 import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
 import { SmartImage } from '../components/SmartImage'
@@ -12,25 +12,21 @@ import { useEffect, useState } from 'react'
 import { formatDZD } from '../lib/utils'
 
 // ─── Smart category image: picks a product image from that category ────────
-// Instead of hardcoded jewelry images, we find a real product image
-// from the store's catalog that matches the category. If no product
-// exists in that category, we show a neutral gradient placeholder.
 function getCategoryImage(catKey: string, products: any[]): string {
   const productInCat = products.find(p => p.category === catKey && p.images?.[0])
   if (productInCat) return productInCat.images[0]
-  return ''  // empty → the card will show a gradient placeholder instead
+  return ''
 }
 
 // Reusable fade-up wrapper for scroll-reveal animations.
-// `delay` lets us stagger a row of cards.
 const fadeUp = (delay = 0) => ({
-  initial: { opacity: 0, y: 24 },
+  initial: { opacity: 0, y: 20 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, amount: 0.2 },
-  transition: { duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] as const },
+  transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] as const },
 })
 
-export default function Home(){
+export default function Home() {
   const { storeSlug, storeId } = useTenant()
   const location = useLocation()
   const urlParams = new URLSearchParams(location.search)
@@ -51,25 +47,9 @@ export default function Home(){
     return products.slice(0, 8)
   })()
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
 
-
-  
-  useEffect(()=>{
-    window.scrollTo({top:0, left:0, behavior:'auto'})
-
-    // ─── NO spinner, NO loading screen ────────────────────────────────
-    // The per-tenant caches (products.ts + settings.ts) are now keyed
-    // by storeId/slug. Each store has its OWN cache entry. When the
-    // user visits store B after store A, getProducts() returns store B's
-    // cache (or empty array if first visit) — NEVER store A's products.
-    //
-    // We render IMMEDIATELY from whatever is in the per-tenant cache
-    // (could be from localStorage = instant, or empty = shows empty
-    // state). Then we fetch fresh data from the API in the background.
-    // When the API responds, the state updates and React re-renders
-    // with the fresh data. NO spinner needed.
-
-    // Background sync — updates state when fresh data arrives
     void syncSettings().then(s => {
       if (s) {
         setStore(s)
@@ -77,9 +57,7 @@ export default function Home(){
       }
     }).catch(() => {})
 
-
-    
-        void syncProducts().then(fresh => {
+    void syncProducts().then(fresh => {
       if (fresh && fresh.length > 0) {
         setProducts(fresh)
       } else {
@@ -87,20 +65,12 @@ export default function Home(){
       }
     }).catch(() => {})
 
-
-
-    
-
-    // ─── Track the storefront visit (for merchant analytics) ──────────
     const s = getSettings()
     const urlParams = new URLSearchParams(window.location.search)
     const sid = s.storeId || s._id || urlParams.get('storeId') || ''
     if (sid) trackVisit(sid, 'store')
-  },[])
+  }, [])
 
-  // Re-render when settings change (merchant saves in /admin → same tab).
-  // Cross-tab changes are handled by the storage event listener inside
-  // settings.ts which calls syncSettings() and then notifies subscribers.
   useEffect(() => {
     const unsub = subscribeSettings(() => {
       setStore(getSettings())
@@ -109,199 +79,230 @@ export default function Home(){
     return unsub
   }, [])
 
-  // Per-category product count for the category cards badge
-  const countByCat = (key: string) => products.filter(p=>p.category===key).length
-
+  const countByCat = (key: string) => products.filter(p => p.category === key).length
   const primary = store.primaryColor || 'var(--color-primary)'
   const secondary = store.secondaryColor || 'var(--color-secondary)'
   const textColor = store.textColor || 'var(--color-text)'
 
   return (
-    <div className="min-h-screen" style={{background: store.bgColor || "var(--color-bg)", color: textColor}}>
+    <div className="min-h-screen bg-slate-50">
       {/* ═══ HERO ═══════════════════════════════════════════════════ */}
-      <section className="max-w-[1280px] mx-auto px-4 md:px-6 pt-6">
-        <motion.div {...fadeUp(0)} className="grid lg:grid-cols-[1.15fr_0.85fr] gap-4">
-          <div className="relative rounded-[28px] overflow-hidden min-h-[420px] md:min-h-[520px] flex" style={{ background: secondary }}>
-            {/* Use a real product image as hero background if available */}
-            <SmartImage src={products[0]?.images?.[0] || domain.heroImage} alt={domain.heroTitleAr} size="hero" eager className="absolute inset-0 w-full h-full" style={{ opacity: 0.95, zIndex: 0 }} />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/15 to-transparent" style={{ zIndex: 1 }}/>
-            <div className="hero-overlay-anim absolute inset-0 bg-gradient-to-tr from-[var(--color-accent)]/0 via-[var(--color-accent)]/5 to-[var(--color-primary)]/5 pointer-events-none" style={{ zIndex: 1 }}/>
+      <section className="max-w-[1280px] mx-auto px-3 md:px-6 pt-4 md:pt-6">
+        <motion.div {...fadeUp(0)} className="relative rounded-2xl overflow-hidden min-h-[280px] md:min-h-[400px] flex">
+          {/* Hero background — real product image or domain hero image */}
+          <SmartImage
+            src={products[0]?.images?.[0] || domain.heroImage}
+            alt={domain.heroTitleAr}
+            size="hero"
+            eager
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {/* Soft cinematic gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-l from-slate-950/85 via-slate-950/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
 
-            {/* Floating trust badge */}
-            <div className="absolute top-5 right-5 z-20 hidden md:flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold shadow-md border border-white/40" style={{ color: textColor }}>
-              <span className="text-[10px] font-extrabold leading-none tracking-tight">DZ</span>
-              <span>صنع في الجزائر</span>
-              <span className="w-1 h-1 rounded-full" style={{ background: 'color-mix(in srgb, var(--color-text) 40%, transparent)' }}/>
-              <span style={{ color: primary }}>COD</span>
-            </div>
-
-            <div className="relative z-10 p-6 md:p-10 flex flex-col justify-center max-w-[560px]">
-              <span className="inline-flex w-fit items-center gap-2 bg-white/15 border border-white/20 text-white backdrop-blur rounded-full px-3 py-1 text-xs tracking-widest">{domain.heroBadge} {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B] shadow-[0_0_6px_rgba(160,42,91,0.8)]"></span>}</span>
-              <h1 className="cormorant text-[38px] md:text-[52px] leading-[0.95] font-bold text-white mt-4" style={{whiteSpace:'pre-line'}}>{domain.heroTitleAr}</h1>
-              <p className="text-white/85 mt-4 leading-7">{domain.heroSubtitleAr}</p>
-              <div className="flex flex-wrap gap-3 mt-6">
-                <Link to={`/shop${storeQuery}`} className="btn-premium text-white px-7 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg" style={{ background: primary }}>تسوّق الآن <ArrowLeft size={16}/></Link>
-
-                <a href="#collection" className="btn-premium bg-white px-7 py-3 rounded-full font-bold shadow-lg" style={{ color: textColor }}>اكتشف الكولكشن</a>
-              </div>
-              <div className="flex items-center gap-6 mt-6 text-white/90 text-xs">
-                <span className="flex items-center gap-1.5"><BadgeCheck size={14} style={{ color: primary }}/> 4.9/5 (1.2k تقييم)</span>
-                <span className="flex items-center gap-1.5"><Truck size={14} style={{ color: primary }}/> توصيل 58 ولاية • مجاني فوق {formatDZD(store.freeShippingThreshold)}</span>
-              </div>
-            </div>
-            {/* floating price card — glass-card effect on stats */}
-            <div className="hidden lg:block absolute bottom-6 left-6 glass-card rounded-2xl p-3 shadow-xl w-[200px]">
-              <div className="flex gap-2">
-                <img src={products.find(p=> domainCats.has(p.category))?.images?.[0] || ''} className="w-12 h-12 rounded-lg object-cover bg-[#F5EFE6] shrink-0" onError={e => e.currentTarget.style.display='none'}/>
-                <div className="min-w-0">
-                  <div className="text-[10px]" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>الأكثر مبيعاً</div>
-                  <div className="font-bold text-xs leading-tight line-clamp-1" style={{ color: textColor }}>{products.find(p=> domainCats.has(p.category))?.nameAr || domain.nameAr}</div>
-                  <div className="font-extrabold text-xs gradient-text">{products.find(p=> domainCats.has(p.category)) ? formatDZD(products.find(p=> domainCats.has(p.category))!.price) : formatDZD(6800)}</div>
-                </div>
-              </div>
-              <Link to={products.find(p=> domainCats.has(p.category)) ? `/product/${products.find(p=> domainCats.has(p.category))!._id}${storeQuery}` : `/shop${storeQuery}`} className="btn-premium mt-2 block text-center text-white rounded-full py-1.5 text-[10px] font-bold" style={{ background: secondary }}>اطلب الآن - COD</Link>
-
-            </div>
+          {/* Floating trust badge (desktop) */}
+          <div className="absolute top-4 right-4 z-20 hidden md:flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 rounded-full px-3 py-1.5 text-xs font-bold text-white">
+            <span className="text-[10px] font-extrabold leading-none tracking-tight">DZ</span>
+            <span>صنع في الجزائر</span>
+            <span className="w-1 h-1 rounded-full bg-white/40" />
+            <span className="text-emerald-400">COD</span>
           </div>
-          <div className="grid grid-rows-[1.1fr_0.9fr] gap-3">
-            {/* عروض الكمية — مصغرة */}
-            <div className={`rounded-2xl overflow-hidden relative p-4 flex flex-col justify-between min-h-[180px] border card-shadow ${store.enableRoseEdition ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-[#F5EFE6] border-[#EDE6D8]'}`}>
-              {(() => { const img = getCategoryImage(domain.categories[0]?.key || '', products); return img ? <img src={img} className="absolute inset-0 w-full h-full object-cover opacity-[0.08]"/> : null })()}
-              {store.enableRoseEdition && <div className="absolute top-0 left-0 w-24 h-24 bg-[#A02A5B]/10 rounded-full blur-2xl -translate-x-4 -translate-y-4"/>}
-              <div className="relative">
-                <span className={`border rounded-full px-2 py-0.5 text-[10px] font-bold inline-flex gap-1 items-center ${store.enableRoseEdition ? 'bg-white border-[#F6C0D4] text-[#A02A5B]' : 'bg-white border-[#EDE6D8] text-[#7A6F5A]'}`}><Sparkles size={10} className={store.enableRoseEdition ? 'text-[#A02A5B]' : 'text-[#C9A96A]'}/> عروض الكمية</span>
-                <h3 className="text-[20px] font-extrabold leading-none mt-2" style={{ color: textColor }}>وفّر حتى <span style={{ color: store.enableRoseEdition ? '#A02A5B' : primary }}>22%</span><br/>عند شراء 3 قطع</h3>
-                <p className={`text-[11px] mt-1 ${store.enableRoseEdition ? 'text-[#7A5A65]' : 'text-[#7A6F5A]'}`}>شارك الأناقة — خصم تلقائي في السلة</p>
-              </div>
-              <Link to={`/shop${storeQuery}`} className={`btn-premium relative inline-flex w-fit px-3 py-1.5 rounded-full text-[11px] font-bold mt-2 ${store.enableRoseEdition ? 'bg-[#A02A5B] text-white hover:bg-[#7A1F44]' : 'text-white hover:opacity-90'}`} style={!store.enableRoseEdition ? { background: secondary } : undefined}>استفد من العرض</Link>
 
+          <div className="relative z-10 p-5 md:p-10 flex flex-col justify-center max-w-[560px]">
+            <span className="inline-flex w-fit items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-white rounded-full px-3 py-1 text-xs tracking-widest">
+              {domain.heroBadge}
+            </span>
+            <h1 className="text-2xl md:text-4xl font-extrabold leading-tight text-white mt-3" style={{ whiteSpace: 'pre-line' }}>
+              {domain.heroTitleAr}
+            </h1>
+            <p className="text-white/80 mt-3 leading-6 text-sm md:text-base line-clamp-2">{domain.heroSubtitleAr}</p>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Link
+                to={`/shop${storeQuery}`}
+                className="bg-white text-slate-900 px-5 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 shadow-sm hover:bg-slate-100 transition"
+              >
+                تسوّق الآن <ArrowLeft size={14} />
+              </Link>
+              <a
+                href="#collection"
+                className="bg-white/10 backdrop-blur border border-white/20 text-white px-5 py-2.5 rounded-full font-bold text-sm hover:bg-white/20 transition"
+              >
+                اكتشف الكولكشن
+              </a>
             </div>
-            {/* بطاقة الدفع عند الاستلام — مصغرة */}
-            <div className="rounded-2xl p-4 text-white relative overflow-hidden card-shadow" style={{ background: primary }}>
-              <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/15 rounded-full blur-2xl"/>
-              <div className="absolute -left-8 -top-8 w-24 h-24 bg-black/10 rounded-full"/>
-              <div className="relative">
-                <div className="text-[10px] tracking-[0.2em] opacity-90">{domain.name.toUpperCase()} CARE</div>
-                <h4 className="text-[16px] font-bold leading-tight mt-1">الدفع عند الاستلام<br/>58 ولاية • بدون بطاقة</h4>
-                <div className="flex gap-1.5 mt-2 text-[10px]">
-                  <span className="bg-white text-[#1A1A1E] px-2 py-1 rounded-full font-bold flex items-center gap-1"><ShieldCheck size={12}/> مضمون</span>
-                  <span className="bg-black/15 border border-white/20 px-2 py-1 rounded-full" dir="ltr">{store.phone || 'تأكيد بالهاتف'}</span>
-                </div>
-              </div>
+            <div className="flex items-center gap-4 mt-4 text-white/80 text-xs">
+              <span className="flex items-center gap-1.5">
+                <BadgeCheck size={14} className="text-emerald-400" /> 4.9/5 (1.2k تقييم)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Truck size={14} className="text-emerald-400" /> توصيل 58 ولاية • مجاني فوق {formatDZD(store.freeShippingThreshold)}
+              </span>
             </div>
           </div>
         </motion.div>
 
-        {/* ═══ TRUST BAR — مصغرة ═══════════════════════════════════════ */}
+        {/* ═══ TRUST BAR — slim, neutral ═══════════════════════════ */}
         <motion.div {...fadeUp(0.05)} className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
           {[
-            {icon:Truck, t:"توصيل سريع", d:"24-96 ساعة"},
-            {icon:ShieldCheck, t:"الدفع عند الاستلام", d: store.enableCod ? "ادفع عند الوصول" : "متوقف", rose: store.enableRoseEdition},
-            {icon:BadgeCheck, t:"ضمان 12 شهر", d: "استرجاع 14 يوم"},
-            {icon:Sparkles, t:"تغليف هدية", d:`علبة ${store.storeName} فاخرة`},
-          ].map(c=> (
-            <div key={c.t} className={`rounded-xl p-2.5 flex gap-2 items-center border card-shadow ${c.rose ? 'bg-[#FDF2F6] border-[#F6C0D4]' : 'bg-white border-[#EDE6D8]'}`}>
-              <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${c.rose ? 'bg-[#FCE7F0] text-[#A02A5B] border border-[#F6C0D4]' : ''}`} style={!c.rose ? { background: 'color-mix(in srgb, var(--color-primary) 12%, white)', color: 'var(--color-primary)' } : undefined}><c.icon size={14}/></div>
-              <div className="min-w-0"><div className={`font-bold text-xs ${c.rose ? 'text-[#7A1F44]' : ''}`} style={!c.rose ? { color: textColor } : undefined}>{c.t}</div><div className={`text-[10px] truncate ${c.rose ? 'text-[#A02A5B]/70' : ''}`} style={!c.rose ? { color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' } : undefined}>{c.d}</div></div>
+            { icon: Truck, t: 'توصيل سريع', d: '24-96 ساعة', accent: false },
+            { icon: ShieldCheck, t: 'الدفع عند الاستلام', d: store.enableCod ? 'ادفع عند الوصول' : 'متوقف', accent: true },
+            { icon: BadgeCheck, t: 'ضمان 12 شهر', d: 'استرجاع 14 يوم', accent: false },
+            { icon: Sparkles, t: 'تغليف هدية', d: `علبة ${store.storeName} فاخرة`, accent: false },
+          ].map(c => (
+            <div
+              key={c.t}
+              className="bg-white border border-slate-200/80 rounded-xl px-3 py-2.5 flex items-center gap-2.5 hover:border-slate-300 transition"
+            >
+              <div
+                className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${
+                  c.accent ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                <c.icon size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate leading-tight">{c.t}</div>
+                <div className="text-[10px] text-slate-500 truncate mt-0.5">{c.d}</div>
+              </div>
             </div>
           ))}
         </motion.div>
       </section>
 
       {/* ═══ CATEGORIES ══════════════════════════════════════════════ */}
-      <section id="collection" className="max-w-[1280px] mx-auto px-4 md:px-6 mt-12">
-        <motion.div {...fadeUp(0)} className="flex items-end justify-between">
+      <section id="collection" className="max-w-[1280px] mx-auto px-3 md:px-6 mt-8 md:mt-10">
+        <motion.div {...fadeUp(0)} className="flex items-end justify-between mb-3">
           <div>
-            <div className="text-xs tracking-[0.3em] font-bold flex items-center gap-2" style={{ color: 'var(--color-primary)' }}>SHOP BY CATEGORY <span className="w-8 h-px" style={{ background: 'color-mix(in srgb, var(--color-primary) 25%, transparent)' }}></span> {store.enableRoseEdition && <span className="text-[#A02A5B] text-[10px] tracking-widest border border-[#F6C0D4] bg-[#FDF2F6] px-2 py-0.5 rounded-full">ÉDITION ROSE</span>} <span className="hidden md:inline text-[11px] tracking-normal text-white px-2 py-1 rounded-full" style={{ background: 'var(--color-secondary)' }}>{domain.nameAr} • {domain.categories.length} فئات</span></div>
-            <h2 className="text-[28px] font-extrabold mt-1" style={{ color: textColor }}>تسوّق حسب الفئة <span className="text-[15px]">— {domain.nameAr}</span></h2>
-            <p className="text-xs mt-1 line-clamp-1" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>{domain.descriptionAr}</p>
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">تسوّق حسب الفئة</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{domain.nameAr} • {domain.categories.length} فئات</p>
           </div>
-          <Link to={`/shop${storeQuery}`} className="hidden md:inline-flex text-sm font-bold border rounded-full px-4 py-2 bg-white hover:text-white btn-premium" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: textColor }} >عرض الكل</Link>
-
+          <Link
+            to={`/shop${storeQuery}`}
+            className="hidden md:inline-flex text-sm font-bold text-slate-700 hover:text-slate-900 border border-slate-200 rounded-full px-4 py-2 bg-white hover:bg-slate-50 transition"
+          >
+            عرض الكل
+          </Link>
         </motion.div>
-        <motion.div {...fadeUp(0.08)} className={`grid gap-4 mt-4 ${domain.categories.length<=3 ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
-          {domain.categories.filter(c => countByCat(c.key) > 0).map((c, i)=> (
-            <motion.div key={c.key} {...fadeUp(0.05 * i)} className="contents">
-            <Link to={`/shop?cat=${c.key}${storeQuery ? `&${storeQuery.slice(1)}` : ''}`} className="group relative rounded-[22px] overflow-hidden h-[220px] card-shadow card-shadow-hover" style={{ background: 'var(--color-secondary)' }}>
 
-              {(() => {
-                const catImg = getCategoryImage(c.key, products)
-                if (catImg) {
+        <motion.div
+          {...fadeUp(0.08)}
+          className={`grid gap-3 ${domain.categories.length <= 3 ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}
+        >
+          {domain.categories.filter(c => countByCat(c.key) > 0).map((c, i) => (
+            <motion.div key={c.key} {...fadeUp(0.05 * i)} className="contents">
+              <Link
+                to={`/shop?cat=${c.key}${storeQuery ? `&${storeQuery.slice(1)}` : ''}`}
+                className="group relative rounded-xl overflow-hidden h-[180px] bg-slate-900"
+              >
+                {(() => {
+                  const catImg = getCategoryImage(c.key, products)
+                  if (catImg) {
+                    return (
+                      <div className="absolute inset-0">
+                        <img src={catImg} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" alt={c.labelAr} />
+                      </div>
+                    )
+                  }
                   return (
-                    <div className="img-zoom absolute inset-0">
-                      <img src={catImg} className="absolute inset-0 w-full h-full object-cover opacity-80"/>
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-100 to-slate-200 grid place-items-center">
+                      <Package size={48} className="text-slate-300" />
                     </div>
                   )
-                }
-                // No product in this category → gradient placeholder
-                return (
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#F5EFE6] to-[#EDE6D8] grid place-items-center">
-                    <Package size={48} className="text-[#C9A96A]/30" />
+                })()}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                {/* Product count badge */}
+                <span className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur text-slate-900 text-[10px] font-bold px-2 py-1 rounded-full">
+                  {countByCat(c.key)} منتج
+                </span>
+                <div className="absolute bottom-2 right-2 left-2 bg-white rounded-xl p-2.5 flex items-center justify-between shadow-sm">
+                  <div>
+                    <div className="font-bold text-sm text-slate-900">{c.labelAr}</div>
+                    <div className="text-[10px] tracking-widest text-slate-500">{c.label.toUpperCase()}</div>
                   </div>
-                )
-              })()}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent group-hover:from-black/80 group-hover:via-black/30 transition-all duration-500"/>
-              {/* Product count badge */}
-              <span className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur text-[10px] font-bold px-2 py-1 rounded-full" style={{ color: textColor }}>{countByCat(c.key)} منتج</span>
-              <div className="absolute bottom-3 right-3 left-3 bg-white rounded-2xl p-3 flex items-center justify-between shadow-lg">
-                <div><div className="font-bold" style={{ color: textColor }}>{c.labelAr}</div><div className="text-[10px] tracking-widest" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>{c.label.toUpperCase()}</div></div>
-                <span className="w-8 h-8 rounded-full text-white grid place-items-center arrow-slide" style={{ background: 'var(--color-secondary)' }}><ArrowLeft size={14}/></span>
-              </div>
-            </Link>
+                  <span className="w-7 h-7 rounded-full bg-slate-900 text-white grid place-items-center group-hover:bg-slate-800 transition">
+                    <ArrowLeft size={13} />
+                  </span>
+                </div>
+              </Link>
             </motion.div>
           ))}
         </motion.div>
       </section>
 
-      {/* ═══ FEATURED PRODUCTS ════════════════════════════════════════ */}
-      <section className="max-w-[1280px] mx-auto px-4 md:px-6 mt-12">
-        <motion.div {...fadeUp(0)} className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-[26px] font-extrabold" style={{ color: textColor }}>الأكثر مبيعاً <span className="gradient-text">2026</span> <span className="text-xs font-bold bg-white border px-2 py-1 rounded-full ms-2" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 18%, transparent)' }}>{featured.length} منتجات مميزة • {domain.nameAr}</span></h2>
-          
-          <Link to={`/shop${storeQuery}`} className="text-sm font-bold hover:underline" style={{ color: 'var(--color-primary)' }}>عرض كل المنتجات ←</Link>
-
+      {/* ═══ FEATURED PRODUCTS ══════════════════════════════════════ */}
+      <section className="max-w-[1280px] mx-auto px-3 md:px-6 mt-8 md:mt-10">
+        <motion.div {...fadeUp(0)} className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+          <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">
+            الأكثر مبيعاً
+            <span className="text-xs font-bold bg-white border border-slate-200 px-2 py-1 rounded-full ms-2 text-slate-700">
+              {featured.length} منتجات مميزة
+            </span>
+          </h2>
+          <Link to={`/shop${storeQuery}`} className="text-sm font-bold text-slate-700 hover:text-slate-900 transition">
+            عرض كل المنتجات ←
+          </Link>
         </motion.div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-          {featured.map((p, i)=> <ProductCard key={p._id} p={p} index={i}/> )}
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
+          {featured.map((p, i) => <ProductCard key={p._id} p={p} index={i} />)}
         </div>
-        {featured.length===0 && <motion.div {...fadeUp(0.1)} className="text-center py-8 text-sm bg-white border border-dashed rounded-2xl mt-4" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 22%, transparent)', color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>لا توجد منتجات مميزة في مجال {domain.nameAr} — اذهب للوحة التحكم لإضافة شارة "مميز"</motion.div>}
+
+        {featured.length === 0 && (
+          <motion.div
+            {...fadeUp(0.1)}
+            className="text-center py-8 text-sm bg-white border border-dashed border-slate-300 rounded-2xl text-slate-500"
+          >
+            لا توجد منتجات مميزة في مجال {domain.nameAr} — اذهب للوحة التحكم لإضافة شارة "مميز"
+          </motion.div>
+        )}
       </section>
 
-      {/* ═══ EDITORIAL + REVIEWS ══════════════════════════════════════ */}
-      <section className="max-w-[1280px] mx-auto px-4 md:px-6 mt-12 grid lg:grid-cols-2 gap-6">
-        <motion.div {...fadeUp(0)} className="bg-white border rounded-[28px] p-6 md:p-8 relative overflow-hidden card-shadow" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 14%, transparent)' }}>
-          <div className="absolute top-0 left-0 w-40 h-40 bg-[#FFF3E0] rounded-full -translate-x-10 -translate-y-10"/>
+      {/* ═══ EDITORIAL + REVIEWS ════════════════════════════════════ */}
+      <section className="max-w-[1280px] mx-auto px-3 md:px-6 mt-8 md:mt-10 grid lg:grid-cols-2 gap-4">
+        <motion.div
+          {...fadeUp(0)}
+          className="bg-white border border-slate-200 rounded-2xl p-5 md:p-6 relative overflow-hidden"
+        >
           <div className="relative">
-            <div className="inline-flex items-center gap-2 text-xs font-bold tracking-widest border px-3 py-1 rounded-full" style={{ color: 'var(--color-primary)', borderColor: 'color-mix(in srgb, var(--color-primary) 22%, transparent)', background: 'color-mix(in srgb, var(--color-primary) 6%, white)' }}>EDITORIAL • لماذا {store.storeName}؟</div>
-            <h3 className="text-[26px] font-extrabold leading-tight mt-3" style={{ color: textColor }}>{store.editorialTitle || 'جودة تلمس، أسعار تناسبك'}<br/><span className="text-[16px] font-normal" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>{domain.descriptionAr}</span></h3>
-            <ul className="mt-4 space-y-3 text-sm leading-6" style={{ color: 'color-mix(in srgb, var(--color-text) 70%, transparent)' }}>
-              <li className="flex gap-2"><BadgeCheck size={18} className="mt-0.5" style={{ color: 'var(--color-primary)' }}/> {store.editorialText1 || 'جودة عالية تدوم طويلاً مع ضمان الاسترجاع.'}</li>
-              <li className="flex gap-2"><BadgeCheck size={18} className="mt-0.5" style={{ color: 'var(--color-primary)' }}/> {store.editorialText2 || 'خامات مختارة بعناية، تصميم عمري.'}</li>
-              <li className="flex gap-2"><BadgeCheck size={18} className="mt-0.5" style={{ color: 'var(--color-primary)' }}/> كل طلب يأتي بتغليف فاخر + ضمان جودة + استرجاع 14 يوم.</li>
+            <div className="inline-flex items-center gap-2 text-xs font-bold tracking-widest border border-slate-200 px-3 py-1 rounded-full text-slate-700">
+              EDITORIAL • لماذا {store.storeName}؟
+            </div>
+            <h3 className="text-xl font-extrabold leading-tight mt-3 text-slate-900">
+              {store.editorialTitle || 'جودة تلمس، أسعار تناسبك'}
+            </h3>
+            <ul className="mt-4 space-y-2.5 text-sm leading-6 text-slate-600">
+              <li className="flex gap-2"><BadgeCheck size={18} className="mt-0.5 text-emerald-600 shrink-0" /> {store.editorialText1 || 'جودة عالية تدوم طويلاً مع ضمان الاسترجاع.'}</li>
+              <li className="flex gap-2"><BadgeCheck size={18} className="mt-0.5 text-emerald-600 shrink-0" /> {store.editorialText2 || 'خامات مختارة بعناية، تصميم عمري.'}</li>
+              <li className="flex gap-2"><BadgeCheck size={18} className="mt-0.5 text-emerald-600 shrink-0" /> كل طلب يأتي بتغليف فاخر + ضمان جودة + استرجاع 14 يوم.</li>
             </ul>
-            <div className="mt-6 flex gap-3">
-              <img src={getCategoryImage(domain.categories[0]?.key || '', products) || ''} className="w-20 h-20 rounded-2xl object-cover bg-[#F5EFE6]" onError={e => e.currentTarget.style.display='none'}/>
-              <img src={getCategoryImage(domain.categories[1]?.key || '', products) || ''} className="w-20 h-20 rounded-2xl object-cover bg-[#F5EFE6]" onError={e => e.currentTarget.style.display='none'}/>
-              <img src={getCategoryImage(domain.categories[2]?.key || '', products) || ''} className="w-20 h-20 rounded-2xl object-cover bg-[#F5EFE6]" onError={e => e.currentTarget.style.display='none'}/>
+            <div className="mt-4 flex gap-2">
+              <img src={getCategoryImage(domain.categories[0]?.key || '', products) || ''} className="w-16 h-16 rounded-xl object-cover bg-slate-100" onError={e => e.currentTarget.style.display = 'none'} alt="" />
+              <img src={getCategoryImage(domain.categories[1]?.key || '', products) || ''} className="w-16 h-16 rounded-xl object-cover bg-slate-100" onError={e => e.currentTarget.style.display = 'none'} alt="" />
+              <img src={getCategoryImage(domain.categories[2]?.key || '', products) || ''} className="w-16 h-16 rounded-xl object-cover bg-slate-100" onError={e => e.currentTarget.style.display = 'none'} alt="" />
             </div>
           </div>
         </motion.div>
-        <motion.div {...fadeUp(0.08)} className="rounded-[28px] p-6 md:p-8 text-white relative overflow-hidden card-shadow" style={{ background: secondary }}>
-          <Quote className="absolute top-6 left-6 text-white/10" size={80}/>
-          {store.enableRoseEdition && <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#A02A5B]/20 rounded-full blur-2xl"/>}
+
+        <motion.div
+          {...fadeUp(0.08)}
+          className="bg-slate-900 rounded-2xl p-5 md:p-6 text-white relative overflow-hidden"
+        >
           <div className="relative">
-            <div className="text-xs tracking-[0.3em]" style={{ color: 'var(--color-primary)' }}>آراء عملائنا</div>
-            <h3 className="text-[24px] font-bold mt-1">ماذا قال عملاؤنا؟</h3>
-            <div className="mt-5 space-y-4">
+            <div className="text-xs tracking-[0.3em] text-emerald-400">آراء عملائنا</div>
+            <h3 className="text-xl font-bold mt-1">ماذا قال عملاؤنا؟</h3>
+            <div className="mt-4 space-y-3">
               {[
-                {n: store.review1Name || "سارة - الجزائر", t: store.review1Text || "وصلني في 24 ساعة، الجودة ممتازة والتغليف فخم جداً!", s:5, rose:false},
-                {n: store.review2Name || "أمينة - وهران", t: store.review2Text || "خدمة رائعة، اتصلوا بي للتأكيد وأعطوني نصائح للحفاظ على الجودة.", s:5, rose: store.enableRoseEdition},
-                {n: store.review3Name || "نور - قسنطينة", t: store.review3Text || "أخذت عرض 3 قطع ووفّرت 18%، الجودة ممتازة والسعر معقول.", s:5, rose:false},
-              ].map((r, i)=>(
-                <div key={r.n} className={`animate-slide-up stagger-${i+1} rounded-2xl p-4 backdrop-blur border card-shadow ${r.rose ? 'bg-[#A02A5B]/15 border-[#A02A5B]/30' : 'bg-white/[0.07] border-white/10'}`}>
-                  <div className={`flex gap-1 ${r.rose ? 'text-[#F6C0D4]' : ''}`} style={!r.rose ? { color: 'var(--color-primary)' } : undefined}>{Array.from({length:r.s}).map((_,j)=><Star key={j} size={14} fill={r.rose ? '#F6C0D4' : 'var(--color-primary)'}/>)}</div>
-                  <p className="text-sm leading-6 mt-2 text-white/90">“{r.t}”</p>
-                  <div className={`text-xs mt-2 font-bold ${r.rose ? 'text-[#F6C0D4]' : ''}`} style={!r.rose ? { color: 'var(--color-primary)' } : undefined}>{r.n} </div>
+                { n: store.review1Name || 'سارة - الجزائر', t: store.review1Text || 'وصلني في 24 ساعة، الجودة ممتازة والتغليف فخم جداً!', s: 5 },
+                { n: store.review2Name || 'أمينة - وهران', t: store.review2Text || 'خدمة رائعة، اتصلوا بي للتأكيد وأعطوني نصائح للحفاظ على الجودة.', s: 5 },
+                { n: store.review3Name || 'نور - قسنطينة', t: store.review3Text || 'أخذت عرض 3 قطع ووفّرت 18%، الجودة ممتازة والسعر معقول.', s: 5 },
+              ].map((r, i) => (
+                <div key={r.n} className="bg-white/[0.07] border border-white/10 rounded-xl p-3">
+                  <div className="flex gap-1 text-amber-400">
+                    {Array.from({ length: r.s }).map((_, j) => <Star key={j} size={13} fill="currentColor" />)}
+                  </div>
+                  <p className="text-sm leading-5 mt-2 text-white/90">"{r.t}"</p>
+                  <div className="text-xs mt-2 font-bold text-emerald-400">{r.n}</div>
                 </div>
               ))}
             </div>
@@ -309,17 +310,25 @@ export default function Home(){
         </motion.div>
       </section>
 
-      {/* ═══ INSTAGRAM / CTA ══════════════════════════════════════════ */}
-      <motion.section {...fadeUp(0)} className="max-w-[1280px] mx-auto px-4 md:px-6 mt-12 mb-8">
-        <div className="bg-white border rounded-[28px] p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-4 card-shadow relative overflow-hidden" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 14%, transparent)' }}>
-          {/* decorative accent */}
-          <div className="absolute -top-16 -left-16 w-48 h-48 rounded-full blur-3xl opacity-30" style={{ background: 'var(--color-primary)' }}/>
+      {/* ═══ INSTAGRAM / CTA ════════════════════════════════════════ */}
+      <motion.section {...fadeUp(0)} className="max-w-[1280px] mx-auto px-3 md:px-6 mt-8 mb-6">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden">
           <div className="relative">
-            <div className="font-extrabold text-lg" style={{ color: textColor }}>تابعنا على إنستغرام <span style={{ color: 'var(--color-primary)' }}>{store.instagram}</span> {store.enableRoseEdition && <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-[#FDF2F6] border border-[#F6C0D4] text-[#A02A5B] px-2 py-0.5 rounded-full ms-2">♥ ÉDITION ROSE</span>}</div>
-            <div className="text-xs mt-1" style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>شارك صور منتجاتك بـ #AmugarDz • {store.phone}</div>
+            <div className="font-extrabold text-base text-slate-900">
+              تابعنا على إنستغرام <span className="text-emerald-600">{store.instagram}</span>
+            </div>
+            <div className="text-xs mt-1 text-slate-500">شارك صور منتجاتك بـ #AmugarDz • {store.phone}</div>
           </div>
-          <div className="relative flex gap-2 overflow-x-auto thumb-scroll scrollbar-hide">
-            {products.slice(0, 4).map((p, i)=> <img key={p._id || i} src={p.images?.[0] || ''} className={`w-16 h-16 rounded-xl object-cover shrink-0 hover:scale-105 transition bg-[#F5EFE6] ${i===1 && store.enableRoseEdition ? 'ring-2 ring-[#A02A5B]/30 ring-offset-2' : ''}`} onError={e => e.currentTarget.style.display='none'}/> )}
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {products.slice(0, 4).map((p, i) => (
+              <img
+                key={p._id || i}
+                src={p.images?.[0] || ''}
+                className="w-14 h-14 rounded-xl object-cover shrink-0 bg-slate-100"
+                onError={e => e.currentTarget.style.display = 'none'}
+                alt=""
+              />
+            ))}
           </div>
         </div>
       </motion.section>

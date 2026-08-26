@@ -55,7 +55,7 @@ export default function Footer(){
               <input placeholder="بريدك الإلكتروني" className="flex-1 rounded-full px-3 py-2 text-sm bg-white text-black outline-none focus:ring-2 focus:ring-[#A02A5B]/20"/>
               <button className="btn-premium bg-[#C9A96A] text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-[#B8945A]">اشتراك</button>
             </form>
-            {store.enableRoseEdition && <p className="text-[11px] text-white/30 mt-2 text-center">♥ لمسة روز راقية — ÉDITION ROSE</p>}
+            {store.enableRoseEdition && <p className="text-[11px] text-white/30 mt-2 text-center">لمسة روز راقية — ÉDITION ROSE</p>}
           </div>
         </div>
         <div className="border-t border-white/10 mt-8 pt-6 flex flex-col md:flex-row justify-between gap-3 text-xs text-[#8A7F6A]">

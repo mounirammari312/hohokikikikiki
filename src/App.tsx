@@ -194,6 +194,18 @@ function AppRoutes() {
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/marketplace/store/:slug" element={<Marketplace />} />
 
+          {/* ─── Public commerce routes (always available, even on the
+              platform apex without a tenant context). These use the
+              default cart/wishlist storage keys so browsing the public
+              marketplace + adding to cart + checking out always works.
+              WITHOUT these routes, clicking the bottom nav's cart icon
+              from /marketplace on the platform host would fall through
+              to PlatformLanding (broken UX). */}
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/thank-you/:orderNumber" element={<ThankYou />} />
+
           {/* ─── Platform apex routes (no tenant context) ─────────────── */}
           {!tenantMode && (
             <>

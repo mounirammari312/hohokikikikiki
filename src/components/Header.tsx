@@ -1,3 +1,21 @@
+/**
+ * Header — Single-row sticky capsule header for the merchant storefront.
+ *
+ * Mirrors the marketplace's header pattern so the whole platform has ONE
+ * consistent header design:
+ *   - Announcement bar (slim, merchant's secondary color)
+ *   - Single row:
+ *       RIGHT  → Store name (cormorant wordmark, merchant's primary color)
+ *       CENTER → Capsule search (flex-1, rounded-full, embedded button)
+ *       LEFT   → Wishlist + Cart (compact cluster)
+ *   - Mobile menu drawer (hamburger) for navigation links
+ *
+ * The merchant's theme colors (--color-primary, --color-secondary) are
+ * preserved for the wordmark + announcement bar + cart button, but the
+ * search capsule uses the neutral slate palette for consistency with
+ * the marketplace.
+ */
+
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ShoppingBag, Search, Menu, X, Heart } from 'lucide-react'
@@ -6,14 +24,13 @@ import { useWishlist } from '../context/WishlistContext'
 import { getSettings, syncSettings, subscribeSettings } from '../services/api/settings'
 import { useTenant } from '../context/TenantContext'
 
-export default function Header(){
+export default function Header() {
   const { totalQty } = useCart()
   const { count: wishCount } = useWishlist()
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
-  const [store, setStore] = useState(()=> getSettings())
-  const [scrolled, setScrolled] = useState(false)
-  
+  const [store, setStore] = useState(() => getSettings())
+
   const nav = useNavigate()
   const location = useLocation()
   const { storeId, storeSlug } = useTenant()
@@ -35,88 +52,154 @@ export default function Header(){
   }
 
   useEffect(() => {
-    // One-time sync on mount + when storeId/storeSlug changes.
-    // No setInterval — the cache is updated reactively by the service layer.
     void syncSettings().then(() => setStore(getSettings()))
   }, [storeId, storeSlug])
 
-  // Subscribe to settings changes — when the merchant saves settings in
-  // /admin (same tab) or another tab writes to localStorage, re-read
-  // the cache and re-render. This is the fix for "storefront doesn't
-  // update after saving in dashboard".
   useEffect(() => {
     const unsub = subscribeSettings(() => setStore(getSettings()))
     return unsub
   }, [])
 
-  // Scroll listener — toggle header shadow once the user scrolls past 10px.
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10)
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
   return (
-    <header className={`sticky top-0 z-50 bg-[#FFFCF8]/90 glass border-b border-[#EDE6D8] transition-shadow ${scrolled ? 'shadow-md' : ''}`}>
-      {/* Announcement bar with subtle gradient overlay */}
-      <div className="text-[12px] py-2 text-center tracking-widest manrope flex items-center justify-center gap-2 px-3 relative overflow-hidden" style={{background: store.secondaryColor || '#1A1A1E', color: store.primaryColor || '#C9A96A'}}>
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent pointer-events-none"/>
-        <span className="hidden md:inline-flex items-center gap-2 text-center leading-tight relative">{store.announcement} {store.enableRoseEdition && <span className="w-1.5 h-1.5 rounded-full bg-[#A02A5B] shadow-[0_0_8px_rgba(160,42,91,0.6)] shrink-0"></span>}</span>
-        <span className="md:hidden leading-snug tracking-normal text-[11px] line-clamp-2 relative">{store.announcement}</span>
-        <span className="hidden lg:flex items-center gap-2 shrink-0 ms-2 ps-2 border-s border-white/10 text-white/60 text-[11px] relative">خدمة العملاء: {store.phone} <span className="w-1 h-1 rounded-full bg-white/30"></span> {store.enableRoseEdition ? 'لمسة وردية • ÉDITION ROSE' : store.storeName}</span>
-      </div>
-      <div className="max-w-[1280px] mx-auto px-4 md:px-6 h-[68px] flex items-center justify-between gap-4">
-        <div className="flex items-center gap-6">
-          <button type="button" onClick={()=>setOpen(!open)} className="md:hidden p-2" aria-label="menu">{open ? <X size={22}/> : <Menu size={22}/>}</button>
-          <Link to={`/${storeQuery}`} className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#1A1A1E] flex items-center justify-center relative overflow-hidden group-hover:scale-105 transition-transform">
-              <span className="cormorant text-[#C9A96A] text-xl font-bold tracking-widest relative z-10">{store.storeName.charAt(0) || 'L'}</span>
-              {store.enableRoseEdition && <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-[#A02A5B]/30 blur-[4px]"></span>}
-            </div>
-            <div className="leading-none">
-              <div className="cormorant text-[22px] font-bold tracking-[0.22em] text-[#1A1A1E] group-hover:text-[var(--color-primary)]">{store.storeName}</div>
-              <div className="text-[10px] tracking-[0.35em] text-[#9A8A6B] -mt-1 flex items-center gap-1.5">ALGÉRIE • PARIS {store.enableRoseEdition && <span className="w-1 h-1 rounded-full bg-[#A02A5B]"></span>}</div>
-            </div>
-          </Link>
-          <nav className="hidden md:flex items-center gap-7 text-[14px] font-semibold text-[#1A1A1E]">
-            <Link to={`/${storeQuery}`} className="hover:text-[#C9A96A]">الرئيسية</Link>
-            <Link to={`/shop${storeQuery}`} className="hover:text-[#C9A96A]">المتجر</Link>
-           <a href={`/${storeQuery}#collection`} onClick={e=>{ e.preventDefault(); setOpen(false); if(window.location.pathname==='/'){ document.getElementById('collection')?.scrollIntoView({behavior:'smooth'}) }else{ nav(`/${storeQuery}#collection`) }}} className="hover:text-[#C9A96A]">الكولكشن</a>
-
-          </nav>
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200">
+      {/* Announcement bar — slim, merchant's secondary color */}
+      {store.announcement && (
+        <div
+          className="text-[11px] py-1.5 text-center tracking-widest px-3 relative overflow-hidden"
+          style={{ background: store.secondaryColor || '#1A1A1E', color: store.primaryColor || '#C9A96A' }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent pointer-events-none" />
+          <span className="relative line-clamp-1">{store.announcement}</span>
         </div>
+      )}
 
-        <div className="flex items-center gap-2 md:gap-3">
-          {/* Search bar — focus glow + expand animation on desktop */}
-          <form onSubmit={onSearch} className="hidden md:flex items-center bg-white border border-[#EDE6D8] rounded-full px-3 py-1.5 w-[260px] focus-within:w-[300px] focus-within:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--color-primary)]/15 focus-within:shadow-[0_0_0_4px_rgba(201,169,106,0.1)]">
-            <Search size={16} className="text-[#9A8A6B]"/>
-            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="ابحث في المتجر..." className="flex-1 outline-none text-sm px-2 bg-transparent placeholder:text-[#B8AA8E]" />
-          </form>
-          <Link to={`/wishlist${storeQuery}`} className="relative hidden md:flex w-9 h-9 rounded-full border border-[#EDE6D8] items-center justify-center hover:bg-[#FDF2F6] hover:border-[#F6C0D4] group" aria-label="wishlist">
-            <Heart size={16} className={`transition ${wishCount>0 ? 'fill-[#A02A5B] text-[#A02A5B]' : 'text-[#1A1A1E] group-hover:text-[#A02A5B]'}`}/>
-            {wishCount>0 && <span className="badge-pulse absolute -top-1 -right-1 bg-[#A02A5B] text-white text-[10px] font-bold w-4 h-4 rounded-full grid place-items-center">{wishCount}</span>}
-          </Link>
-          <Link to={`/cart${storeQuery}`} className="relative w-10 h-10 rounded-full bg-[var(--color-secondary)] flex items-center justify-center hover:bg-black">
-            <ShoppingBag size={18} className="text-white"/>
-            {totalQty>0 && <span className="badge-pulse absolute -top-1 -right-1 bg-[var(--color-primary)] text-white text-[11px] font-bold w-5 h-5 rounded-full grid place-items-center border-2 border-white">{totalQty}</span>}
-          </Link>
-          <div className="hidden md:flex items-center gap-2 text-xs text-[#7A6F5A] border-s border-[#EDE6D8] ms-2 ps-3">
-            <span className="w-6 h-6 rounded-full bg-[#EDE6D8] grid place-items-center text-[10px] font-extrabold text-[#1A1A1E]">DZ</span>
-            <span className="font-bold text-[#1A1A1E]">AR</span>
+      {/* Single row: store name + capsule search + wishlist/cart */}
+      <div className="px-3 md:px-6 py-2.5 flex items-center gap-2">
+        {/* Mobile menu button */}
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="md:hidden w-9 h-9 rounded-xl bg-slate-100 grid place-items-center shrink-0 active:scale-95 hover:bg-slate-200 transition"
+          aria-label="menu"
+        >
+          {open ? <X size={18} className="text-slate-700" /> : <Menu size={18} className="text-slate-700" />}
+        </button>
+
+        {/* Store name (far right) — cormorant wordmark */}
+        <Link to={`/${storeQuery}`} className="flex items-center gap-2 shrink-0 group">
+          <div
+            className="cormorant text-lg md:text-xl font-bold tracking-[0.18em] leading-none transition-colors"
+            style={{ color: store.primaryColor || '#1A1A1E' }}
+          >
+            {store.storeName}
           </div>
-        </div>
+          {store.enableRoseEdition && (
+            <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-[#A02A5B] shadow-[0_0_6px_rgba(160,42,91,0.6)]"></span>
+          )}
+        </Link>
+
+        {/* Desktop nav links */}
+        <nav className="hidden md:flex items-center gap-5 text-sm font-semibold text-slate-700 shrink-0">
+          <Link to={`/${storeQuery}`} className="hover:text-slate-900 transition">الرئيسية</Link>
+          <Link to={`/shop${storeQuery}`} className="hover:text-slate-900 transition">المتجر</Link>
+          <a
+            href={`/${storeQuery}#collection`}
+            onClick={e => {
+              e.preventDefault()
+              if (window.location.pathname === '/') {
+                document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth' })
+              } else {
+                nav(`/${storeQuery}#collection`)
+              }
+            }}
+            className="hover:text-slate-900 transition"
+          >
+            الكولكشن
+          </a>
+        </nav>
+
+        {/* Capsule search — single dominant element */}
+        <form onSubmit={onSearch} className="flex-1 min-w-0 max-w-[420px] mx-auto">
+          <div className="flex items-center gap-2 bg-slate-100 rounded-full pr-3 pl-1 py-1 border border-slate-200 focus-within:border-slate-400 focus-within:bg-white transition">
+            <Search size={15} className="text-slate-400 shrink-0 ms-1" />
+            <input
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="ابحث في المتجر..."
+              className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-slate-400 py-1"
+            />
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQ('')}
+                className="text-slate-400 hover:text-slate-700 transition shrink-0"
+                aria-label="مسح البحث"
+              >
+                <X size={15} />
+              </button>
+            )}
+            <button
+              type="submit"
+              className="shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white grid place-items-center hover:bg-slate-800 active:scale-95 transition"
+              aria-label="بحث"
+            >
+              <Search size={14} />
+            </button>
+          </div>
+        </form>
+
+        {/* Wishlist (desktop) */}
+        <Link
+          to={`/wishlist${storeQuery}`}
+          className="hidden md:flex relative w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 items-center justify-center transition shrink-0"
+          aria-label="wishlist"
+        >
+          <Heart size={16} className={`transition ${wishCount > 0 ? 'fill-red-600 text-red-600' : 'text-slate-700'}`} />
+          {wishCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold w-4 h-4 rounded-full grid place-items-center">
+              {wishCount}
+            </span>
+          )}
+        </Link>
+
+        {/* Cart */}
+        <Link
+          to={`/cart${storeQuery}`}
+          className="relative w-9 h-9 md:w-10 md:h-10 rounded-full grid place-items-center shrink-0 transition active:scale-95"
+          style={{ background: store.secondaryColor || '#1A1A1E' }}
+          aria-label="cart"
+        >
+          <ShoppingBag size={16} className="text-white" />
+          {totalQty > 0 && (
+            <span
+              className="absolute -top-1 -right-1 text-white text-[10px] font-bold w-5 h-5 rounded-full grid place-items-center border-2 border-white"
+              style={{ background: store.primaryColor || '#C9A96A' }}
+            >
+              {totalQty}
+            </span>
+          )}
+        </Link>
       </div>
+
+      {/* Mobile menu drawer */}
       {open && (
-        <div className="md:hidden border-t border-[#EDE6D8] bg-white px-4 py-4 space-y-3 animate-slide-in-right">
-          <form onSubmit={onSearch} className="flex items-center border border-[#EDE6D8] rounded-full px-3 py-2 focus-within:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--color-primary)]/15">
-            <Search size={16} className="text-[#9A8A6B]"/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="ابحث..." className="flex-1 outline-none px-2 text-sm" />
+        <div className="md:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-3">
+          <form onSubmit={onSearch} className="flex items-center bg-slate-100 rounded-full px-3 py-2 border border-slate-200 focus-within:border-slate-400">
+            <Search size={16} className="text-slate-400" />
+            <input
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="ابحث..."
+              className="flex-1 outline-none px-2 text-sm bg-transparent"
+            />
           </form>
-          <Link onClick={()=>setOpen(false)} to={`/${storeQuery}`} className="block py-2 font-semibold">الرئيسية</Link>
-          <Link onClick={()=>setOpen(false)} to={`/shop${storeQuery}`} className="block py-2 font-semibold">المتجر</Link>
-          <Link onClick={()=>setOpen(false)} to={`/wishlist${storeQuery}`} className="block py-2 font-semibold flex items-center gap-2"><Heart size={16}/> الرغبات {wishCount>0 && `(${wishCount})`}</Link>
-          <Link onClick={()=>setOpen(false)} to={`/cart${storeQuery}`} className="block py-2 font-semibold">السلة ({totalQty})</Link>
-          <div className="text-xs text-[#9A8A6B] border-t border-[#EDE6D8] pt-3">{store.phone} • {store.email}</div>
+          <Link onClick={() => setOpen(false)} to={`/${storeQuery}`} className="block py-2 font-semibold text-slate-800">الرئيسية</Link>
+          <Link onClick={() => setOpen(false)} to={`/shop${storeQuery}`} className="block py-2 font-semibold text-slate-800">المتجر</Link>
+          <Link onClick={() => setOpen(false)} to={`/wishlist${storeQuery}`} className="block py-2 font-semibold text-slate-800 flex items-center gap-2">
+            <Heart size={16} /> الرغبات {wishCount > 0 && `(${wishCount})`}
+          </Link>
+          <Link onClick={() => setOpen(false)} to={`/cart${storeQuery}`} className="block py-2 font-semibold text-slate-800">السلة ({totalQty})</Link>
+          <div className="text-xs text-slate-500 border-t border-slate-200 pt-3">{store.phone} • {store.email}</div>
         </div>
       )}
     </header>
