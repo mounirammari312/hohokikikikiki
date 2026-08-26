@@ -5,6 +5,7 @@ import Header from './components/Header'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
 import { WhatsAppButton } from './components/WhatsAppButton'
+import { MarketplacePromoBadge } from './components/MarketplacePromoBadge'
 import { CartProvider } from './context/CartContext'
 import { WishlistProvider } from './context/WishlistContext'
 import { TenantProvider, useTenant } from './context/TenantContext'
@@ -95,6 +96,11 @@ import { PwaInstallBanner } from './components/PwaInstallBanner'
       </main>
       <Footer />
       <WhatsAppButton />
+      {/* Floating "Verified on Amugar" badge — drives traffic from each
+          merchant store to the public marketplace. This is the reciprocal
+          promotion model: merchants use the platform for free, and in
+          return their storefront visitors see a link to the marketplace. */}
+      <MarketplacePromoBadge />
     </div>
   )
 }

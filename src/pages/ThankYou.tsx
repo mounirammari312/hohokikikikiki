@@ -1,10 +1,12 @@
 import { useParams, Link } from 'react-router-dom'
-import { CheckCircle, Truck, Phone, Gift, ArrowLeft, ShoppingBag, Sparkles } from 'lucide-react'
+import { CheckCircle, Truck, Phone, Gift, ArrowLeft, ShoppingBag, Sparkles, Store as StoreIcon, BadgeCheck } from 'lucide-react'
 import { getOrder } from '../services/api/orders'
 import { formatDZD } from '../lib/utils'
 import { useEffect, useState } from 'react'
 import { getSettings } from '../services/api/settings'
+import { fetchMarketplaceStores } from '../services/api/client'
 import type { Order } from '../services/api/types'
+import type { TenantStore } from '../services/api/types'
 
 export default function ThankYou(){
   const {orderNumber}=useParams()
@@ -14,12 +16,22 @@ export default function ThankYou(){
   // tenant's branding (phone, storeName, whatsapp) instead of the
   // hardcoded demo values.
   const [store, setStore] = useState(() => getSettings())
+  // Suggested stores from the marketplace (proposal 4: "other stores you
+  // might like"). Fetched after the order is confirmed — the customer is
+  // in a high-trust state and receptive to discovering new stores.
+  const [suggestedStores, setSuggestedStores] = useState<(TenantStore & { productCount?: number })[]>([])
 
   useEffect(()=>{
     // Refresh settings from the API in case the cache wasn't populated yet.
     setStore(getSettings())
     if(!orderNumber){ setLoading(false); return }
     getOrder(orderNumber).then(o => { setOrder(o || null); setLoading(false) }).catch(()=> setLoading(false))
+    // Fetch suggested stores (non-blocking — the page renders immediately)
+    void fetchMarketplaceStores().then(res => {
+      if (res?.stores?.length) {
+        setSuggestedStores(res.stores.slice(0, 4))
+      }
+    }).catch(() => {})
   }, [orderNumber])
 
   if(loading) return <div className="max-w-[640px] mx-auto px-4 py-16 text-center text-[#9A8A6B]">جاري تحميل الطلب…</div>
@@ -107,6 +119,43 @@ export default function ThankYou(){
                 <ArrowLeft size={14} className="text-[#A02A5B]" />
               </Link>
             </div>
+
+            {/* ─── "Other stores you might like" ──────────────────────────
+                Proposal 4: after the order is confirmed, the customer is
+                in a high-trust state. Show 3-4 suggested stores from the
+                marketplace to capture them before they leave the store.
+                This drives traffic from individual stores → marketplace. */}
+            {suggestedStores.length > 0 && (
+              <div className="bg-white border border-[#EDE6D8] rounded-2xl p-4">
+                <h3 className="font-bold text-sm flex items-center gap-2 mb-3">
+                  <StoreIcon size={15} className="text-[#C9A96A]" />
+                  متاجر أخرى قد تعجبك
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {suggestedStores.map(s => (
+                    <Link
+                      key={s._id}
+                      to={s.slug ? `/marketplace/store/${s.slug}` : '/marketplace'}
+                      className="flex items-center gap-2 p-2 rounded-xl border border-[#EDE6D8] hover:border-[#C9A96A] hover:bg-[#FFFCF8] transition group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-[#1A1A1E] grid place-items-center shrink-0">
+                        <StoreIcon size={14} className="text-[#C9A96A]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-[#1A1A1E] truncate flex items-center gap-1">
+                          {s.nameAr || s.name}
+                          <BadgeCheck size={11} className="text-emerald-600 shrink-0" />
+                        </div>
+                        <div className="text-[9px] text-[#9A8A6B]">
+                          {(s as any).productCount || 0} منتج
+                        </div>
+                      </div>
+                      <ArrowLeft size={12} className="text-[#9A8A6B] group-hover:text-[#C9A96A] transition shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-3">
               <Link to="/shop" className="flex-1 bg-[#1A1A1E] text-white rounded-full py-3 text-center font-bold flex items-center justify-center gap-2 hover:bg-black transition"><ArrowLeft size={16}/> متابعة التسوق</Link>

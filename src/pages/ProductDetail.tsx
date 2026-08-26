@@ -7,12 +7,13 @@ import { getProductById, syncProducts, subscribeProducts } from '../services/api
 import { getWilayas } from '../services/api/wilayas'
 import { getDomainById, getDomains } from '../services/api/domains'
 import { createOrder } from '../services/api/orders'
-import { trackVisit } from '../services/api/client'
+import { trackVisit, fetchMarketplaceProducts } from '../services/api/client'
 import { calcItemTotal, formatDZD, validateDZPhone, normalizeDZPhone } from '../lib/utils'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
 import { Tracking } from '../services/tracking'
 import type { Product, Variant } from '../services/api/types'
+import type { MarketplaceProduct } from '../services/api/client'
 
 // ─── Helper: convert video URLs to embed URLs ──────────────────────────────
 function getEmbedUrl(url: string): string {
@@ -48,6 +49,27 @@ export default function ProductDetail(){
 
   const [product, setProduct] = useState<Product | undefined>(() => getProductById(id || ''))
   const [loading, setLoading] = useState(!product)
+
+  // ─── Similar marketplace products (proposal 5) ──────────────────────
+  // Fetch 4-6 products from the marketplace in the same category as the
+  // current product. Shown as a horizontal scroll strip below the product
+  // details. Captures visitors who weren't convinced by the current product
+  // and might leave — redirects them to other stores' similar products.
+  const [marketplaceSimilar, setMarketplaceSimilar] = useState<MarketplaceProduct[]>([])
+  useEffect(() => {
+    if (!product?.category) return
+    let cancelled = false
+    void fetchMarketplaceProducts({
+      category: product.category,
+      limit: 8,
+    }).then(res => {
+      if (cancelled) return
+      // Exclude the current product from the similar list
+      const filtered = (res.products || []).filter(p => p._id !== product._id).slice(0, 6)
+      setMarketplaceSimilar(filtered)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [product?._id, product?.category])
 
   useEffect(() => {
     if (!id) {
@@ -816,6 +838,86 @@ export default function ProductDetail(){
           </div>
         </div>
       </div>
+
+      {/* ─── Similar products in Amugar Marketplace ──────────────────────
+          Proposal 5: captures visitors who weren't convinced by the
+          current product and might leave. Shows a horizontal scroll strip
+          of similar products from OTHER stores in the marketplace,
+          redirecting them to the marketplace ecosystem instead of losing
+          them entirely. */}
+      {marketplaceSimilar.length > 0 && (
+        <div className="max-w-[1280px] mx-auto px-3 md:px-6 mt-8 mb-24 md:mb-8">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-sm md:text-base text-slate-900 flex items-center gap-2">
+                <ShoppingBag size={16} className="text-slate-700" />
+                منتجات مماثلة في Amugar Marketplace
+              </h3>
+              <Link
+                to="/marketplace"
+                className="text-xs font-bold text-slate-700 hover:text-slate-900 transition flex items-center gap-1 shrink-0"
+              >
+                عرض الكل
+                <ChevronLeft size={12} />
+              </Link>
+            </div>
+            {/* Horizontal scroll strip — touch-draggable, fixed-width cards */}
+            <div
+              className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2 -mx-2 px-2 snap-x"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {marketplaceSimilar.map(p => {
+                const img = p.images?.[0]
+                const isDiscount = !!p.compareAtPrice && p.compareAtPrice > p.price
+                const discountPct = isDiscount
+                  ? Math.round(((p.compareAtPrice! - p.price) / p.compareAtPrice!) * 100)
+                  : 0
+                return (
+                  <Link
+                    key={p._id}
+                    to={p.storeId ? `/product/${p._id}?storeId=${p.storeId}` : `/product/${p._id}`}
+                    className="w-[140px] sm:w-[160px] shrink-0 snap-start bg-slate-50 border border-slate-200 rounded-xl overflow-hidden hover:shadow-md hover:border-slate-300 transition group"
+                  >
+                    <div className="relative aspect-square bg-slate-100 overflow-hidden p-2">
+                      {img ? (
+                        <img src={img} alt={p.nameAr || p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <div className="w-full h-full grid place-items-center">
+                          <ShoppingBag size={20} className="text-slate-300" />
+                        </div>
+                      )}
+                      {isDiscount && (
+                        <span className="absolute top-1 left-1 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded">
+                          -{discountPct}%
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <div className="text-[11px] font-bold text-slate-800 line-clamp-2 leading-tight min-h-[28px]">
+                        {p.nameAr || p.name}
+                      </div>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-red-600 font-black text-xs tabular-nums">
+                          {formatDZD(p.price)}
+                        </span>
+                        {isDiscount && (
+                          <span className="line-through text-slate-400 text-[9px] tabular-nums">
+                            {formatDZD(p.compareAtPrice!)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 mt-1 text-emerald-700 text-[9px] font-semibold">
+                        <ShieldCheck size={9} />
+                        <span>COD</span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Sticky Bar */}
       <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 p-3 flex gap-3 items-center shadow-[0_-6px_20px_rgba(0,0,0,0.06)]">

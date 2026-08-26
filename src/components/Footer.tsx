@@ -1,8 +1,9 @@
-import { Instagram, Phone, MapPin, Truck, ShieldCheck, Award } from 'lucide-react'
+import { Instagram, Phone, MapPin, Truck, ShieldCheck, Award, Store as StoreIcon, ArrowLeft, BadgeCheck } from 'lucide-react'
 import { getSettings, syncSettings, subscribeSettings } from '../services/api/settings'
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTenant } from '../context/TenantContext'
+import { Logo } from './Logo'
 export default function Footer(){
   const [store, setStore] = useState(()=> getSettings())
   const { storeId, storeSlug } = useTenant()
@@ -58,7 +59,35 @@ export default function Footer(){
             {store.enableRoseEdition && <p className="text-[11px] text-white/30 mt-2 text-center">لمسة روز راقية — ÉDITION ROSE</p>}
           </div>
         </div>
-        <div className="border-t border-white/10 mt-8 pt-6 flex flex-col md:flex-row justify-between gap-3 text-xs text-[#8A7F6A]">
+        {/* ─── Marketplace reciprocal promo strip ─────────────────────────
+            This is the "price" the merchant pays for using the platform
+            for free: a slim, elegant strip that promotes the Amugar
+            Marketplace to every storefront visitor. Drives traffic from
+            individual stores → the public marketplace. */}
+        <div className="mt-6 bg-white/[0.06] border border-white/10 rounded-2xl p-4 flex flex-col md:flex-row items-center gap-4">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <Logo to={null} showText={false} imgClassName="h-8 w-auto" className="shrink-0" />
+            <div className="min-w-0">
+              <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                موثق في Amugar Marketplace
+                <BadgeCheck size={14} className="text-emerald-400" />
+              </div>
+              <p className="text-[11px] text-[#B8AA8E] mt-0.5 leading-snug">
+                هذا المتجر جزء من منصة Amugar — تصفح آلاف المنتجات من متاجر جزائرية موثقة
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/marketplace"
+            className="shrink-0 inline-flex items-center gap-1.5 bg-white text-slate-900 px-4 py-2 rounded-full text-xs font-bold hover:bg-slate-100 transition"
+          >
+            <StoreIcon size={14} />
+            تصفح كل المتاجر
+            <ArrowLeft size={13} />
+          </Link>
+        </div>
+
+        <div className="border-t border-white/10 mt-6 pt-6 flex flex-col md:flex-row justify-between gap-3 text-xs text-[#8A7F6A]">
           <span>© 2026 {store.storeName} Algérie — {store.storeNameAr}. جميع الحقوق محفوظة. الأسعار بـ {store.currency}</span>
           <span className="flex items-center gap-2">Meta Pixel & TikTok Pixel مفعّلان • تتبع التجارة الإلكترونية 2026 {store.enableRoseEdition && <span className="w-1 h-1 rounded-full bg-[#A02A5B]"></span>}</span>
         </div>
