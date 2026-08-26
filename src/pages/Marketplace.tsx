@@ -321,7 +321,6 @@ export default function Marketplace() {
             <div className="text-[10px] font-bold text-slate-500 tracking-widest px-2 mb-2">الفئات</div>
             <div className="space-y-0.5">
               {CATEGORY_CIRCLES.map(cat => {
-                const Icon = cat.icon
                 const active = category === cat.key
                 return (
                   <button
@@ -337,7 +336,13 @@ export default function Marketplace() {
                         : 'text-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    <Icon size={16} className={active ? 'text-white' : 'text-slate-500'} />
+                    <img
+                      src={cat.icon3d}
+                      alt=""
+                      loading="lazy"
+                      className={`w-4 h-4 object-contain shrink-0 pointer-events-none select-none ${active ? '' : 'opacity-90'}`}
+                      draggable={false}
+                    />
                     <span className="flex-1 text-right font-medium">{cat.labelAr}</span>
                   </button>
                 )

@@ -10,6 +10,7 @@ import { getActiveDomain } from '../services/api/domains'
 import { trackVisit } from '../services/api/client'
 import { useEffect, useState } from 'react'
 import { formatDZD } from '../lib/utils'
+import { getCategoryIcon3d } from '../components/marketplace/CategoriesCircle'
 
 // ─── Smart category image: picks a product image from that category ────────
 function getCategoryImage(catKey: string, products: any[]): string {
@@ -211,7 +212,15 @@ export default function Home() {
                   )
                 })()}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
-                {/* Product count badge */}
+                {/* 3D category icon (top-left) */}
+                <img
+                  src={getCategoryIcon3d(c.key)}
+                  alt=""
+                  loading="lazy"
+                  className="absolute top-2 left-2 z-10 w-8 h-8 object-contain drop-shadow-md pointer-events-none select-none"
+                  draggable={false}
+                />
+                {/* Product count badge (top-right) */}
                 <span className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur text-slate-900 text-[10px] font-bold px-2 py-1 rounded-full">
                   {countByCat(c.key)} منتج
                 </span>

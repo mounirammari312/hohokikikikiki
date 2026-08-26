@@ -1,49 +1,119 @@
 /**
- * CategoriesCircle — Minimalist monochrome category selector.
+ * CategoriesCircle — AliExpress-style 3D category pills.
  *
- * Refactored from a colorful circular-icon row into a clean, capsule-
- * shaped pill grid that matches the neutral Slate + white palette of
- * the new marketplace.
+ * Each pill renders a transparent 3D micro-render (16×16) that visually
+ * represents the category — the same approach AliExpress/Temu use on
+ * their mobile web. The 3D assets are sourced from emoji.aranja.com
+ * (a free CDN that serves high-quality transparent PNG 3D emoji renders
+ * at any size via the ?size= query param).
  *
- * Design rules:
- *   - No colorful gradients. Background is white, border is slate-200.
- *   - Icons use a unified dark gray (slate-700) for consistency.
- *   - Active state: bg-slate-900 + text-white + border-slate-900 + shadow-sm.
- *   - Hover: border darkens to slate-400 (subtle).
+ * Design:
+ *   - Horizontal touch-scrollable strip (scrollbar hidden)
+ *   - Pill: rounded-full, soft gray bg, dark slate-900 active state
+ *   - 3D icon: w-4 h-4 object-contain, lazy-loaded
  *
- * Clicking a category triggers the parent's onSelect callback.
+ * Clicking a pill triggers onSelect(key) → the parent re-filters the
+ * product list without a page reload.
  */
 
 import { useRef } from 'react'
-import {
-  Smartphone, Shirt, Heart, Crown, Watch, Home as HomeIcon, Droplet,
-  Book, Gamepad2, Dumbbell, Baby, Wrench, Palette, Gift, Package, ShoppingBag,
-  ChevronLeft, ChevronRight,
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export interface CategoryItem {
   key: string
   labelAr: string
-  icon: any
+  /** Transparent 3D micro-render URL (PNG, 16-20px display size). */
+  icon3d: string
+}
+
+// ─── 3D icon source ──────────────────────────────────────────────────────
+// emoji.aranja.com serves transparent 3D-rendered PNGs of every emoji.
+// The `?size=` param controls the raster size — 64 gives crisp rendering
+// at 16-20px display size on retina screens without bloating the bundle.
+const ICON_3D = (emoji: string) =>
+  `https://emoji.aranja.com/static/emoji/img/img-emoji-${emoji}.png`
+
+// ─── Category → 3D icon mapping ──────────────────────────────────────────
+// Maps a category key (from presetDomains or merchant's custom domain) to
+// a transparent 3D micro-render. Used by both the marketplace CategoriesCircle
+// and the merchant storefront (Shop.tsx, Home.tsx) so every category pill
+// across the platform has a consistent 3D icon.
+const CATEGORY_ICON_MAP: Record<string, string> = {
+  // ─── Main marketplace categories ──────────────────────────────────────
+  all:         ICON_3D('1f4cb'), // clipboard
+  electronics: ICON_3D('1f4f1'), // mobile phone
+  fashion:     ICON_3D('1f455'), // shirt
+  beauty:      ICON_3D('1f484'), // lipstick / makeup
+  jewelry:     ICON_3D('1f48d'), // ring
+  watches:     ICON_3D('231a'),  // watch
+  home:        ICON_3D('1f373'), // cooking / frying pan
+  perfume:     ICON_3D('1f33f'), // herb / fragrance
+  sports:      ICON_3D('26bd'),  // soccer ball
+  baby:        ICON_3D('1f476'), // baby
+  toys:        ICON_3D('1f381'), // wrapped gift
+  books:       ICON_3D('1f4da'), // books
+  tools:       ICON_3D('1f527'), // wrench
+  art:         ICON_3D('1f3a8'), // palette
+  wholesale:   ICON_3D('1f4e6'), // package box
+  general:     ICON_3D('1f4c2'), // folder
+  // ─── Sub-categories (from presetDomains — jewelry/fashion/beauty/etc.) ─
+  necklace:  ICON_3D('1f48e'), // gem stone
+  ring:      ICON_3D('1f48d'), // ring
+  earring:   ICON_3D('1f48e'), // gem stone
+  bracelet:  ICON_3D('1f48e'), // gem stone
+  dress:     ICON_3D('1f457'), // dress
+  abaya:     ICON_3D('1f455'), // shirt (clothing)
+  hijab:     ICON_3D('1f9e5'), // coat (clothing)
+  bag:       ICON_3D('1f45c'), // handbag
+  shoes:     ICON_3D('1f45f'), // running shoe
+  makeup:    ICON_3D('1f484'), // lipstick
+  skincare:  ICON_3D('1f9f4'), // lotion bottle
+  hair:      ICON_3D('1f487'), // haircut / hair
+  // ─── Electronics sub-categories ────────────────────────────────────────
+  phone:       ICON_3D('1f4f1'), // mobile phone
+  accessory:   ICON_3D('1f50c'), // electric plug
+  headphones:  ICON_3D('1f3a7'), // headphone
+  charger:     ICON_3D('1f50b'), // battery
+  case:        ICON_3D('1f4f1'), // mobile phone (with case)
+  cable:       ICON_3D('1f50c'), // electric plug
+  // ─── Home appliances ───────────────────────────────────────────────────
+  refrigerator:    ICON_3D('1f9c8'), // butter (cold) — closest
+  washer:          ICON_3D('1f9fb'), // roll of paper (laundry)
+  oven:            ICON_3D('1f373'), // cooking
+  ac:              ICON_3D('2744'),  // snowflake
+  tv:              ICON_3D('1f4fa'), // television
+  small_appliance: ICON_3D('1f373'), // cooking
+  // ─── Digital products ──────────────────────────────────────────────────
+  subscription: ICON_3D('1f4fa'), // television
+  account:      ICON_3D('1f511'), // key
+  giftcard:     ICON_3D('1f381'), // wrapped gift
+  code:         ICON_3D('1f4bb'), // laptop
+}
+
+/** Resolve a 3D icon URL for ANY category key (main or sub-category).
+ *  Falls back to the "general" folder icon when no mapping exists. */
+export function getCategoryIcon3d(key: string): string {
+  const k = (key || '').toLowerCase().trim()
+  return CATEGORY_ICON_MAP[k] || CATEGORY_ICON_MAP['general']
 }
 
 export const CATEGORY_CIRCLES: CategoryItem[] = [
-  { key: 'all',         labelAr: 'الكل',          icon: ShoppingBag },
-  { key: 'electronics', labelAr: 'إلكترونيات',    icon: Smartphone },
-  { key: 'fashion',     labelAr: 'موضة',          icon: Shirt },
-  { key: 'beauty',      labelAr: 'جمال',          icon: Heart },
-  { key: 'jewelry',     labelAr: 'مجوهرات',       icon: Crown },
-  { key: 'watches',     labelAr: 'ساعات',         icon: Watch },
-  { key: 'home',        labelAr: 'منزل',          icon: HomeIcon },
-  { key: 'perfume',     labelAr: 'عطور',          icon: Droplet },
-  { key: 'books',       labelAr: 'كتب',           icon: Book },
-  { key: 'toys',        labelAr: 'ألعاب',         icon: Gamepad2 },
-  { key: 'sports',      labelAr: 'رياضة',         icon: Dumbbell },
-  { key: 'baby',        labelAr: 'أطفال',         icon: Baby },
-  { key: 'tools',       labelAr: 'أدوات',         icon: Wrench },
-  { key: 'art',         labelAr: 'فن',            icon: Palette },
-  { key: 'gifts',       labelAr: 'هدايا',         icon: Gift },
-  { key: 'general',     labelAr: 'أخرى',          icon: Package },
+  { key: 'all',         labelAr: 'كل الفئات',        icon3d: getCategoryIcon3d('all') },
+  { key: 'electronics', labelAr: 'إلكترونيات',       icon3d: getCategoryIcon3d('electronics') },
+  { key: 'fashion',     labelAr: 'موضة وأزياء',     icon3d: getCategoryIcon3d('fashion') },
+  { key: 'beauty',      labelAr: 'الصحة والجمال',    icon3d: getCategoryIcon3d('beauty') },
+  { key: 'jewelry',     labelAr: 'مجوهرات',          icon3d: getCategoryIcon3d('jewelry') },
+  { key: 'watches',     labelAr: 'ساعات وإكسسوارات', icon3d: getCategoryIcon3d('watches') },
+  { key: 'home',        labelAr: 'المنزل والمطبخ',   icon3d: getCategoryIcon3d('home') },
+  { key: 'perfume',     labelAr: 'عطور',             icon3d: getCategoryIcon3d('perfume') },
+  { key: 'sports',      labelAr: 'رياضة',            icon3d: getCategoryIcon3d('sports') },
+  { key: 'baby',        labelAr: 'أطفال',            icon3d: getCategoryIcon3d('baby') },
+  { key: 'toys',        labelAr: 'ألعاب',            icon3d: getCategoryIcon3d('toys') },
+  { key: 'books',       labelAr: 'كتب وقرطاسية',     icon3d: getCategoryIcon3d('books') },
+  { key: 'tools',       labelAr: 'أدوات',            icon3d: getCategoryIcon3d('tools') },
+  { key: 'art',         labelAr: 'فن وحرف',          icon3d: getCategoryIcon3d('art') },
+  { key: 'wholesale',   labelAr: 'عروض بالجملة',     icon3d: getCategoryIcon3d('wholesale') },
+  { key: 'general',     labelAr: 'أخرى',             icon3d: getCategoryIcon3d('general') },
 ]
 
 interface Props {
@@ -63,9 +133,7 @@ export function CategoriesCircle({ active, onSelect, className = '' }: Props) {
   return (
     <div className={`relative ${className}`}>
       {/* Fade masks — subtle gradient hints that there are more pills
-          to scroll. Left edge fades from white → transparent (RTL:
-          content scrolls in from the left), right edge mirrors it.
-          Mobile only — on desktop the arrow buttons already signal this. */}
+          to scroll. Mobile only — on desktop the arrow buttons signal this. */}
       <div className="md:hidden absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
       <div className="md:hidden absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
 
@@ -86,30 +154,32 @@ export function CategoriesCircle({ active, onSelect, className = '' }: Props) {
         <ChevronLeft size={16} className="text-slate-700" />
       </button>
 
-      {/* Scrollable row of capsule pills */}
+      {/* Scrollable row of 3D-icon pills */}
       <div
         ref={scrollRef}
-        className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto scrollbar-hide px-2 md:px-12 py-3"
+        className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-2 md:px-12 py-2 select-none"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {CATEGORY_CIRCLES.map(cat => {
-          const Icon = cat.icon
           const isActive = active === cat.key
           return (
             <button
               key={cat.key}
               onClick={() => onSelect(cat.key)}
-              className={`group shrink-0 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 sm:px-4 sm:py-2.5 transition-all duration-200 ${
+              className={`shrink-0 rounded-full px-3.5 py-1.5 flex items-center gap-1.5 transition-all duration-200 active:scale-95 border ${
                 isActive
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                  : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-400 hover:bg-slate-50'
+                  ? 'bg-slate-900 text-white shadow-sm border-slate-900'
+                  : 'bg-[#F2F4F7] text-slate-800 hover:bg-slate-200 font-bold text-xs border-transparent'
               }`}
             >
-              <Icon
-                size={15}
-                className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-700 group-hover:text-slate-900'}`}
+              <img
+                src={cat.icon3d}
+                alt=""
+                loading="lazy"
+                className="w-4 h-4 object-contain shrink-0 pointer-events-none select-none"
+                draggable={false}
               />
-              <span className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${isActive ? 'text-white' : 'text-slate-700 group-hover:text-slate-900'}`}>
+              <span className={`text-xs font-bold whitespace-nowrap ${isActive ? 'text-white' : 'text-slate-800'}`}>
                 {cat.labelAr}
               </span>
             </button>

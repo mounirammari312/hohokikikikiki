@@ -20,6 +20,7 @@ import { motion } from 'framer-motion'
 import ProductCard from '../components/ProductCard'
 import { getProducts, syncProducts } from '../services/api/products'
 import { getActiveDomain } from '../services/api/domains'
+import { getCategoryIcon3d } from '../components/marketplace/CategoriesCircle'
 
 export default function Shop() {
   const [params, setParams] = useSearchParams()
@@ -170,7 +171,7 @@ export default function Shop() {
           </div>
         </motion.div>
 
-        {/* ═══ CATEGORY PILLS — monochrome ══════════════════════════ */}
+        {/* ═══ CATEGORY PILLS — 3D icons, monochrome ════════════════ */}
         <div
           className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 -mx-3 px-3 snap-x mb-3"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -178,15 +179,22 @@ export default function Shop() {
           <button
             type="button"
             onClick={() => { const n = new URLSearchParams(params); n.delete('cat'); setParams(n) }}
-            className={`shrink-0 snap-start inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+            className={`shrink-0 snap-start inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all ${
               cat === 'all'
                 ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-400 hover:bg-slate-50'
+                : 'bg-[#F2F4F7] text-slate-800 hover:bg-slate-200 border-transparent'
             }`}
           >
+            <img
+              src={getCategoryIcon3d('all')}
+              alt=""
+              loading="lazy"
+              className="w-4 h-4 object-contain shrink-0 pointer-events-none select-none"
+              draggable={false}
+            />
             <span>الكل</span>
             <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
-              cat === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              cat === 'all' ? 'bg-white/20 text-white' : 'bg-white text-slate-600'
             }`}>
               {products.length}
             </span>
@@ -196,12 +204,19 @@ export default function Shop() {
               key={c.key}
               type="button"
               onClick={() => { const n = new URLSearchParams(params); n.set('cat', c.key); setParams(n) }}
-              className={`shrink-0 snap-start inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+              className={`shrink-0 snap-start inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all ${
                 cat === c.key
                   ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                  : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-400 hover:bg-slate-50'
+                  : 'bg-[#F2F4F7] text-slate-800 hover:bg-slate-200 border-transparent'
               }`}
             >
+              <img
+                src={getCategoryIcon3d(c.key)}
+                alt=""
+                loading="lazy"
+                className="w-4 h-4 object-contain shrink-0 pointer-events-none select-none"
+                draggable={false}
+              />
               <span>{c.labelAr}</span>
               <span className="text-[10px] opacity-60 hidden md:inline">• {c.label}</span>
             </button>
