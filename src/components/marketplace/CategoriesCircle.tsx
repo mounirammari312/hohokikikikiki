@@ -46,8 +46,10 @@ const ICON_3D = (code: string) =>
 // and the merchant storefront (Shop.tsx, Home.tsx) so every category pill
 // across the platform has a consistent 3D icon.
 //
-// IMPORTANT: avoid document/file icons (📂 📄 📋) — they read as a file-
-// browser UI, not e-commerce. Use product/shopping icons instead.
+// IMPORTANT RULES:
+//   1. NO document/file icons (📂 📄 📋) — they read as a file-browser UI.
+//   2. NO duplicate icons — every category must have a DISTINCT icon so
+//      the user can identify the category from the icon alone.
 const CATEGORY_ICON_MAP: Record<string, string> = {
   // ─── Main marketplace categories ──────────────────────────────────────
   all:         ICON_3D('1f6d2'), // shopping cart 🛒 — e-commerce feel
@@ -60,15 +62,16 @@ const CATEGORY_ICON_MAP: Record<string, string> = {
   perfume:     ICON_3D('1f33f'), // herb / fragrance 🌿
   sports:      ICON_3D('26bd'),  // soccer ball ⚽
   baby:        ICON_3D('1f476'), // baby 👶
-  toys:        ICON_3D('1f381'), // wrapped gift 🎁
+  toys:        ICON_3D('1f9f8'), // teddy bear 🧸 — clearly "toys", NOT a gift
   books:       ICON_3D('1f4da'), // books 📚
   tools:       ICON_3D('1f527'), // wrench 🔧
   art:         ICON_3D('1f3a8'), // palette 🎨
   wholesale:   ICON_3D('1f4e6'), // package box 📦
-  // ─── "general" + fallback — use a gift box, NOT a folder (folder reads
-  //     as a file-browser icon, not e-commerce). The gift box is friendly
-  //     + clearly a product, not a document. ────────────────────────────
-  general:     ICON_3D('1f381'), // gift box 🎁
+  // ─── "general" + fallback — neutral sparkle, NOT a gift box (gift was
+  //     confusing because toys + giftcard already used gift icons).
+  //     The sparkle reads as "everything else / featured" without being
+  //     tied to any specific product type. ──────────────────────────────
+  general:     ICON_3D('2728'),  // sparkles ✨
   // ─── Sub-categories (from presetDomains — jewelry/fashion/beauty/etc.) ─
   necklace:  ICON_3D('1f48e'), // gem stone 💎
   ring:      ICON_3D('1f48d'), // ring 💍
@@ -99,13 +102,12 @@ const CATEGORY_ICON_MAP: Record<string, string> = {
   // ─── Digital products ──────────────────────────────────────────────────
   subscription: ICON_3D('1f4fa'), // television 📺
   account:      ICON_3D('1f511'), // key 🔑
-  giftcard:     ICON_3D('1f381'), // wrapped gift 🎁
+  giftcard:     ICON_3D('1f4b3'), // credit card 💳 — clearly a "gift card"
   code:         ICON_3D('1f4bb'), // laptop 💻
 }
 
 /** Resolve a 3D icon URL for ANY category key (main or sub-category).
- *  Falls back to the gift-box icon (NOT a folder — folders read as a
- *  file-browser UI, not e-commerce). */
+ *  Falls back to the sparkle icon (neutral, not a folder or gift). */
 export function getCategoryIcon3d(key: string): string {
   const k = (key || '').toLowerCase().trim()
   return CATEGORY_ICON_MAP[k] || CATEGORY_ICON_MAP['general']
