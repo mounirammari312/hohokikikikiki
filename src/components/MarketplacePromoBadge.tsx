@@ -37,10 +37,10 @@ const SLIDES: Slide[] = [
   { type: 'text', line1: 'أفضل', line2: 'العروض' },
   { type: 'text', line1: 'تسوق', line2: 'الآن' },
   { type: 'text', line1: 'متاجر', line2: 'موثقة' },
-  { type: 'image', src: '/logo.webp', label: 'Amugar' },
+  { type: 'image', src: '/marketplace-promo.webp', label: 'عروض الماركت بلايس' },
 ]
 
-const SLIDE_DURATION = 3000 // 3 seconds per slide
+const SLIDE_DURATION = 2000 // 2 seconds per slide (faster, more dynamic)
 
 export function MarketplacePromoBadge() {
   const [slideIdx, setSlideIdx] = useState(0)
@@ -87,7 +87,7 @@ export function MarketplacePromoBadge() {
   const currentSlide = SLIDES[slideIdx]
 
   return (
-    <div className="fixed bottom-32 left-4 z-40 flex flex-col items-center">
+    <div className="fixed bottom-40 left-4 z-40 flex flex-col items-center">
       {/* ─── Squircle capsule (clickable → /marketplace) ─── */}
       <Link
         to="/marketplace"
@@ -116,11 +116,11 @@ export function MarketplacePromoBadge() {
                   )}
                 </div>
               ) : (
-                <div className="w-12 h-12 rounded-lg bg-white grid place-items-center shadow-md">
+                <div className="absolute inset-0 rounded-2xl overflow-hidden">
                   <img
                     src={slide.src}
                     alt={slide.label}
-                    className="w-9 h-9 object-contain"
+                    className="w-full h-full object-cover"
                     draggable={false}
                   />
                 </div>
