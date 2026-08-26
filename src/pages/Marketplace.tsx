@@ -535,7 +535,7 @@ export default function Marketplace() {
           {/* ═══ Main page hero zone ════════════════════════════════════ */}
           {isMainPage && !storeProfile && (
             <>
-              {/* Mega Super Deals hero (red gradient + countdown + mini cards) */}
+              {/* Cinematic dynamic hero — rotates real featured products */}
               <BannerCarousel
                 products={heroProducts}
                 stores={stores}
