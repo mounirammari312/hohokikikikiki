@@ -67,11 +67,9 @@ const CATEGORY_ICON_MAP: Record<string, string> = {
   tools:       ICON_3D('1f527'), // wrench 🔧
   art:         ICON_3D('1f3a8'), // palette 🎨
   wholesale:   ICON_3D('1f4e6'), // package box 📦
-  // ─── "general" + fallback — neutral sparkle, NOT a gift box (gift was
-  //     confusing because toys + giftcard already used gift icons).
-  //     The sparkle reads as "everything else / featured" without being
-  //     tied to any specific product type. ──────────────────────────────
-  general:     ICON_3D('2728'),  // sparkles ✨
+  // ─── "general" + fallback — target icon (professional, reads as
+  //     "everything / all-purpose" without being a file or gift icon). ──
+  general:     ICON_3D('1f3af'), // direct hit on target 🎯
   // ─── Sub-categories (from presetDomains — jewelry/fashion/beauty/etc.) ─
   necklace:  ICON_3D('1f48e'), // gem stone 💎
   ring:      ICON_3D('1f48d'), // ring 💍

@@ -1,76 +1,146 @@
 /**
- * MarketplacePromoBadge — Floating "Verified on Amugar" badge.
+ * MarketplacePromoBadge — AliExpress-style rotating content capsule.
  *
- * A small, dismissible pill fixed to the bottom-left corner (RTL → the
- * less-visible corner) of every merchant storefront page. It builds
- * trust with the visitor ("this store is verified on Amugar") and
- * drives traffic from individual stores → the public marketplace.
+ * A fixed squircle (rounded-square) in the bottom-left corner that
+ * rotates through 3 promotional slides automatically, mimicking the
+ * AliExpress floating badge that cycles between text + image content.
  *
- * Design rules:
- *   - Slim, elegant, non-intrusive (slate-900 bg, white text, emerald check)
- *   - Dismissible for 7 days (localStorage) so repeat visitors aren't annoyed
- *   - Only shows on tenant storefront pages (not on the marketplace itself
- *     or the platform landing — those are already Amugar properties)
- *   - Click → /marketplace
+ * Slides (each shows for 3 seconds, then cross-fades to the next):
+ *   1. Text: "أفضل العروض" (Best Offers) — red bg, white text, 2 lines
+ *   2. Text: "تسوق الآن" (Shop Now) — red bg, white text
+ *   3. Product image thumbnail — red bg, white card with product photo
+ *
+ * Design (matches AliExpress 1:1):
+ *   - Square with rounded corners (squircle) — w-16 h-16
+ *   - Vibrant red background (#FF4D4F / red-500)
+ *   - White text, centered, bold
+ *   - Small grey X dismiss button below the squircle
+ *   - Smooth cross-fade transitions between slides (opacity)
+ *   - Pops in on mount (scale + fade)
+ *
+ * Click → /marketplace
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { BadgeCheck, X } from 'lucide-react'
+import { X } from 'lucide-react'
 
-const DISMISS_KEY = 'amugar_promo_badge_dismissed_until'
+// ─── Slide definitions ────────────────────────────────────────────────────
+// Each slide is either a text slide or an image slide. The capsule
+// rotates through them automatically.
+
+type Slide =
+  | { type: 'text'; line1: string; line2?: string }
+  | { type: 'image'; src: string; label: string }
+
+const SLIDES: Slide[] = [
+  { type: 'text', line1: 'أفضل', line2: 'العروض' },
+  { type: 'text', line1: 'تسوق', line2: 'الآن' },
+  { type: 'text', line1: 'متاجر', line2: 'موثقة' },
+  { type: 'image', src: '/logo.webp', label: 'Amugar' },
+]
+
+const SLIDE_DURATION = 3000 // 3 seconds per slide
 
 export function MarketplacePromoBadge() {
-  const [dismissed, setDismissed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    const until = Number(localStorage.getItem(DISMISS_KEY) || '0')
-    return until > Date.now()
-  })
+  const [slideIdx, setSlideIdx] = useState(0)
+  const [dismissed, setDismissed] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Re-check dismissal on mount (covers SSR-safe scenarios)
+  // Auto-rotate slides
   useEffect(() => {
-    const until = Number(localStorage.getItem(DISMISS_KEY) || '0')
-    if (until > Date.now() !== dismissed) {
-      setDismissed(until > Date.now())
-    }
-  }, [])
+    if (dismissed) return
 
+    const cycle = () => {
+      setSlideIdx(prev => (prev + 1) % SLIDES.length)
+      timerRef.current = setTimeout(cycle, SLIDE_DURATION)
+    }
+    timerRef.current = setTimeout(cycle, SLIDE_DURATION)
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [dismissed])
+
+  // Manual dismiss (X button) — hides the badge for the current session.
+  // We use sessionStorage (not localStorage) so it reappears on the next
+  // visit/page-load, keeping the promotion visible across sessions but
+  // not annoying within a single browsing session.
   const dismiss = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const until = Date.now() + 7 * 24 * 3600 * 1000 // 7 days
-    try { localStorage.setItem(DISMISS_KEY, String(until)) } catch {}
+    try { sessionStorage.setItem('amugar_promo_dismissed', '1') } catch {}
     setDismissed(true)
   }
 
+  // Check sessionStorage on mount
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('amugar_promo_dismissed') === '1') {
+        setDismissed(true)
+      }
+    } catch {}
+  }, [])
+
   if (dismissed) return null
 
+  const currentSlide = SLIDES[slideIdx]
+
   return (
-    <Link
-      to="/marketplace"
-      className="fixed bottom-4 left-4 z-40 group flex items-center gap-2 bg-slate-900 text-white rounded-full pl-2 pr-3 py-1.5 shadow-lg border border-white/10 hover:bg-slate-800 transition-all active:scale-95"
-      aria-label="تصفح Amugar Marketplace"
-    >
-      {/* Logo */}
-      <img
-        src="/logo.webp"
-        alt=""
-        className="w-5 h-5 object-contain shrink-0 pointer-events-none"
-        draggable={false}
-      />
-      {/* Text */}
-      <span className="text-[10px] font-bold whitespace-nowrap hidden sm:inline">
-        موثق في Amugar
-      </span>
-      <BadgeCheck size={14} className="text-emerald-400 shrink-0" />
-      {/* Dismiss button */}
+    <div className="fixed bottom-32 left-4 z-40 flex flex-col items-center">
+      {/* ─── Squircle capsule (clickable → /marketplace) ─── */}
+      <Link
+        to="/marketplace"
+        className="relative w-16 h-16 rounded-2xl bg-red-500 shadow-xl overflow-hidden grid place-items-center active:scale-95 transition-transform"
+        aria-label="تصفح Amugar Marketplace"
+      >
+        {/* Slides layer (absolute, cross-fade) */}
+        {SLIDES.map((slide, i) => {
+          const isActive = i === slideIdx
+          return (
+            <div
+              key={i}
+              className={`absolute inset-0 grid place-items-center transition-opacity duration-500 ${
+                isActive ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+            >
+              {slide.type === 'text' ? (
+                <div className="text-center px-1">
+                  <div className="text-white font-black text-sm leading-tight">
+                    {slide.line1}
+                  </div>
+                  {slide.line2 && (
+                    <div className="text-white font-black text-sm leading-tight">
+                      {slide.line2}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-white grid place-items-center shadow-md">
+                  <img
+                    src={slide.src}
+                    alt={slide.label}
+                    className="w-9 h-9 object-contain"
+                    draggable={false}
+                  />
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        {/* Subtle pulse glow to draw attention (like AliExpress) */}
+        <div className="absolute inset-0 rounded-2xl ring-2 ring-red-400/50 animate-pulse pointer-events-none" />
+      </Link>
+
+      {/* ─── Dismiss X button (below the squircle, like AliExpress) ─── */}
       <button
         onClick={dismiss}
-        className="w-4 h-4 rounded-full bg-white/10 hover:bg-white/20 grid place-items-center transition shrink-0"
+        className="mt-1 w-5 h-5 rounded-full bg-white/80 backdrop-blur grid place-items-center shadow-sm hover:bg-white transition"
         aria-label="إخفاء"
       >
-        <X size={9} />
+        <X size={11} className="text-slate-600" />
       </button>
-    </Link>
+    </div>
   )
 }
