@@ -19,8 +19,8 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Search, X, Package, Truck, ShieldCheck, Store as StoreIcon,
-  ChevronLeft, ChevronRight, Menu, SlidersHorizontal, Eye,
-  ShoppingBag, CheckCircle2, Zap, Flame, Tag, BadgeCheck, ArrowLeft,
+  ChevronLeft, ChevronRight, ChevronDown, Menu, SlidersHorizontal, Eye,
+  ShoppingBag, CheckCircle2, Check, Zap, Flame, Tag, BadgeCheck, ArrowLeft,
 } from 'lucide-react'
 import { fetchMarketplaceProducts, fetchMarketplaceStores, trackMarketplaceView } from '../services/api/client'
 import type { MarketplaceProduct } from '../services/api/client'
@@ -79,6 +79,16 @@ export default function Marketplace() {
 
   // Mobile filter drawer
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Collapsible sidebar sections (categories + stores are collapsed by
+  // default so the sidebar doesn't become a wall of 16 categories + 10k
+  // stores). The user expands them only when they want to filter.
+  const [categoriesExpanded, setCategoriesExpanded] = useState(false)
+  const [storesExpanded, setStoresExpanded] = useState(false)
+  // Store-search query (filters the stores list inside the sidebar).
+  // Critical for scaling: with 10,000+ stores, a flat list is unusable —
+  // the search box lets the merchant/customer find any store in 1 keystroke.
+  const [storeSearch, setStoreSearch] = useState('')
 
   // If viewing a specific store's marketplace page (/marketplace/store/:slug)
   const [storeProfile, setStoreProfile] = useState<TenantStore | null>(null)
@@ -280,6 +290,21 @@ export default function Marketplace() {
 
   const hasActiveFilters = q || category !== 'all' || minPrice || maxPrice || storeId
 
+  // Filtered stores list for the sidebar search box.
+  // With 10,000+ stores, a flat list is unusable — this filters by name
+  // (Arabic or Latin) so the user can find any store in 1 keystroke.
+  // We cap the rendered list at 50 results to keep the DOM small even
+  // when the search matches thousands of stores.
+  const filteredStores = useMemo(() => {
+    if (!storeSearch.trim()) return stores
+    const s = storeSearch.toLowerCase().trim()
+    return stores.filter(st =>
+      (st.nameAr || '').toLowerCase().includes(s) ||
+      (st.name || '').toLowerCase().includes(s) ||
+      (st.slug || '').toLowerCase().includes(s)
+    )
+  }, [stores, storeSearch])
+
   const clearAllFilters = () => {
     setQ('')
     setCategory('all')
@@ -316,42 +341,73 @@ export default function Marketplace() {
 
         {/* Scrollable filter content */}
         <div className="flex-1 overflow-y-auto min-h-0 px-3 py-4 space-y-5">
-          {/* Categories */}
+          {/* Sort — moved here from the header so the search bar gets
+              maximum horizontal space. Compact collapsible section. */}
           <div>
-            <div className="text-[10px] font-bold text-slate-500 tracking-widest px-2 mb-2">الفئات</div>
-            <div className="space-y-0.5">
-              {CATEGORY_CIRCLES.map(cat => {
-                const active = category === cat.key
-                return (
-                  <button
-                    key={cat.key}
-                    onClick={() => {
-                      setCategory(cat.key)
-                      setStoreId('')
-                      setSidebarOpen(false)
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition ${
-                      active
-                        ? 'bg-slate-900 text-white'
-                        : 'text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    <img
-                      src={cat.icon3d}
-                      alt=""
-                      loading="lazy"
-                      className={`w-4 h-4 object-contain shrink-0 pointer-events-none select-none ${active ? '' : 'opacity-90'}`}
-                      draggable={false}
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
-                    />
-                    <span className="flex-1 text-right font-medium">{cat.labelAr}</span>
-                  </button>
-                )
-              })}
+            <div className="text-[10px] font-bold text-slate-500 tracking-widest px-2 mb-2">ترتيب حسب</div>
+            <div className="px-1 space-y-1">
+              {SORT_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setSort(opt.value as any); setPage(1) }}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition ${
+                    sort === opt.value ? 'bg-slate-100 font-bold text-slate-900' : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="flex-1 text-right">{opt.labelAr}</span>
+                  {sort === opt.value && <Check size={12} className="text-slate-900" />}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Price filter */}
+          {/* Categories — collapsible (collapsed by default) */}
+          <div>
+            <button
+              onClick={() => setCategoriesExpanded(v => !v)}
+              className="w-full flex items-center justify-between px-2 mb-1 text-[10px] font-bold text-slate-500 tracking-widest hover:text-slate-900 transition"
+            >
+              <span>الفئات {category !== 'all' && `(${CATEGORY_CIRCLES.find(c => c.key === category)?.labelAr || category})`}</span>
+              <ChevronDown
+                size={14}
+                className={`transition-transform ${categoriesExpanded ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {categoriesExpanded && (
+              <div className="space-y-0.5">
+                {CATEGORY_CIRCLES.map(cat => {
+                  const active = category === cat.key
+                  return (
+                    <button
+                      key={cat.key}
+                      onClick={() => {
+                        setCategory(cat.key)
+                        setStoreId('')
+                        setSidebarOpen(false)
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition ${
+                        active
+                          ? 'bg-slate-900 text-white'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <img
+                        src={cat.icon3d}
+                        alt=""
+                        loading="lazy"
+                        className={`w-4 h-4 object-contain shrink-0 pointer-events-none select-none ${active ? '' : 'opacity-90'}`}
+                        draggable={false}
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+                      />
+                      <span className="flex-1 text-right font-medium">{cat.labelAr}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Price filter — always visible (compact) */}
           <div>
             <div className="text-[10px] font-bold text-slate-500 tracking-widest px-2 mb-2">نطاق السعر (د.ج)</div>
             <div className="px-2 space-y-2">
@@ -381,35 +437,80 @@ export default function Marketplace() {
             </div>
           </div>
 
-          {/* Stores */}
+          {/* Stores — collapsible + searchable (handles 10k+ stores) */}
           {stores.length > 0 && (
             <div>
-              <div className="text-[10px] font-bold text-slate-500 tracking-widest px-2 mb-2">
-                المتاجر ({stores.length})
-              </div>
-              <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
-                <button
-                  onClick={() => setStoreId('')}
-                  className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition ${
-                    !storeId ? 'bg-slate-100 font-bold text-slate-900' : 'text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <StoreIcon size={12} />
-                  <span className="flex-1 text-right">كل المتاجر</span>
-                </button>
-                {stores.map(s => (
+              <button
+                onClick={() => setStoresExpanded(v => !v)}
+                className="w-full flex items-center justify-between px-2 mb-1 text-[10px] font-bold text-slate-500 tracking-widest hover:text-slate-900 transition"
+              >
+                <span>
+                  المتاجر ({stores.length})
+                  {storeId && ` • ${stores.find(s => s._id === storeId)?.nameAr || 'محدد'}`}
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform ${storesExpanded ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {storesExpanded && (
+                <div className="space-y-1">
+                  {/* Store search box — critical for scaling */}
+                  <div className="relative px-1">
+                    <Search size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      value={storeSearch}
+                      onChange={e => setStoreSearch(e.target.value)}
+                      placeholder={`ابحث في ${stores.length} متجر...`}
+                      className="w-full bg-slate-100 border border-slate-200 rounded-lg pr-7 pl-2 py-1.5 text-xs outline-none focus:border-slate-400 focus:bg-white transition placeholder:text-slate-400"
+                    />
+                    {storeSearch && (
+                      <button
+                        onClick={() => setStoreSearch('')}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition"
+                        aria-label="مسح"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                  {/* "All stores" button */}
                   <button
-                    key={s._id}
-                    onClick={() => setStoreId(s._id)}
+                    onClick={() => setStoreId('')}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition ${
-                      storeId === s._id ? 'bg-slate-100 font-bold text-slate-900' : 'text-slate-700 hover:bg-slate-100'
+                      !storeId ? 'bg-slate-100 font-bold text-slate-900' : 'text-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    <StoreIcon size={12} className="text-slate-500" />
-                    <span className="flex-1 text-right truncate">{s.nameAr || s.name}</span>
+                    <StoreIcon size={12} />
+                    <span className="flex-1 text-right">كل المتاجر</span>
                   </button>
-                ))}
-              </div>
+                  {/* Filtered store list — capped at 50 results to keep DOM small */}
+                  {filteredStores.slice(0, 50).map(s => (
+                    <button
+                      key={s._id}
+                      onClick={() => setStoreId(s._id)}
+                      className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition ${
+                        storeId === s._id ? 'bg-slate-100 font-bold text-slate-900' : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <StoreIcon size={12} className="text-slate-500" />
+                      <span className="flex-1 text-right truncate">{s.nameAr || s.name}</span>
+                    </button>
+                  ))}
+                  {/* "X more" hint when results are truncated */}
+                  {filteredStores.length > 50 && (
+                    <div className="text-[10px] text-slate-400 text-center py-1">
+                      و{filteredStores.length - 50} متجر آخر — قيّد البحث أعلاه
+                    </div>
+                  )}
+                  {/* No-results state */}
+                  {filteredStores.length === 0 && storeSearch.trim() && (
+                    <div className="text-[10px] text-slate-400 text-center py-2">
+                      لا يوجد متجر يطابق "{storeSearch}"
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -443,21 +544,20 @@ export default function Marketplace() {
         {/* ─── Single-row sticky header (RTL-optimized) ───────────────────
             One row only:
               RIGHT  → Logo (clean, no dark box, h-7 ≈ 26-28px)
-              CENTER → Capsule search (flex-1, rounded-full, embedded
-                       search icon + clear button)
-              LEFT   → Sort dropdown + Filter trigger (compact cluster)
-            The whole header has a single comfortable height — no
-            second row, no extra delivery tag (the trust strip below
-            the hero covers that). */}
+              CENTER → Capsule search (flex-1, rounded-full, slim)
+              LEFT   → Menu trigger (matches the merchant storefront's
+                       hamburger icon — consistent across the platform).
+            Sort dropdown moved into the sidebar (the sidebar's "sort"
+            section) so the search bar gets the maximum horizontal space. */}
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
-          <div className="px-3 md:px-6 py-2.5 flex items-center gap-2">
+          <div className="px-3 md:px-6 py-2 flex items-center gap-2">
             {/* Logo (far right) */}
             <Logo to="/marketplace" showText={false} imgClassName="h-7 w-auto" className="shrink-0" />
 
-            {/* Capsule search — single dominant element */}
+            {/* Capsule search — slim, single dominant element */}
             <div className="flex-1 min-w-0 relative">
-              <div className="flex items-center gap-2 bg-slate-100 rounded-full pr-3 pl-1 py-1 border border-slate-200 focus-within:border-slate-400 focus-within:bg-white transition">
-                <Search size={15} className="text-slate-400 shrink-0 ms-1" />
+              <div className="flex items-center gap-1.5 bg-slate-100 rounded-full pr-3 pl-1 py-0.5 border border-slate-200 focus-within:border-slate-400 focus-within:bg-white transition">
+                <Search size={14} className="text-slate-400 shrink-0 ms-1" />
                 <input
                   value={q}
                   onChange={e => setQ(e.target.value)}
@@ -471,46 +571,36 @@ export default function Marketplace() {
                     className="text-slate-400 hover:text-slate-700 transition shrink-0"
                     aria-label="مسح البحث"
                   >
-                    <X size={15} />
+                    <X size={14} />
                   </button>
                 )}
                 <button
                   onClick={() => { setPage(1); void fetchProducts() }}
-                  className="shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white grid place-items-center hover:bg-slate-800 active:scale-95 transition"
+                  className="shrink-0 w-7 h-7 rounded-full bg-slate-900 text-white grid place-items-center hover:bg-slate-800 active:scale-95 transition"
                   aria-label="بحث"
                 >
-                  <Search size={14} />
+                  <Search size={13} />
                 </button>
               </div>
             </div>
 
-            {/* Sort dropdown (compact) */}
-            <select
-              value={sort}
-              onChange={e => { setSort(e.target.value as any); setPage(1) }}
-              className="w-auto max-w-[80px] sm:max-w-none text-[11px] sm:text-xs px-2 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 font-bold outline-none cursor-pointer hover:bg-slate-200 transition shrink-0 truncate"
-              aria-label="ترتيب"
-            >
-              {SORT_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.labelAr}</option>
-              ))}
-            </select>
-
-            {/* Filter trigger — mobile: icon only, desktop: pill with label */}
+            {/* Menu trigger — matches the merchant storefront's hamburger
+                icon (Menu, not SlidersHorizontal) for cross-platform
+                consistency. Opens the sidebar drawer on all screens. */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden w-10 h-10 rounded-xl bg-slate-100 grid place-items-center shrink-0 active:scale-95 hover:bg-slate-200 transition"
-              aria-label="الفلاتر"
+              className="lg:hidden w-9 h-9 rounded-xl bg-slate-100 grid place-items-center shrink-0 active:scale-95 hover:bg-slate-200 transition"
+              aria-label="القائمة"
             >
-              <SlidersHorizontal size={18} className="text-slate-700" />
+              <Menu size={18} className="text-slate-700" />
             </button>
             <button
               onClick={() => setSidebarOpen(true)}
-              className="hidden lg:flex items-center gap-1.5 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 transition px-3 text-xs font-bold text-slate-700 shrink-0"
-              aria-label="الفلاتر"
+              className="hidden lg:flex items-center gap-1.5 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 transition px-3 text-xs font-bold text-slate-700 shrink-0"
+              aria-label="القائمة"
             >
-              <SlidersHorizontal size={16} />
-              <span>فلاتر</span>
+              <Menu size={16} />
+              <span>القائمة</span>
             </button>
           </div>
         </header>
